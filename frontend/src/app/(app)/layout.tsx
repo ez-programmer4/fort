@@ -19,8 +19,10 @@ const NAV: { href: string; label: string; icon: IconName; permission: string }[]
   { href: '/reports', label: 'Reports', icon: 'chart', permission: 'reports.view' },
   { href: '/locations', label: 'Locations', icon: 'mapPin', permission: 'locations.manage' },
   { href: '/suppliers', label: 'Suppliers', icon: 'users', permission: 'suppliers.manage' },
+  { href: '/audit', label: 'Audit Trail', icon: 'clipboard', permission: 'inventory.view' },
   { href: '/users', label: 'Users', icon: 'users', permission: 'users.manage' },
   { href: '/roles', label: 'Roles & Permissions', icon: 'shield', permission: 'roles.manage' },
+  { href: '/settings', label: 'Settings', icon: 'gear', permission: 'settings.manage' },
 ];
 
 const COLLAPSE_KEY = 'fort_sidebar_collapsed';
@@ -32,7 +34,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    setCollapsed(localStorage.getItem(COLLAPSE_KEY) === '1');
+    const stored = localStorage.getItem(COLLAPSE_KEY);
+    if (stored !== null) {
+      setCollapsed(stored === '1');
+    } else {
+      // No saved preference: start collapsed on tablet-width screens
+      setCollapsed(window.matchMedia('(max-width: 1024px)').matches);
+    }
   }, []);
 
   useEffect(() => {

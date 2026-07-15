@@ -12,18 +12,22 @@ function money(v) {
  * Start a branded report PDF and stream it to the response.
  * Returns the pdfkit document; caller adds content then calls doc.end().
  */
-function startReport(res, { filename, title, subtitle, filters }) {
+function startReport(res, { filename, title, subtitle, filters, branding = {} }) {
   const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   doc.pipe(res);
 
+  const name = branding.pharmacyName || 'FortInventory';
+  const initial = (branding.logoInitial || name[0] || 'F').slice(0, 2);
+  const tagline = [branding.pharmacyAddress, branding.pharmacyPhone].filter(Boolean).join('  ·  ')
+    || 'Pharmacy Inventory Management System';
+
   // Header: monochrome logo block + title
   doc.rect(50, 50, 26, 26).fill(SLATE_900);
-  doc.fill('#ffffff').font('Helvetica-Bold').fontSize(16).text('F', 50, 55, { width: 26, align: 'center' });
-  doc.fill(SLATE_900).font('Helvetica-Bold').fontSize(18).text('FortInventory', 86, 50);
-  doc.font('Helvetica').fontSize(9).fillColor(SLATE_500)
-    .text('Pharmacy Inventory Management System', 86, 71);
+  doc.fill('#ffffff').font('Helvetica-Bold').fontSize(14).text(initial, 50, 57, { width: 26, align: 'center' });
+  doc.fill(SLATE_900).font('Helvetica-Bold').fontSize(18).text(name, 86, 50);
+  doc.font('Helvetica').fontSize(9).fillColor(SLATE_500).text(tagline, 86, 71);
 
   doc.font('Helvetica-Bold').fontSize(14).fillColor(SLATE_900).text(title, 50, 105);
   if (subtitle) doc.font('Helvetica').fontSize(10).fillColor(SLATE_500).text(subtitle, 50, 123);

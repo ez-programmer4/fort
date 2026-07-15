@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { getTokens } from '@/lib/api';
+import { useSettings } from '@/lib/settings';
 
 const input =
   'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -74,12 +75,16 @@ interface OrderDetail {
 // ── printable slip ───────────────────────────────────────────
 
 function Slip({ order }: { order: OrderDetail }) {
+  const settings = useSettings();
+  const tagline = [settings?.pharmacyAddress, settings?.pharmacyPhone].filter(Boolean).join(' · ');
   return (
     <div id="dispense-slip" className="rounded-lg border border-slate-200 bg-white p-6 print:border-0 print:p-0">
       <div className="flex items-start justify-between border-b border-slate-300 pb-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900">FortInventory</h2>
-          <p className="text-sm text-slate-500">Dispense Slip</p>
+          <h2 className="text-xl font-bold tracking-tight text-slate-900">
+            {settings?.pharmacyName || 'FortInventory'}
+          </h2>
+          <p className="text-sm text-slate-500">{tagline ? `${tagline} — ` : ''}Dispense Slip</p>
         </div>
         <div className="text-right text-sm">
           <p className="font-mono font-semibold text-slate-900">{order.dspNumber}</p>
@@ -165,6 +170,7 @@ function Slip({ order }: { order: OrderDetail }) {
 // ── new dispense flow: pick → editable summary → confirm ────
 
 function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispensed: (o: OrderDetail) => void }) {
+  const settings = useSettings();
   const [locationId, setLocationId] = useState('');
   const [stockQuery, setStockQuery] = useState('');
   const [stockOptions, setStockOptions] = useState<StockRow[]>([]);
@@ -405,7 +411,11 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
                 onChange={(e) => {
                   const opt = WHT_OPTIONS.find((o) => o.value === e.target.value)!;
                   setWhtType(opt.value);
-                  setWhtRate(String(opt.defaultRate));
+                  const rate =
+                    opt.value === 'GOODS' ? settings?.whtGoodsRate ?? opt.defaultRate
+                    : opt.value === 'SERVICES' ? settings?.whtServicesRate ?? opt.defaultRate
+                    : 0;
+                  setWhtRate(String(rate));
                 }}
                 className={`mt-1 ${input}`}
               >

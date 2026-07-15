@@ -5,6 +5,31 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-15 — Phase 10 complete: Settings & Polish — **BUILD COMPLETE** 🎉
+
+**Phase:** 10 — Settings & Polish (final phase)
+
+**Done:**
+- `Setting` key/value model + `/api/settings` (GET any signed-in user, PUT `settings.manage`) — migration `settings`
+- Settings: pharmacy name, address, phone, logo initials (1–2 chars), default expiry-alert window, default WHT rates for goods/services
+- **Wired everywhere:** report PDFs (logo box + name + address/phone tagline), dispense slip header, alerts engine default expiry window, WHT rate defaults in receiving/dispensing/expense forms (`frontend/src/lib/settings.ts` cached fetch + `useSettings` hook)
+- **Audit Trail page** (`/audit`, `inventory.view`): every stock movement with type/location/product/date filters and pagination — GRV, dispense, adjustments with reason and performer
+- **Rate limiting** (express-rate-limit): 20 login attempts / 15 min, 300 API requests / min
+- **Responsive:** sidebar auto-collapses on ≤1024 px screens when no saved preference; all tables scroll horizontally
+- Settings page UI (identity + defaults sections)
+
+**Verified:**
+- Settings round-trip; branded finance PDF visually inspected ("FP" logo box, "Fort Pharmacy PLC", address · phone tagline) then restored to defaults
+- Audit trail returns all 12 movements with performers; rate-limit headers present; `tsc` clean
+- **Full sweep: all 17 pages render HTTP 200** (/, login, dashboard, alerts, products, inventory, bincard, procurement, sales, wallet, reports, audit, locations, suppliers, users, roles, settings)
+
+**The system is feature-complete against requirnment.md:** dashboard, alerts (per-product thresholds), locations, users/roles/permissions, products with Excel import/export, bin card, inventory with adjustments, procurement (PO → GRV with WHT), sales & dispensing (editable summary, slip, attachments), wallet (credit ledger + payments), finance & sales PDF reports, settings, audit trail, responsive monochrome UI.
+
+**Login:** admin@fortinventory.local / admin123 (change in production!)
+**Run:** `docker compose up -d` → `cd backend && npm run dev` → `cd frontend && npm run dev` → http://localhost:3000
+
+---
+
 ## 2026-07-15 — Phase 9 complete: Reports (+ alerts tabs rework)
 
 **Phase:** 9 — Reports

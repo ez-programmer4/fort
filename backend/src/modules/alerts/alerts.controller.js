@@ -1,12 +1,14 @@
 const prisma = require('../../utils/prisma');
 const { ApiError } = require('../../middleware/error');
+const { getSettings } = require('../../utils/settings.service');
 
-const DEFAULT_EXPIRY_DAYS = 90;
 const ADJUSTMENT_LOOKBACK_DAYS = 30;
 
 // Alerts are computed live from stock + movements, using each product's own
 // thresholds (minStock / maxStock in its dispense unit, expiryAlertDays).
 async function buildAlerts(locationId) {
+  const settings = await getSettings();
+  const DEFAULT_EXPIRY_DAYS = Number(settings.defaultExpiryAlertDays) || 90;
   const where = { quantity: { gt: 0 }, ...(locationId ? { locationId } : {}) };
 
   const stocks = await prisma.stock.findMany({

@@ -159,4 +159,47 @@ async function exportInventory(req, res, next) {
   }
 }
 
-module.exports = { list, adjust, exportInventory };
+// Audit trail: every stock movement, filterable
+async function movements(req, res, next) {
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 25));
+    const where = {};
+    if (req.query.type) where.type = String(req.query.type);
+    if (req.query.locationId) where.locationId = Number(req.query.locationId);
+    if (req.query.q) {
+      where.product = {
+        OR: [
+          { code: { contains: req.query.q, mode: 'insensitive' } },
+          { genericName: { contains: req.query.q, mode: 'insensitive' } },
+          { brandName: { contains: req.query.q, mode: 'insensitive' } },
+        ],
+      };
+    }
+    const from = req.query.from ? new Date(`${req.query.from}T00:00:00`) : null;
+    const to = req.query.to ? new Date(`${req.query.to}T23:59:59.999`) : null;
+    if ((from && isNaN(from)) || (to && isNaN(to))) throw new ApiError(400, 'Invalid date range');
+    if (from || to) where.createdAt = { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) };
+
+    const [total, rows] = await Promise.all([
+      prisma.stockMovement.count({ where }),
+      prisma.stockMovement.findMany({
+        where,
+        include: {
+          product: { select: { code: true, genericName: true, dispenseUnit: true } },
+          batch: { select: { batchNo: true, expiryDate: true } },
+          location: { select: { name: true } },
+          performedBy: { select: { fullName: true } },
+        },
+        orderBy: { id: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    res.json({ movements: rows, total, page, pageSize });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, adjust, exportInventory, movements };

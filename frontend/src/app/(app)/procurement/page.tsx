@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { AppSettings, useSettings } from '@/lib/settings';
 
 // ── shared bits ──────────────────────────────────────────────
 
@@ -18,6 +19,12 @@ const WHT_OPTIONS = [
   { value: 'GOODS', label: 'Goods', defaultRate: 2 },
   { value: 'SERVICES', label: 'Services', defaultRate: 2 },
 ];
+
+function whtRateFor(value: string, settings: AppSettings | null): number {
+  if (value === 'GOODS') return settings?.whtGoodsRate ?? 2;
+  if (value === 'SERVICES') return settings?.whtServicesRate ?? 2;
+  return 0;
+}
 
 function money(v: string | number) {
   return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -304,6 +311,7 @@ interface ReceiveLine {
 }
 
 function ReceiveForm({ order, onDone, onCancel }: { order: PO; onDone: () => void; onCancel: () => void }) {
+  const settings = useSettings();
   const [lines, setLines] = useState<ReceiveLine[]>(
     order.items.map((it) => ({
       itemId: it.id,
@@ -419,7 +427,7 @@ function ReceiveForm({ order, onDone, onCancel }: { order: PO; onDone: () => voi
             onChange={(e) => {
               const opt = WHT_OPTIONS.find((o) => o.value === e.target.value)!;
               setWhtType(opt.value);
-              setWhtRate(String(opt.defaultRate));
+              setWhtRate(String(whtRateFor(opt.value, settings)));
             }}
             className={`mt-1 ${input}`}
           >
@@ -496,6 +504,7 @@ interface Expense {
 }
 
 export default function ProcurementPage() {
+  const settings = useSettings();
   const [tab, setTab] = useState<Tab>('orders');
   const [orders, setOrders] = useState<PO[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -823,7 +832,7 @@ export default function ProcurementPage() {
                     value={exp.whtType}
                     onChange={(e) => {
                       const opt = WHT_OPTIONS.find((o) => o.value === e.target.value)!;
-                      setExp({ ...exp, whtType: opt.value, whtRate: String(opt.defaultRate) });
+                      setExp({ ...exp, whtType: opt.value, whtRate: String(whtRateFor(opt.value, settings)) });
                     }}
                     className={`mt-1 w-full ${input}`}
                   >

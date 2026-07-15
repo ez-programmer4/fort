@@ -6,6 +6,7 @@ router.use(requireAuth);
 
 router.get('/', requirePermission('inventory.view'), ctrl.list);
 router.get('/export', requirePermission('inventory.view'), ctrl.exportInventory);
+router.get('/movements', requirePermission('inventory.view'), ctrl.movements);
 router.post('/adjust', requirePermission('inventory.adjust'), ctrl.adjust);
 
 module.exports = router;

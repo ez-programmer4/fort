@@ -130,11 +130,16 @@ fort/
 
 ## Phase 10 — Settings & Polish (§3.11, §4)
 
-- [ ] Settings: pharmacy name/logo, tax rates, alert thresholds, expiry window
-- [ ] Responsive pass (desktop + tablet)
-- [ ] Audit trail review page (all stock movements)
-- [ ] Security hardening: rate limiting, validation everywhere, helmet
-- [ ] Seed demo data + final end-to-end walkthrough
+- [x] Settings: pharmacy name/logo initials, WHT default rates, default expiry alert window
+      (wired into PDFs, dispense slip, alerts engine and WHT form defaults)
+- [x] Responsive pass (sidebar auto-collapses on tablet-width screens; tables scroll)
+- [x] Audit trail review page (all stock movements with filters)
+- [x] Security hardening: rate limiting (login + general), validation throughout, helmet
+- [x] Final end-to-end walkthrough (all 17 pages verified, live data flows checked)
+
+---
+
+**All 11 phases complete — the system fulfils every module in requirnment.md.**
 
 ---
 

@@ -295,6 +295,13 @@ model Attachment {
   createdAt       DateTime      @default(now())
 }
 
+// ── Phase 10: system settings ────────────────────────────────
+
+model Setting {
+  key   String @id
+  value Json
+}
+
 // ── Phase 4: current stock per batch × location ──────────────
 
 model Stock {

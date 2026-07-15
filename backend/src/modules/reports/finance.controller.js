@@ -1,6 +1,7 @@
 const prisma = require('../../utils/prisma');
 const { ApiError } = require('../../middleware/error');
 const pdf = require('../../utils/pdf');
+const { getSettings } = require('../../utils/settings.service');
 
 function parseFilters(query) {
   const from = query.from ? new Date(`${query.from}T00:00:00`) : null;
@@ -95,14 +96,18 @@ async function financeJson(req, res, next) {
 async function financePdf(req, res, next) {
   try {
     const filters = parseFilters(req.query);
-    const location = await locationName(filters.locationId);
-    const data = await computeFinance(filters);
+    const [location, data, branding] = await Promise.all([
+      locationName(filters.locationId),
+      computeFinance(filters),
+      getSettings(),
+    ]);
 
     const doc = pdf.startReport(res, {
       filename: `finance-report-${new Date().toISOString().slice(0, 10)}.pdf`,
       title: 'Finance Report',
       subtitle: 'Sales, cost of goods sold, gross profit and payments',
       filters: { from: filters.from, to: filters.to, location },
+      branding,
     });
 
     const neg = (v) => (v > 0 ? `-${pdf.money(v)}` : pdf.money(0));
@@ -185,14 +190,18 @@ async function salesJson(req, res, next) {
 async function salesPdf(req, res, next) {
   try {
     const filters = parseFilters(req.query);
-    const location = await locationName(filters.locationId);
-    const { days, totals } = await computeSales(filters);
+    const [location, { days, totals }, branding] = await Promise.all([
+      locationName(filters.locationId),
+      computeSales(filters),
+      getSettings(),
+    ]);
 
     const doc = pdf.startReport(res, {
       filename: `sales-report-${new Date().toISOString().slice(0, 10)}.pdf`,
       title: 'Sales Report',
       subtitle: 'Performance by period — date-wise revenue',
       filters: { from: filters.from, to: filters.to, location },
+      branding,
     });
 
     pdf.table(

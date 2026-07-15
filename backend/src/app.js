@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 
 const { errorHandler, notFound } = require('./middleware/error');
 
@@ -11,6 +12,10 @@ app.use(helmet());
 app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 app.use(express.json({ limit: '5mb' }));
 app.use(morgan('dev'));
+
+// Brute-force protection on login; generous general limit for the API
+app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false }));
+app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'fortinventory-api', time: new Date().toISOString() });
@@ -30,6 +35,7 @@ app.use('/api/sales', require('./modules/sales/sales.routes'));
 app.use('/api/wallet', require('./modules/wallet/wallet.routes'));
 app.use('/api/alerts', require('./modules/alerts/alerts.routes'));
 app.use('/api/dashboard', require('./modules/dashboard/dashboard.routes'));
+app.use('/api/settings', require('./modules/settings/settings.routes'));
 
 app.use(notFound);
 app.use(errorHandler);
