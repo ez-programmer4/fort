@@ -5,14 +5,14 @@ Source of truth for requirements: [requirnment.md](requirnment.md)
 
 ## Tech Stack
 
-| Layer    | Choice                                      |
-| -------- | ------------------------------------------- |
-| Backend  | Node.js + Express + Prisma ORM              |
-| Frontend | Next.js (App Router) + Tailwind CSS         |
-| Database | PostgreSQL (via Docker Compose)             |
-| Auth     | JWT (access + refresh), role-based access   |
-| PDF      | pdfkit / puppeteer (reports, slips)         |
-| Excel    | exceljs (import/export)                     |
+| Layer    | Choice                                    |
+| -------- | ----------------------------------------- |
+| Backend  | Node.js + Express + Prisma ORM            |
+| Frontend | Next.js (App Router) + Tailwind CSS       |
+| Database | PostgreSQL (via Docker Compose)           |
+| Auth     | JWT (access + refresh), role-based access |
+| PDF      | pdfkit / puppeteer (reports, slips)       |
+| Excel    | exceljs (import/export)                   |
 
 ## Project Structure
 
@@ -96,12 +96,12 @@ fort/
 
 ## Phase 6 — Sales & Dispensing (§3.8)
 
-- [ ] Prisma models: `DispenseOrder`, `DispenseItem` (batch-level), `Attachment`
-- [ ] Dispense flow: select location → product → batch → qty → per-sale price adjustment
-- [ ] Dispense summary (editable quantities) → confirm → stock-out movements
-- [ ] Print dispense slip (PDF)
-- [ ] Sales history with attachments upload
-- [ ] Frontend: Dispense page (cart-style), summary/confirm, slip print, history page
+- [x] Prisma models: `DispenseOrder`, `DispenseItem` (batch-level), `Attachment`
+- [x] Dispense flow: select location → product → batch → qty → per-sale price adjustment
+- [x] Dispense summary (editable quantities) → confirm → stock-out movements
+- [x] Print dispense slip (browser print-to-PDF; branded PDF in Phase 9)
+- [x] Sales history with attachments upload
+- [x] Frontend: Dispense page (cart-style), summary/confirm, slip print, history page
 
 ## Phase 7 — Wallet / Finance (§3.9)
 

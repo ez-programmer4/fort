@@ -5,6 +5,30 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-15 — Phase 6 complete: Sales & Dispensing
+
+**Phase:** 6 — Sales & Dispensing
+
+**Done:**
+- Prisma models: `DispenseOrder` (auto `DSP-00001…`, location, CASH/CREDIT payment, subtotal, optional withholding, total), `DispenseItem` (batch-level, keeps both **list price** and the **adjusted sale price** for this sale), `Attachment` — migration `sales_dispensing`
+- Sales API: create dispense order (validates every batch, blocks over-dispensing, writes `DISPENSE` stock-out movements via the shared stock service — all atomic), paginated history with search/filters, order detail, attachment upload (multer disk storage in `backend/uploads/`, gitignored) and authenticated download
+- Frontend Sales & Dispensing page:
+  - **New Dispense** — pick location → live-search available stock (shows batch, expiry, available qty, price) → add to cart → **Dispense Summary with editable quantities and per-sale price adjustment** (as requested: review/adjust before confirming) → payment type + optional WHT → Confirm
+  - **Dispense Slip** — printable slip (header, DSP number, items with batch/expiry, totals, signature lines); Print button (browser print-to-PDF); shell hidden in print view
+  - **Sales History** — orders with payment badge (credit highlighted), expandable line items showing list vs sold-at price, per-order attachments (upload + download)
+
+**Verified:**
+- DSP-00001: 20× Paracetamol @13.00 (list 12.50, per-sale override) + 50× Amoxicillin @8.00 = 660.00 CREDIT — stock fell 200→180 and 300→250; Amoxicillin bin card shows `DISPENSE / out 50 / DSP-00001`
+- Over-dispensing 99,999 rejected (400); attachment uploaded and downloaded back byte-identical; `tsc --noEmit` clean; /sales renders (HTTP 200)
+
+**Decisions:**
+- Payment type (cash/credit) recorded now so Phase 7 (Wallet) can compute outstanding balances without schema changes
+- Sales can carry optional withholding tax like purchases (per requirement NB)
+
+**Next:** Phase 7 — Wallet / Finance
+
+---
+
 ## 2026-07-15 — Phase 5 complete: Procurement / GRV
 
 **Phase:** 5 — Procurement Module
