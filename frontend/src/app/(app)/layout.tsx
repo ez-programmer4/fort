@@ -12,8 +12,9 @@ const NAV: { href: string; label: string; icon: IconName; permission: string }[]
   { href: '/products', label: 'Products', icon: 'box', permission: 'products.view' },
   { href: '/inventory', label: 'Inventory', icon: 'stack', permission: 'inventory.view' },
   { href: '/bincard', label: 'Bin Card', icon: 'document', permission: 'products.view' },
+  { href: '/procurement', label: 'Procurement', icon: 'truck', permission: 'procurement.view' },
   { href: '/locations', label: 'Locations', icon: 'mapPin', permission: 'locations.manage' },
-  { href: '/suppliers', label: 'Suppliers', icon: 'truck', permission: 'suppliers.manage' },
+  { href: '/suppliers', label: 'Suppliers', icon: 'users', permission: 'suppliers.manage' },
   { href: '/users', label: 'Users', icon: 'users', permission: 'users.manage' },
   { href: '/roles', label: 'Roles & Permissions', icon: 'shield', permission: 'roles.manage' },
 ];

@@ -5,6 +5,33 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-15 — Phase 5 complete: Procurement / GRV
+
+**Phase:** 5 — Procurement Module
+
+**Done:**
+- Prisma models: `PurchaseOrder` (auto `PO-00001…`, supplier, receiving location, status OPEN/RECEIVED/CANCELLED), `PurchaseOrderItem` (qty, unit cost, optional batch/expiry pre-fill), `GoodsReceipt` (auto `GRV-00001…`, subtotal, withholding type/rate/amount, net payable), `GRVItem`, and `ExpensePurchase` for non-sale purchases — migration `procurement`
+- Procurement API: list/create/cancel POs; **receive** endpoint that atomically upserts batches, writes GRV stock-in movements via the shared stock service, creates the receipt, and flips the PO to RECEIVED; GRV history; expense list/create
+- Optional **withholding tax** on receiving and on expenses: type NONE/GOODS/SERVICES with editable rate (UI defaults 2%) — net payable = subtotal − WHT
+- Frontend Procurement page with three tabs:
+  - **Purchase Orders** — new-PO form (product search picker, line items with qty/cost/batch/expiry, live subtotal), receive flow (prefilled lines, batch No. required, WHT selector with live net-payable), cancel, status badges, linked GRV numbers
+  - **GRV History** — receipts with expandable line items, subtotal/WHT/net columns
+  - **Other Purchases** — record office supplies etc. with category, supplier, WHT
+- Hardened PO item validation (non-numeric productId now returns 400 instead of 500)
+
+**Verified:**
+- PO-00001 (200× Paracetamol @9.75 + 300× Amoxicillin @6.50) received as GRV-00001 with 2% goods WHT: subtotal 3,900.00 → WHT 78.00 → net 3,822.00
+- Inventory gained batches BN-2026-002 (qty 200) and AMX-101 (qty 300); Amoxicillin bin card shows the GRV movement (`GRV-00001 (PO-00001)`)
+- Receiving a non-open PO rejected (400); expense with 2% services WHT → net 1,470.00; GRV history returns items; `tsc --noEmit` clean; /procurement renders (HTTP 200)
+- User created PO-00002 through the browser UI while testing — the flow works live
+
+**Notes:**
+- Docker Desktop and both dev servers had been stopped between sessions — restarted (`docker compose up -d`, `npm run dev` in backend/ and frontend/)
+
+**Next:** Phase 6 — Sales & Dispensing
+
+---
+
 ## 2026-07-15 — Phase 4 complete: Inventory & Stock
 
 **Phase:** 4 — Inventory Management

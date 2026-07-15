@@ -25,6 +25,7 @@ app.use('/api/products', require('./modules/products/products.routes'));
 app.use('/api/lookups', require('./modules/lookups/lookups.routes'));
 app.use('/api/reports', require('./modules/reports/reports.routes'));
 app.use('/api/inventory', require('./modules/inventory/inventory.routes'));
+app.use('/api/procurement', require('./modules/procurement/procurement.routes'));
 
 app.use(notFound);
 app.use(errorHandler);

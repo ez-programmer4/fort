@@ -86,13 +86,13 @@ fort/
 
 ## Phase 5 — Procurement / GRV (§3.7)
 
-- [ ] Prisma models: `PurchaseOrder`, `PurchaseOrderItem`, `GoodsReceipt` (GRV), `GRVItem`
-- [ ] Create PO: pick products (search/filter), qty, price
-- [ ] GRV: receive against PO → enter qty, batch, expiry, price, location → creates batches + stock-in movements
-- [ ] Optional withholding tax on purchases (goods vs services)
-- [ ] Non-sale item purchases (office supplies etc.)
-- [ ] GRV history API + page
-- [ ] Frontend: PO creation flow, GRV receiving flow, GRV history
+- [x] Prisma models: `PurchaseOrder`, `PurchaseOrderItem`, `GoodsReceipt` (GRV), `GRVItem`
+- [x] Create PO: pick products (search/filter), qty, price
+- [x] GRV: receive against PO → enter qty, batch, expiry, price, location → creates batches + stock-in movements
+- [x] Optional withholding tax on purchases (goods vs services)
+- [x] Non-sale item purchases (office supplies etc. — `ExpensePurchase`)
+- [x] GRV history API + page
+- [x] Frontend: PO creation flow, GRV receiving flow, GRV history
 
 ## Phase 6 — Sales & Dispensing (§3.8)
 

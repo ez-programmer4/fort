@@ -20,7 +20,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  movements StockMovement[]
+  movements        StockMovement[]
+  purchaseOrders   PurchaseOrder[]
+  goodsReceipts    GoodsReceipt[]
+  expensePurchases ExpensePurchase[]
 }
 
 model Role {
@@ -61,8 +64,10 @@ model Location {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  movements StockMovement[]
-  stocks    Stock[]
+  movements      StockMovement[]
+  stocks         Stock[]
+  purchaseOrders PurchaseOrder[]
+  goodsReceipts  GoodsReceipt[]
 }
 
 model Supplier {
@@ -76,8 +81,11 @@ model Supplier {
   isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  products     Product[]
-  batches      Batch[]
+  products         Product[]
+  batches          Batch[]
+  purchaseOrders   PurchaseOrder[]
+  goodsReceipts    GoodsReceipt[]
+  expensePurchases ExpensePurchase[]
 }
 
 // ── Phase 3: Products, Lookups, Bin Card foundations ─────────
@@ -115,6 +123,8 @@ model Product {
   updatedAt        DateTime        @updatedAt
   batches          Batch[]
   movements        StockMovement[]
+  poItems          PurchaseOrderItem[]
+  grvItems         GRVItem[]
 }
 
 model Batch {
@@ -129,8 +139,90 @@ model Batch {
   createdAt  DateTime        @default(now())
   movements  StockMovement[]
   stocks     Stock[]
+  grvItems   GRVItem[]
 
   @@unique([productId, batchNo])
+}
+
+// ── Phase 5: Procurement (Purchase Orders, GRV, expenses) ────
+
+model PurchaseOrder {
+  id          Int                 @id @default(autoincrement())
+  poNumber    String              @unique
+  supplierId  Int?
+  supplier    Supplier?           @relation(fields: [supplierId], references: [id])
+  locationId  Int
+  location    Location            @relation(fields: [locationId], references: [id])
+  status      String              @default("OPEN") // OPEN | RECEIVED | CANCELLED
+  notes       String?
+  createdById Int
+  createdBy   User                @relation(fields: [createdById], references: [id])
+  createdAt   DateTime            @default(now())
+  items       PurchaseOrderItem[]
+  receipts    GoodsReceipt[]
+}
+
+model PurchaseOrderItem {
+  id              Int           @id @default(autoincrement())
+  purchaseOrderId Int
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId       Int
+  product         Product       @relation(fields: [productId], references: [id])
+  quantity        Int
+  unitCost        Decimal       @db.Decimal(12, 2)
+  batchNo         String?
+  expiryDate      DateTime?
+}
+
+model GoodsReceipt {
+  id                Int            @id @default(autoincrement())
+  grvNumber         String         @unique
+  purchaseOrderId   Int?
+  purchaseOrder     PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  supplierId        Int?
+  supplier          Supplier?      @relation(fields: [supplierId], references: [id])
+  locationId        Int
+  location          Location       @relation(fields: [locationId], references: [id])
+  subtotal          Decimal        @db.Decimal(14, 2)
+  withholdingType   String         @default("NONE") // NONE | GOODS | SERVICES
+  withholdingRate   Decimal        @default(0) @db.Decimal(5, 2)
+  withholdingAmount Decimal        @default(0) @db.Decimal(14, 2)
+  netPayable        Decimal        @db.Decimal(14, 2)
+  notes             String?
+  receivedById      Int
+  receivedBy        User           @relation(fields: [receivedById], references: [id])
+  createdAt         DateTime       @default(now())
+  items             GRVItem[]
+}
+
+model GRVItem {
+  id             Int          @id @default(autoincrement())
+  goodsReceiptId Int
+  goodsReceipt   GoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  productId      Int
+  product        Product      @relation(fields: [productId], references: [id])
+  batchId        Int
+  batch          Batch        @relation(fields: [batchId], references: [id])
+  quantity       Int
+  unitCost       Decimal      @db.Decimal(12, 2)
+}
+
+// Non-sale purchases: office supplies, services, etc. (no inventory impact)
+model ExpensePurchase {
+  id                Int       @id @default(autoincrement())
+  description       String
+  category          String?
+  supplierId        Int?
+  supplier          Supplier? @relation(fields: [supplierId], references: [id])
+  amount            Decimal   @db.Decimal(14, 2)
+  withholdingType   String    @default("NONE") // NONE | GOODS | SERVICES
+  withholdingRate   Decimal   @default(0) @db.Decimal(5, 2)
+  withholdingAmount Decimal   @default(0) @db.Decimal(14, 2)
+  netPayable        Decimal   @db.Decimal(14, 2)
+  purchasedAt       DateTime  @default(now())
+  notes             String?
+  createdById       Int
+  createdBy         User      @relation(fields: [createdById], references: [id])
 }
 
 // ── Phase 4: current stock per batch × location ──────────────
