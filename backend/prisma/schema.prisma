@@ -25,6 +25,7 @@ model User {
   goodsReceipts    GoodsReceipt[]
   expensePurchases ExpensePurchase[]
   dispenseOrders   DispenseOrder[]
+  payments         Payment[]
 }
 
 model Role {
@@ -248,6 +249,7 @@ model DispenseOrder {
   createdAt         DateTime       @default(now())
   items             DispenseItem[]
   attachments       Attachment[]
+  payments          Payment[]
 }
 
 model DispenseItem {
@@ -261,6 +263,21 @@ model DispenseItem {
   quantity        Int
   listPrice       Decimal       @db.Decimal(12, 2) // product price at time of sale
   unitPrice       Decimal       @db.Decimal(12, 2) // actual (possibly adjusted) sale price
+}
+
+// ── Phase 7: Wallet / Finance ────────────────────────────────
+
+model Payment {
+  id              Int           @id @default(autoincrement())
+  dispenseOrderId Int
+  dispenseOrder   DispenseOrder @relation(fields: [dispenseOrderId], references: [id])
+  amount          Decimal       @db.Decimal(14, 2)
+  method          String        @default("CASH") // CASH | BANK_TRANSFER | CHEQUE | MOBILE
+  reference       String?
+  notes           String?
+  receivedById    Int
+  receivedBy      User          @relation(fields: [receivedById], references: [id])
+  createdAt       DateTime      @default(now())
 }
 
 model Attachment {

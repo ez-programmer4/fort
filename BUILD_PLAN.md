@@ -105,11 +105,11 @@ fort/
 
 ## Phase 7 — Wallet / Finance (§3.9)
 
-- [ ] Prisma models: `Sale`/`Invoice` (cash vs credit), `Payment`, withholding tax fields
-- [ ] Outstanding balances (credit sales) API
-- [ ] Record payment endpoint
-- [ ] Withholding tax handling on sales (goods & services, optional per transaction)
-- [ ] Frontend: Wallet page — sales ledger, outstanding balances, record payment
+- [x] `Payment` model (cash/credit lives on `DispenseOrder` since Phase 6; WHT fields already there)
+- [x] Outstanding balances (credit sales) API
+- [x] Record payment endpoint (overpay guard, credit-only)
+- [x] Withholding tax handling on sales (done in Phase 6, surfaced in wallet summary)
+- [x] Frontend: Wallet page — summary cards, outstanding credits, record payment, payment history
 
 ## Phase 8 — Alerts & Dashboard (§3.1, §3.2)
 

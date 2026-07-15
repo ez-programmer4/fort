@@ -27,6 +27,7 @@ app.use('/api/reports', require('./modules/reports/reports.routes'));
 app.use('/api/inventory', require('./modules/inventory/inventory.routes'));
 app.use('/api/procurement', require('./modules/procurement/procurement.routes'));
 app.use('/api/sales', require('./modules/sales/sales.routes'));
+app.use('/api/wallet', require('./modules/wallet/wallet.routes'));
 
 app.use(notFound);
 app.use(errorHandler);

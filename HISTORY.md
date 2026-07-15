@@ -5,6 +5,29 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-15 — Phase 7 complete: Wallet / Finance
+
+**Phase:** 7 — Wallet / Finance
+
+**Done:**
+- Prisma model `Payment` (amount, method CASH/BANK_TRANSFER/CHEQUE/MOBILE, reference, received by) linked to dispense orders — migration `payments`
+- Wallet API (`finance.view` / `finance.manage`):
+  - `GET /api/wallet/summary` — total/cash/credit sales, payments received, **outstanding balance**, WHT withheld on sales; filterable by date range & location
+  - `GET /api/wallet/credits` — credit-sale ledger with per-order paid/outstanding (open by default, `settled=true` shows all)
+  - `POST /api/wallet/payments` — record payment; **rejects overpayment** and payments against cash sales
+  - `GET /api/wallet/payments` — payment history
+- Frontend Wallet page: six summary cards (Total/Cash/Credit/Payments/Outstanding/WHT) with date-range filter, Outstanding Credits tab (record-payment form prefilled with the outstanding amount, method/reference/notes), Payment History tab. Record button gated by `finance.manage`
+- Cash sales are treated as settled at sale time; only credit sales carry balances
+
+**Verified:**
+- Summary: 3,900 total = 3,240 cash (DSP-00002, user's own browser test sale) + 660 credit (DSP-00001), outstanding 660
+- Payment 300 (bank transfer, ref TT-4471) → outstanding 360; overpay 9,999 rejected (400); payment 360 → settled, outstanding 0, paymentsReceived 660, open credits list empty
+- `tsc --noEmit` clean; /wallet renders (HTTP 200)
+
+**Next:** Phase 8 — Alerts & Dashboard
+
+---
+
 ## 2026-07-15 — Phase 6 complete: Sales & Dispensing
 
 **Phase:** 6 — Sales & Dispensing
