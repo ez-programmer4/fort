@@ -33,7 +33,8 @@ export class ApiError extends Error {
 
 async function rawFetch(path: string, options: RequestInit, accessToken?: string) {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    // FormData bodies set their own multipart boundary — don't override
+    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string>),
   };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
@@ -79,4 +80,27 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     throw new ApiError(res.status, message);
   }
   return (await res.json()) as T;
+}
+
+/** Authenticated file download — saves the response as a file via a temporary link. */
+export async function apiDownload(path: string, fallbackName: string) {
+  let accessToken = getTokens()?.accessToken;
+  let res = await rawFetch(path, {}, accessToken);
+  if (res.status === 401 && accessToken) {
+    const refreshed = await tryRefresh();
+    if (refreshed) res = await rawFetch(path, {}, refreshed);
+  }
+  if (!res.ok) throw new ApiError(res.status, `Download failed (${res.status})`);
+
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^";]+)"?/);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = match?.[1] || fallbackName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

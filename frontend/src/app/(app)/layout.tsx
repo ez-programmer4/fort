@@ -9,6 +9,8 @@ import { Icon, IconName } from '@/components/icons';
 // Nav grows as phases are built — permission gates which links a user sees
 const NAV: { href: string; label: string; icon: IconName; permission: string }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: 'dashboard', permission: 'dashboard.view' },
+  { href: '/products', label: 'Products', icon: 'box', permission: 'products.view' },
+  { href: '/bincard', label: 'Bin Card', icon: 'document', permission: 'products.view' },
   { href: '/locations', label: 'Locations', icon: 'mapPin', permission: 'locations.manage' },
   { href: '/suppliers', label: 'Suppliers', icon: 'truck', permission: 'suppliers.manage' },
   { href: '/users', label: 'Users', icon: 'users', permission: 'users.manage' },
@@ -51,7 +53,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-slate-50">
       <aside
-        className={`flex flex-col border-r border-slate-200 bg-white transition-all duration-200 ${
+        className={`flex flex-col border-r border-slate-200 bg-white transition-all duration-200 print:hidden ${
           collapsed ? 'w-16' : 'w-60'
         }`}
       >
@@ -87,7 +89,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white pl-3 pr-6">
+        <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white pl-3 pr-6 print:hidden">
           <div className="flex items-center gap-3">
             <button
               onClick={toggleSidebar}

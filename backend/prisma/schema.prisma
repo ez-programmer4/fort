@@ -19,6 +19,8 @@ model User {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  movements StockMovement[]
 }
 
 model Role {
@@ -58,17 +60,93 @@ model Location {
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  movements StockMovement[]
 }
 
 model Supplier {
-  id           Int      @id @default(autoincrement())
-  name         String   @unique
+  id           Int       @id @default(autoincrement())
+  name         String    @unique
   tin          String?
   phone        String?
   email        String?
   address      String?
-  bankAccounts Json     @default("[]") // [{ bankName, accountNumber }]
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  bankAccounts Json      @default("[]") // [{ bankName, accountNumber }]
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  products     Product[]
+  batches      Batch[]
+}
+
+// ── Phase 3: Products, Lookups, Bin Card foundations ─────────
+
+model Lookup {
+  id       Int    @id @default(autoincrement())
+  category String // doseForm | route | doseUnit | unit
+  value    String
+
+  @@unique([category, value])
+}
+
+model Product {
+  id               Int             @id @default(autoincrement())
+  code             String          @unique
+  type             String // Medication | Equipment | Cosmetics
+  pharmClass       String
+  genericName      String
+  brandName        String?
+  description      String?
+  strength         String?
+  doseUnit         String?
+  route            String?
+  doseForm         String?
+  orderUnit        String?
+  dispenseUnit     String?
+  conversionFactor Float           @default(1)
+  countryOfOrigin  String?
+  manufacturer     String?
+  supplierId       Int?
+  supplier         Supplier?       @relation(fields: [supplierId], references: [id])
+  unitPrice        Decimal         @default(0) @db.Decimal(12, 2)
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  batches          Batch[]
+  movements        StockMovement[]
+}
+
+model Batch {
+  id         Int             @id @default(autoincrement())
+  productId  Int
+  product    Product         @relation(fields: [productId], references: [id])
+  batchNo    String
+  expiryDate DateTime?
+  supplierId Int?
+  supplier   Supplier?       @relation(fields: [supplierId], references: [id])
+  unitCost   Decimal?        @db.Decimal(12, 2)
+  createdAt  DateTime        @default(now())
+  movements  StockMovement[]
+
+  @@unique([productId, batchNo])
+}
+
+model StockMovement {
+  id            Int      @id @default(autoincrement())
+  productId     Int
+  product       Product  @relation(fields: [productId], references: [id])
+  batchId       Int?
+  batch         Batch?   @relation(fields: [batchId], references: [id])
+  locationId    Int
+  location      Location @relation(fields: [locationId], references: [id])
+  type          String // GRV | DISPENSE | ADJUST_INCREASE | ADJUST_DECREASE | TRANSFER_IN | TRANSFER_OUT
+  direction     String // IN | OUT
+  quantity      Int
+  reason        String?
+  remark        String?
+  performedById Int
+  performedBy   User     @relation(fields: [performedById], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([productId, locationId, createdAt])
 }

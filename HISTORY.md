@@ -5,6 +5,34 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-15 — Phase 3 complete: Product Management + Bin Card
+
+**Phase:** 3 — Product Management (+ Bin Card pulled forward from Phase 4 per user request)
+
+**Done:**
+- Prisma models: `Product` (all §3.5 fields, auto-generated code `P-00001…`, supplier link, decimal unit price), `Lookup` (seeded dose forms ×15, routes ×11, dose units ×8, order/dispense units ×10), plus **`Batch` and `StockMovement`** pulled forward so the Bin Card works now — migration `products_lookups_movements`
+- Products API: paginated list with search + type/supplier/active filters, create, update/deactivate
+- Excel (exceljs + multer): template download (with sample row + notes sheet), filtered export, bulk import with per-row validation (bad rows reported with reasons, good rows still imported)
+- Bin Card API `GET /api/reports/bincard?productId&locationId&from&to`: opening balance before range + chronological rows (Date | Batch | Expiry | Supplier | In | Out | Balance | Performed By | Remark)
+- Frontend Products page: table with code/name/brand/type/class/form/strength/price/supplier/status, debounced search, type filter, pagination, full add/edit form (lookup-driven selects), Template / Import / Export buttons with import result summary
+- Frontend Bin Card page: product search-select, location + date range, ledger table with opening/closing balances, **Print / Save as PDF** (app shell hidden via print CSS)
+- `api.ts` gained FormData upload support and an authenticated `apiDownload` helper
+
+**Verified:**
+- Created P-00001 Paracetamol & P-00002 Amoxicillin via API; search + lookups OK
+- Template (7.9 KB) and export (7.1 KB) download; import file with 1 valid + 1 invalid row → `created: 1`, row 3 rejected with 4 precise reasons
+- Seeded 3 test movements → bin card shows running balance 500 → 380 → 370 with batch, supplier and performer
+- `tsc --noEmit` clean; /products and /bincard render (HTTP 200)
+
+**Decisions:**
+- Batch/StockMovement created early; Phase 4+ write real movements (GRV in, dispense out) and the bin card picks them up automatically
+- Bin card printing uses the browser's print-to-PDF for now; branded PDF generation (logo + signature) comes with Phase 9 reports
+- Import matches suppliers by exact name (case-insensitive); unknown suppliers reject the row rather than auto-creating
+
+**Next:** Phase 4 — Inventory & Stock (stock levels view, adjustments)
+
+---
+
 ## 2026-07-15 — Phase 2 complete: Locations & Suppliers + UI restyle
 
 **Phase:** 2 — Locations & Suppliers (plus UI overhaul per user feedback)

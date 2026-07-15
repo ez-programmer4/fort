@@ -64,24 +64,25 @@ fort/
 
 ## Phase 3 — Product Management (§3.5)
 
-- [ ] Prisma models: `Product` (type, pharmacotherapeutic class, generic name,
+- [x] Prisma models: `Product` (type, pharmacotherapeutic class, generic name,
       brand, description, strength/dose, dose unit, route, dose form, order unit,
       dispense unit, conversion factor, country, manufacturer, supplier link, unit price, code)
-- [ ] Lookup lists: dose forms, routes, units (seeded, editable)
-- [ ] Product CRUD API with filter/search/pagination
-- [ ] Excel: download template, export products (filters + batch selection), bulk upload with validation
-- [ ] Frontend: Products page (table + filters), Add/Edit Product form, Import/Export UI
+- [x] Lookup lists: dose forms, routes, units (seeded, editable)
+- [x] Product CRUD API with filter/search/pagination
+- [x] Excel: download template, export products (filters + batch selection), bulk upload with validation
+- [x] Frontend: Products page (table + filters), Add/Edit Product form, Import/Export UI
+- [x] Bin Card (pulled forward from Phase 4): `Batch` + `StockMovement` tables, report API, printable page
 
 ## Phase 4 — Inventory & Stock (§3.6)
 
-- [ ] Prisma models: `Batch` (product, batch no., expiry, supplier, unit cost),
-      `Stock` (batch × location, quantity), `StockMovement` (type, qty, reason,
-      performed by, date, from/to location) — the audit trail for everything
+- [x] Prisma models: `Batch` (product, batch no., expiry, supplier, unit cost),
+      `StockMovement` (type, direction, qty, reason, performed by, date, location) — done early in Phase 3
+- [ ] `Stock` table (batch × location current quantity) or computed view
 - [ ] Inventory view API: code, generic, brand, description, qty, price, supplier, batch, expiry — per location
 - [ ] Stock adjustment API (increase/decrease + reason) → writes `StockMovement`
-- [ ] Bin Card report API: product + location + date range → In/Out/Balance rows
+- [x] Bin Card report API: product + location + date range → In/Out/Balance rows (done in Phase 3)
 - [ ] Frontend: Inventory page (filter/search/export), Stock Adjustment modal
-- [ ] Frontend: Bin Card page + printable/PDF output
+- [x] Frontend: Bin Card page + printable output (done in Phase 3)
 
 ## Phase 5 — Procurement / GRV (§3.7)
 

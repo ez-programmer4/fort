@@ -21,6 +21,9 @@ app.use('/api/users', require('./modules/users/users.routes'));
 app.use('/api/roles', require('./modules/roles/roles.routes'));
 app.use('/api/locations', require('./modules/locations/locations.routes'));
 app.use('/api/suppliers', require('./modules/suppliers/suppliers.routes'));
+app.use('/api/products', require('./modules/products/products.routes'));
+app.use('/api/lookups', require('./modules/lookups/lookups.routes'));
+app.use('/api/reports', require('./modules/reports/reports.routes'));
 
 app.use(notFound);
 app.use(errorHandler);

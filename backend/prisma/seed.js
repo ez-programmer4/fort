@@ -52,7 +52,24 @@ const ROLES = {
   },
 };
 
+const LOOKUPS = {
+  doseForm: ['Tablet', 'Capsule', 'Syrup', 'Suspension', 'Injection', 'Cream', 'Ointment', 'Drops', 'Inhaler', 'Suppository', 'Gel', 'Lotion', 'Patch', 'Powder', 'Solution'],
+  route: ['Oral', 'IV', 'IM', 'SC', 'Topical', 'Inhalation', 'Rectal', 'Ophthalmic', 'Otic', 'Nasal', 'Sublingual'],
+  doseUnit: ['mg', 'g', 'mcg', 'ml', 'IU', '%', 'mg/ml', 'mg/5ml'],
+  unit: ['Box', 'Pack', 'Strip', 'Bottle', 'Vial', 'Ampoule', 'Tube', 'Piece', 'Carton', 'Sachet'],
+};
+
 async function main() {
+  for (const [category, values] of Object.entries(LOOKUPS)) {
+    for (const value of values) {
+      await prisma.lookup.upsert({
+        where: { category_value: { category, value } },
+        update: {},
+        create: { category, value },
+      });
+    }
+  }
+
   for (const [key, label, module] of PERMISSIONS) {
     await prisma.permission.upsert({
       where: { key },
