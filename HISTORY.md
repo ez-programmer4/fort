@@ -5,6 +5,29 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Adjustment phase planning (v1.1)
+
+**Phase:** Planning — Adjustments & Enhancements
+
+**Done:**
+- Pushed phases 5–10 to GitHub (`ee4e03e..5c327da`, github.com/ez-programmer4/fort)
+- Received [adjustment_requirnment.md](adjustment_requirnment.md) (v1.1, 2026-07-16)
+- Planned 5 adjustment phases in [BUILD_PLAN.md](BUILD_PLAN.md):
+  - **A1** — shared UI component library: Drawer, Pagination (10/25/50/100), debounced SearchInput, custom DatePicker (single+range), Combobox, branded loading; added Toasts, ConfirmDialog, EmptyState
+  - **A2** — roll the components out across every module (tables, forms, searches, selects, date inputs)
+  - **A3** — alerts: Dispose action (new DISPOSE movement), search/filter, clickable product details drawer
+  - **A4** — dashboard: profits overview with trends, Top Customers (requires new optional Customer capture at dispensing), real-time charts (sales vs purchases, profit trends, top products by margin/volume, monthly overview), period selector
+  - **A5** — printable sales history with date range + final consistency sweep
+
+**Decisions:**
+- Component library first (A1) so every later phase reuses the same primitives
+- Top Customers requires a Customer entity — v1.0 sales have no customer; will add optional customer capture in the dispense flow (A4)
+- Charts will be built with a monochrome palette to match the UI
+
+**Next:** Phase A1 — Shared UI Component Library
+
+---
+
 ## 2026-07-15 — Phase 10 complete: Settings & Polish — **BUILD COMPLETE** 🎉
 
 **Phase:** 10 — Settings & Polish (final phase)

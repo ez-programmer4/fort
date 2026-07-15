@@ -143,6 +143,71 @@ fort/
 
 ---
 
+# Adjustment & Enhancement Phases (v1.1)
+
+Source of truth: [adjustment_requirnment.md](adjustment_requirnment.md) (2026-07-16).
+Items marked **➕ (added)** are professional-UX additions beyond the spec, per user request.
+
+## Phase A1 — Shared UI Component Library (§1 foundations)
+
+Build once, reuse everywhere (all monochrome, keyboard-accessible):
+
+- [ ] **Drawer** — smooth slide-in panel from the right for all Add/Edit forms (§1.2)
+- [ ] **Pagination** footer — rows per page 10 (default) / 25 / 50 / 100 + page controls (§1.1)
+- [ ] **SearchInput** — debounced 350 ms, fires only from 2+ characters, clear button (§1.3)
+- [ ] **DatePicker** — custom calendar popover, single date + range mode (§1.4)
+- [ ] **Combobox** — searchable select for large lists (type-to-filter, arrow keys) (§2.3)
+- [ ] **LoadingScreen / Spinner** — branded ("FortInventory" + spinner), used app-wide (§1.6)
+- [ ] ➕ **Toast notifications** — success/error feedback instead of inline banners only
+- [ ] ➕ **ConfirmDialog** — for destructive actions (cancel PO, deactivate, dispose)
+- [ ] ➕ **EmptyState** — consistent friendly empty tables with a call-to-action
+- [ ] Navbar/sidebar toggle polish (§1.5 — collapse behavior exists; refine icon + tooltip)
+
+## Phase A2 — Roll-out Across All Modules (§1 applied)
+
+- [ ] Pagination on every table: products, inventory, users, locations, suppliers,
+      procurement (3 tabs), sales history, wallet (credits + payments), audit trail
+- [ ] All Add/Edit forms become Drawers: users, locations, suppliers, products,
+      stock adjustment, new PO, receive GRV, expense, record payment
+- [ ] Debounced 2+ char search everywhere a search box exists
+- [ ] Combobox for supplier & product selection: product form, PO lines, dispense
+      stock picker, bin card product select (§2.3)
+- [ ] Custom DatePicker replaces native date inputs: bin card, wallet, reports,
+      audit, PO receive expiry, sales history
+- [ ] ➕ Branded loading + skeleton rows during data fetch on all pages
+
+## Phase A3 — Alerts Module Adjustments (§2.1)
+
+- [ ] **Dispose** action on expired / near-expiry alerts → new `DISPOSE` stock-out
+      movement (reason required, permission-gated), clears the alert as stock leaves
+- [ ] Search + filter inside the alerts list (product search, location, type tabs stay)
+- [ ] **Clickable product details** — product drawer from any alert: product info,
+      current stock by batch/location, recent movements
+- [ ] ➕ Dispose confirmation with quantity preview (ConfirmDialog)
+
+## Phase A4 — Dashboard Enhancements (§2.2)
+
+- [ ] **Customer entity** (required for Top Customers — not in v1.0): optional
+      customer (name/phone) captured at dispensing via Combobox with quick-create
+- [ ] **Profits Overview** — Gross Profit + Net Profit/Loss (gross − expenses),
+      trend indicators ↑/↓ with % vs previous period
+- [ ] **Top Customers** — ranked by sales volume & frequency, last order date
+- [ ] **Charts** (line/area/bar, monochrome palette):
+  - Sales vs Purchases trend
+  - Gross & Net Profit trends
+  - Top products by margin · Top products by volume
+  - Monthly performance overview
+- [ ] ➕ Period selector for the dashboard (7d / 30d / 90d / 12m)
+
+## Phase A5 — Sales Print + Final Polish (§2.4)
+
+- [ ] **Printable Sales History** — professional print layout with date-range picker
+- [ ] ➕ Sales history date-range filter on screen (not just for print)
+- [ ] ➕ Final consistency sweep: spacing, typography, focus states, tablet check
+- [ ] Verify everything end-to-end, update HISTORY.md
+
+---
+
 ## Build Order Rationale
 
 Auth first because every other module needs users/permissions. Locations,
