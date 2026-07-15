@@ -28,6 +28,8 @@ app.use('/api/inventory', require('./modules/inventory/inventory.routes'));
 app.use('/api/procurement', require('./modules/procurement/procurement.routes'));
 app.use('/api/sales', require('./modules/sales/sales.routes'));
 app.use('/api/wallet', require('./modules/wallet/wallet.routes'));
+app.use('/api/alerts', require('./modules/alerts/alerts.routes'));
+app.use('/api/dashboard', require('./modules/dashboard/dashboard.routes'));
 
 app.use(notFound);
 app.use(errorHandler);

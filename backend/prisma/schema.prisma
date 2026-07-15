@@ -121,6 +121,10 @@ model Product {
   supplierId       Int?
   supplier         Supplier?       @relation(fields: [supplierId], references: [id])
   unitPrice        Decimal         @default(0) @db.Decimal(12, 2)
+  // Per-product alert thresholds, in this product's dispense unit
+  minStock         Int? // low-stock alert when total at a location falls below this
+  maxStock         Int? // over-stock alert when total at a location exceeds this
+  expiryAlertDays  Int? // days before expiry to start alerting (null = default 90)
   isActive         Boolean         @default(true)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt

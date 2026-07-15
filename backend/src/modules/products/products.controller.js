@@ -79,6 +79,21 @@ function validate(body, partial = false) {
     data.unitPrice = up;
   }
   if (b.supplierId !== undefined) data.supplierId = b.supplierId ? Number(b.supplierId) : null;
+  // Per-product alert thresholds (in the product's dispense unit)
+  for (const f of ['minStock', 'maxStock', 'expiryAlertDays']) {
+    if (b[f] !== undefined) {
+      if (b[f] === null || b[f] === '') {
+        data[f] = null;
+      } else {
+        const n = Number(b[f]);
+        if (!Number.isInteger(n) || n < 0) throw new ApiError(400, `${f} must be a non-negative whole number`);
+        data[f] = n;
+      }
+    }
+  }
+  if (data.minStock != null && data.maxStock != null && data.maxStock < data.minStock) {
+    throw new ApiError(400, 'maxStock cannot be lower than minStock');
+  }
   return data;
 }
 

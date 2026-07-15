@@ -28,6 +28,9 @@ interface ProductRow {
   countryOfOrigin: string | null;
   manufacturer: string | null;
   unitPrice: string;
+  minStock: number | null;
+  maxStock: number | null;
+  expiryAlertDays: number | null;
   isActive: boolean;
   supplier: SupplierOption | null;
 }
@@ -57,6 +60,9 @@ interface FormState {
   manufacturer: string;
   supplierId: string;
   unitPrice: string;
+  minStock: string;
+  maxStock: string;
+  expiryAlertDays: string;
 }
 
 const emptyForm: FormState = {
@@ -77,6 +83,9 @@ const emptyForm: FormState = {
   manufacturer: '',
   supplierId: '',
   unitPrice: '0',
+  minStock: '',
+  maxStock: '',
+  expiryAlertDays: '',
 };
 
 const PAGE_SIZE = 20;
@@ -150,6 +159,9 @@ export default function ProductsPage() {
         manufacturer: form.manufacturer || null,
         supplierId: form.supplierId ? Number(form.supplierId) : null,
         unitPrice: Number(form.unitPrice) || 0,
+        minStock: form.minStock === '' ? null : Number(form.minStock),
+        maxStock: form.maxStock === '' ? null : Number(form.maxStock),
+        expiryAlertDays: form.expiryAlertDays === '' ? null : Number(form.expiryAlertDays),
       });
       if (form.id === null) {
         await api('/api/products', { method: 'POST', body });
@@ -239,6 +251,9 @@ export default function ProductsPage() {
       manufacturer: row.manufacturer || '',
       supplierId: row.supplier ? String(row.supplier.id) : '',
       unitPrice: String(row.unitPrice),
+      minStock: row.minStock != null ? String(row.minStock) : '',
+      maxStock: row.maxStock != null ? String(row.maxStock) : '',
+      expiryAlertDays: row.expiryAlertDays != null ? String(row.expiryAlertDays) : '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -475,6 +490,49 @@ export default function ProductsPage() {
                 onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
                 className={input}
               />
+            </div>
+            <div>
+              <label className={label}>
+                Min Stock {form.dispenseUnit ? `(${form.dispenseUnit})` : ''}
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={form.minStock}
+                onChange={(e) => setForm({ ...form, minStock: e.target.value })}
+                placeholder="no low-stock alert"
+                className={input}
+              />
+              <p className="mt-0.5 text-[11px] text-slate-400">Low-stock alert below this</p>
+            </div>
+            <div>
+              <label className={label}>
+                Max Stock {form.dispenseUnit ? `(${form.dispenseUnit})` : ''}
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={form.maxStock}
+                onChange={(e) => setForm({ ...form, maxStock: e.target.value })}
+                placeholder="no over-stock alert"
+                className={input}
+              />
+              <p className="mt-0.5 text-[11px] text-slate-400">Over-stock alert above this</p>
+            </div>
+            <div>
+              <label className={label}>Expiry Alert (days)</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={form.expiryAlertDays}
+                onChange={(e) => setForm({ ...form, expiryAlertDays: e.target.value })}
+                placeholder="default 90"
+                className={input}
+              />
+              <p className="mt-0.5 text-[11px] text-slate-400">Alert this many days before expiry</p>
             </div>
           </div>
           <div className="mt-5 flex gap-2">

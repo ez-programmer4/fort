@@ -9,6 +9,7 @@ import { Icon, IconName } from '@/components/icons';
 // Nav grows as phases are built — permission gates which links a user sees
 const NAV: { href: string; label: string; icon: IconName; permission: string }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: 'dashboard', permission: 'dashboard.view' },
+  { href: '/alerts', label: 'Alerts', icon: 'bell', permission: 'alerts.view' },
   { href: '/products', label: 'Products', icon: 'box', permission: 'products.view' },
   { href: '/inventory', label: 'Inventory', icon: 'stack', permission: 'inventory.view' },
   { href: '/bincard', label: 'Bin Card', icon: 'document', permission: 'products.view' },

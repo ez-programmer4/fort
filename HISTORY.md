@@ -5,6 +5,31 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-15 — Phase 8 complete: Alerts & Dashboard
+
+**Phase:** 8 — Alerts & Dashboard
+
+**Done:**
+- **Per-product alert thresholds** (user requirement: thresholds differ per product and unit): `minStock`, `maxStock`, `expiryAlertDays` added to Product — all in that product's dispense unit; editable in the product form with unit hints (migration `product_alert_thresholds`)
+- Alerts engine (computed live, no stale alert table):
+  - **Expired** — batches past expiry with stock remaining, per location
+  - **Expiring soon** — within the product's own window (default 90 days)
+  - **Low stock** — product total at a location below its minStock (includes fully out-of-stock products)
+  - **Over stock** — above its maxStock
+  - **Stock adjustments** — last 30 days of ADJUST movements with reason, movement type, performed by, move date, quantity, expiry, batch no. (full §3.2 detail set)
+- `GET /api/alerts?type=&locationId=` returns alerts + per-type counts
+- Dashboard API: stock value (batch cost, falling back to product price), units in stock, product count, sales today/7-days, top 5 moving products (30-day dispensed qty), 5 recent sales, alert counts
+- Frontend: Alerts page (clickable count cards double as filters, location filter, detail column incl. who/when for adjustments); Dashboard rebuilt with quick links (POs / Dispense / Inventory / Reports, permission-filtered), stock/sales/alert cards, top movers and recent sales tables
+
+**Verified:**
+- Paracetamol minStock=1000 → LOW_STOCK "535 Strip on hand — below minimum of 1000 Strip"; expiryAlertDays=400 → EXPIRING for the 349-day batch only
+- Amoxicillin maxStock=100 → OVER_STOCK (250 on hand); received CTZ-OLD batch with past expiry → EXPIRED "76 day(s) ago — 50 Strip still in stock"; both ADJUST movements listed with reasons
+- Type filter works; dashboard shows stockValue 6,942.25, 7-day sales 4,012.50, top mover Paracetamol ×65; `tsc` clean; both pages HTTP 200
+
+**Next:** Phase 9 — Reports (Finance & Sales PDF)
+
+---
+
 ## 2026-07-15 — Phase 7 complete: Wallet / Finance
 
 **Phase:** 7 — Wallet / Finance

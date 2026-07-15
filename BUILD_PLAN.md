@@ -113,12 +113,12 @@ fort/
 
 ## Phase 8 — Alerts & Dashboard (§3.1, §3.2)
 
-- [ ] Alerts engine: expiring/expired, low stock, over stock, stock adjustments
-      (min/max thresholds per product-location; expiry window setting)
-- [ ] Alert detail: reason, movement type, performed by, date, qty, expiry, batch no.
-- [ ] Frontend: Alerts page (filter by type)
-- [ ] Dashboard API: stock overview, low-stock/expiring counts, sales summary, top movers
-- [ ] Frontend: Dashboard with quick links to POs, Dispensing, Reports
+- [x] Alerts engine: expiring/expired, low stock, over stock, stock adjustments —
+      **thresholds per product in its own dispense unit** (minStock/maxStock/expiryAlertDays on Product)
+- [x] Alert detail: reason, movement type, performed by, date, qty, expiry, batch no.
+- [x] Frontend: Alerts page (filter by type + location, count cards)
+- [x] Dashboard API: stock overview, low-stock/expiring counts, sales summary, top movers
+- [x] Frontend: Dashboard with quick links to POs, Dispensing, Reports
 
 ## Phase 9 — Reports (§3.10)
 
