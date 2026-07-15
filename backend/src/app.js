@@ -16,8 +16,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'fortinventory-api', time: new Date().toISOString() });
 });
 
-// Module routers get mounted here as phases are built, e.g.:
-// app.use('/api/auth', require('./modules/auth/auth.routes'));
+app.use('/api/auth', require('./modules/auth/auth.routes'));
+app.use('/api/users', require('./modules/users/users.routes'));
+app.use('/api/roles', require('./modules/roles/roles.routes'));
 
 app.use(notFound);
 app.use(errorHandler);

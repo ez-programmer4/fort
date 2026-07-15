@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: fortpass
       POSTGRES_DB: fortinventory
     ports:
-      - "5432:5432"
+      # 5434 on host — native PostgreSQL 17 occupies 5432, wslrelay holds 5433
+      - "5434:5432"
     volumes:
       - fort_pgdata:/var/lib/postgresql/data
     healthcheck:

@@ -46,14 +46,14 @@ fort/
 
 ## Phase 1 — Auth, Users & Roles (§3.4)
 
-- [ ] Prisma models: `User`, `Role`, `Permission`, `RolePermission`
-- [ ] Seed 4 roles: Admin, Accountant, Operations, Sales (+ default admin user)
-- [ ] Auth endpoints: login, refresh, logout, me (JWT, bcrypt)
-- [ ] RBAC middleware (permission-per-endpoint)
-- [ ] User CRUD endpoints (Admin only)
-- [ ] Frontend: login page, auth context, protected routes
-- [ ] Frontend: Users page (list/add/edit/deactivate)
-- [ ] Frontend: Roles & Permissions page (view/edit permissions per role)
+- [x] Prisma models: `User`, `Role`, `Permission`, `RolePermission`
+- [x] Seed 4 roles: Admin, Accountant, Operations, Sales (+ default admin user)
+- [x] Auth endpoints: login, refresh, me (JWT, bcrypt; logout is client-side token discard)
+- [x] RBAC middleware (permission-per-endpoint)
+- [x] User CRUD endpoints (Admin only)
+- [x] Frontend: login page, auth context, protected routes
+- [x] Frontend: Users page (list/add/edit/deactivate)
+- [x] Frontend: Roles & Permissions page (view/edit permissions per role)
 
 ## Phase 2 — Locations & Suppliers (§3.3, part of §3.7)
 

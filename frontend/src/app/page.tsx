@@ -1,17 +1,21 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth';
+
 export default function Home() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    router.replace(user ? '/dashboard' : '/login');
+  }, [loading, user, router]);
+
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-emerald-700">
-          FortInventory
-        </h1>
-        <p className="mt-3 text-lg text-slate-600">
-          Pharmacy Inventory Management System
-        </p>
-        <p className="mt-6 text-sm text-slate-400">
-          Phase 0 scaffold — login and dashboard arrive in Phase 1.
-        </p>
-      </div>
+    <main className="flex min-h-screen items-center justify-center text-slate-400">
+      Loading…
     </main>
   );
 }
