@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { Combobox, ComboOption } from '@/components/ui/combobox';
+import { DateRangePicker } from '@/components/ui/date-picker';
 
 interface ProductOption {
   id: number;
@@ -43,7 +45,6 @@ interface BinCard {
 }
 
 export default function BinCardPage() {
-  const [productQuery, setProductQuery] = useState('');
   const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
   const [productId, setProductId] = useState('');
   const [locations, setLocations] = useState<LocationOption[]>([]);
@@ -60,16 +61,23 @@ export default function BinCardPage() {
       .catch((e) => setError(e.message));
   }, []);
 
+  const searchProducts = useCallback((term: string) => {
+    api<{ products: ProductOption[] }>(
+      `/api/products?pageSize=20${term ? `&q=${encodeURIComponent(term)}` : ''}`,
+    )
+      .then((d) => setProductOptions(d.products))
+      .catch((e) => setError(e.message));
+  }, []);
+
   useEffect(() => {
-    const t = setTimeout(() => {
-      api<{ products: ProductOption[] }>(
-        `/api/products?pageSize=20${productQuery ? `&q=${encodeURIComponent(productQuery)}` : ''}`,
-      )
-        .then((d) => setProductOptions(d.products))
-        .catch((e) => setError(e.message));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [productQuery]);
+    searchProducts('');
+  }, [searchProducts]);
+
+  const productComboOptions: ComboOption[] = productOptions.map((p) => ({
+    value: String(p.id),
+    label: `${p.genericName}${p.brandName ? ` (${p.brandName})` : ''}`,
+    sublabel: p.code,
+  }));
 
   async function run() {
     if (!productId || !locationId) {
@@ -119,31 +127,17 @@ export default function BinCardPage() {
         </p>
       )}
 
-      <div className="mt-6 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-5 print:hidden">
-        <div>
-          <label className="block text-xs font-medium text-slate-600">Search product</label>
-          <input
-            value={productQuery}
-            onChange={(e) => setProductQuery(e.target.value)}
-            placeholder="Type to search…"
-            className={`mt-1 w-full ${input}`}
-          />
-        </div>
+      <div className="mt-6 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-4 print:hidden">
         <div>
           <label className="block text-xs font-medium text-slate-600">Product</label>
-          <select
+          <Combobox
+            options={productComboOptions}
             value={productId}
-            onChange={(e) => setProductId(e.target.value)}
-            className={`mt-1 w-full ${input}`}
-          >
-            <option value="">Select…</option>
-            {productOptions.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.code} — {p.genericName}
-                {p.brandName ? ` (${p.brandName})` : ''}
-              </option>
-            ))}
-          </select>
+            onChange={setProductId}
+            onSearch={searchProducts}
+            placeholder="Search product…"
+            className="mt-1"
+          />
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-600">Store / Location</label>
@@ -160,25 +154,18 @@ export default function BinCardPage() {
             ))}
           </select>
         </div>
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-slate-600">From</label>
-            <input
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className={`mt-1 w-full ${input}`}
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-slate-600">To</label>
-            <input
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className={`mt-1 w-full ${input}`}
-            />
-          </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600">Date range</label>
+          <DateRangePicker
+            from={from}
+            to={to}
+            onChange={(r) => {
+              setFrom(r.from);
+              setTo(r.to);
+            }}
+            placeholder="All time"
+            className="mt-1"
+          />
         </div>
         <div className="flex items-end">
           <button

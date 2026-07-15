@@ -152,16 +152,18 @@ Items marked **➕ (added)** are professional-UX additions beyond the spec, per 
 
 Build once, reuse everywhere (all monochrome, keyboard-accessible):
 
-- [ ] **Drawer** — smooth slide-in panel from the right for all Add/Edit forms (§1.2)
-- [ ] **Pagination** footer — rows per page 10 (default) / 25 / 50 / 100 + page controls (§1.1)
-- [ ] **SearchInput** — debounced 350 ms, fires only from 2+ characters, clear button (§1.3)
-- [ ] **DatePicker** — custom calendar popover, single date + range mode (§1.4)
-- [ ] **Combobox** — searchable select for large lists (type-to-filter, arrow keys) (§2.3)
-- [ ] **LoadingScreen / Spinner** — branded ("FortInventory" + spinner), used app-wide (§1.6)
-- [ ] ➕ **Toast notifications** — success/error feedback instead of inline banners only
-- [ ] ➕ **ConfirmDialog** — for destructive actions (cancel PO, deactivate, dispose)
-- [ ] ➕ **EmptyState** — consistent friendly empty tables with a call-to-action
-- [ ] Navbar/sidebar toggle polish (§1.5 — collapse behavior exists; refine icon + tooltip)
+- [x] **Drawer** — smooth slide-in panel from the right for all Add/Edit forms (§1.2)
+- [x] **Pagination** footer — rows per page 10 (default) / 25 / 50 / 100 + page controls (§1.1)
+- [x] **SearchInput** — debounced 350 ms, fires only from 2+ characters, clear button (§1.3)
+- [x] **DatePicker** — custom calendar popover, single date + range mode (§1.4)
+- [x] **Combobox** — searchable select for large lists (type-to-filter, arrow keys) (§2.3)
+- [x] **LoadingScreen / Spinner / SkeletonRows** — branded, used app-wide (§1.6)
+- [x] ➕ **Toast notifications** — success/error feedback instead of inline banners only
+- [x] ➕ **ConfirmDialog** — for destructive actions (cancel PO, deactivate, dispose)
+- [x] ➕ **EmptyState** — consistent friendly empty tables with a call-to-action
+- [x] Navbar/sidebar toggle (§1.5 — already built in Phase 2; icons-only collapse + persisted state)
+- [x] Pilot integrations: Locations page (drawer, pagination, search, toasts, confirm, skeleton,
+      empty state) and Bin Card (product combobox + date-range picker)
 
 ## Phase A2 — Roll-out Across All Modules (§1 applied)
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Icon, IconName } from '@/components/icons';
+import { LoadingScreen } from '@/components/ui/loading';
 
 // Nav grows as phases are built — permission gates which links a user sees
 const NAV: { href: string; label: string; icon: IconName; permission: string }[] = [
@@ -55,11 +56,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   if (loading || !user) {
-    return (
-      <main className="flex min-h-screen items-center justify-center text-sm text-slate-400">
-        Loading…
-      </main>
-    );
+    return <LoadingScreen label="Preparing your workspace…" />;
   }
 
   const current = NAV.find((n) => pathname.startsWith(n.href));

@@ -6,18 +6,33 @@ const TYPES = ['Retail', 'Warehouse', 'Dispensary', 'Other'];
 async function list(req, res, next) {
   try {
     const q = String(req.query.q || '').trim();
-    const locations = await prisma.location.findMany({
-      where: q
-        ? {
-            OR: [
-              { name: { contains: q, mode: 'insensitive' } },
-              { address: { contains: q, mode: 'insensitive' } },
-            ],
-          }
-        : undefined,
-      orderBy: { name: 'asc' },
-    });
-    res.json({ locations });
+    const where = q
+      ? {
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { address: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : undefined;
+
+    // Without ?page, return the full list (dropdown/filter consumers).
+    if (!req.query.page) {
+      const locations = await prisma.location.findMany({ where, orderBy: { name: 'asc' } });
+      return res.json({ locations, total: locations.length });
+    }
+
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
+    const [total, locations] = await Promise.all([
+      prisma.location.count({ where }),
+      prisma.location.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    res.json({ locations, total, page, pageSize });
   } catch (err) {
     next(err);
   }

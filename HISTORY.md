@@ -5,6 +5,30 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A1 complete: Shared UI Component Library
+
+**Phase:** A1 — Shared UI Component Library
+
+**Done** (`frontend/src/components/ui/`):
+- **Drawer** — right slide-in panel (250 ms ease-out, overlay, Esc/overlay close, body-scroll lock, md/lg/xl widths) — replaces modals for Add/Edit (§1.2)
+- **Pagination** — rows-per-page 10 (default)/25/50/100, range info, prev/next (§1.1)
+- **SearchInput** — 350 ms debounce, fires only for empty (reset) or 2+ chars, search icon + clear button (§1.3)
+- **DatePicker + DateRangePicker** — custom Monday-first calendar popover, month navigation, today ring, range highlighting, two-click range with auto-swap, clear/Today, outside-click + Esc close (§1.4)
+- **Combobox** — searchable select: type-to-filter (client) or debounced `onSearch` (server), arrow-key navigation, Enter/Esc, sublabels, clear (§2.3)
+- **LoadingScreen** (branded FortInventory + spinner), **Spinner**, **SkeletonRows** (§1.6)
+- ➕ **ToastProvider/useToast** — bottom-right stacked toasts (success/error/info), auto-dismiss 4.5 s
+- ➕ **ConfirmDialog** — centered confirm for destructive actions with danger variant
+- ➕ **EmptyState** — friendly empty tables with optional call-to-action
+- Wired: ToastProvider in root layout; branded LoadingScreen replaces the plain "Loading…" in the app shell
+- Backend: `GET /api/locations` now supports optional `?page&pageSize` (returns `total`; without `page` still returns the full list for dropdown consumers)
+- **Pilot pages:** Locations fully converted (drawer form, pagination, debounced search, toasts, delete with ConfirmDialog, skeleton rows, empty state); Bin Card uses the product Combobox + DateRangePicker
+
+**Verified:** paginated + unpaginated locations API both work; `tsc --noEmit` clean; locations/bincard/dashboard render (HTTP 200)
+
+**Next:** Phase A2 — roll the components out across all modules
+
+---
+
 ## 2026-07-16 — Adjustment phase planning (v1.1)
 
 **Phase:** Planning — Adjustments & Enhancements
