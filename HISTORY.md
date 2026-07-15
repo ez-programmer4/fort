@@ -5,6 +5,26 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-15 — Phase 9 complete: Reports (+ alerts tabs rework)
+
+**Phase:** 9 — Reports
+
+**Done:**
+- **Alerts page rework (user request):** alert types are now tabs — All / Expiring / Expired / Low Stock / Over Stock / Adjustments — each with a live count badge; alerts fetched once and filtered client-side so counts stay complete
+- Shared PDF layout helper (`backend/src/utils/pdf.js`, pdfkit): monochrome logo block + company header, title/subtitle, period-location-generated meta line, zebra tables with page-break handling, summary rows, **signature block** (prepared by / approved by / date)
+- **Finance Report** (`/api/reports/finance` JSON + `/finance.pdf`): Total Sales (gross), withholding on sales, net Revenue, **COGS** (batch cost, product-price fallback), **Gross Profit**, payments received (cash at sale + credit payments), non-sale purchases — filter by date range + location
+- **Sales Report** (`/api/reports/sales` JSON + `/sales.pdf`): date-wise table — sales count, gross, cash, credit, net revenue per day, with totals row
+- Frontend Reports page: Finance/Sales tabs, date-range + location filters, on-screen preview (statement-style for finance, day table for sales), Download PDF button; added to sidebar (`reports.view`)
+
+**Verified:**
+- Finance: 3 sales, total 4,012.50, COGS 957.75, gross profit 3,054.75, payments 4,012.50 (3,240 cash + 772.50 credit) — matches wallet
+- Both PDFs download with valid `%PDF` headers; finance PDF visually inspected (logo, sections, bold totals, signature block); fixed a "−0.00" display for zero withholding
+- `tsc` clean; /reports and reworked /alerts render (HTTP 200)
+
+**Next:** Phase 10 — Settings & Polish (final phase)
+
+---
+
 ## 2026-07-15 — Phase 8 complete: Alerts & Dashboard
 
 **Phase:** 8 — Alerts & Dashboard

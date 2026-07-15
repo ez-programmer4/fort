@@ -122,10 +122,11 @@ fort/
 
 ## Phase 9 — Reports (§3.10)
 
-- [ ] Finance report: total sales, COGS, gross profit, revenue, payments — filter by location + date range
-- [ ] Sales report: performance by period, date-wise revenue
-- [ ] Professional PDF layout: logo + signature block
-- [ ] Frontend: Reports page with filters + PDF download
+- [x] Finance report: total sales, COGS, gross profit, revenue, payments — filter by location + date range
+- [x] Sales report: performance by period, date-wise revenue
+- [x] Professional PDF layout: logo + signature block (pdfkit, shared `utils/pdf.js`)
+- [x] Frontend: Reports page with filters + on-screen preview + PDF download
+- [x] Alerts page reworked to tabs (Expiring / Expired / Low / Over / Adjustments) with count badges
 
 ## Phase 10 — Settings & Polish (§3.11, §4)
 
