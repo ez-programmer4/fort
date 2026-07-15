@@ -5,6 +5,28 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-15 — Phase 2 complete: Locations & Suppliers + UI restyle
+
+**Phase:** 2 — Locations & Suppliers (plus UI overhaul per user feedback)
+
+**Done:**
+- Prisma models `Location` (name, type Retail/Warehouse/Dispensary/Other, address, contact person, active flag) and `Supplier` (name, TIN, phone, email, address, bank accounts as JSON, active flag) — migration `locations_suppliers`
+- CRUD APIs for both: list with search (`?q=`), create, update, deactivate, delete (delete returns 409 with a friendly message once FK references exist). Any signed-in user can **list** (dispensing/product forms need them); mutations require `locations.manage` / `suppliers.manage`
+- Frontend Locations page: search-as-you-type, add/edit form, type badge, activate/deactivate
+- Frontend Suppliers page: search, add/edit form with dynamic bank-account rows, activate/deactivate
+- **UI restyle (user request):** monochrome professional theme — white surfaces, slate-900 text/buttons, gray borders; color only in small status badges (green Active / red Inactive). New **collapsible sidebar** (icon-only at 4rem ⇄ full 15rem, state saved in localStorage), top header bar with page title, user identity and sign-out. Inline SVG icon set at `frontend/src/components/icons.tsx`
+
+**Verified:**
+- Created "Main Warehouse" location and "MedSupply PLC" supplier (with bank account) via API; search returns them
+- Sales user can list locations but gets **403** creating one; `tsc --noEmit` clean; both pages render (HTTP 200)
+
+**Notes:**
+- Windows quirk: `prisma generate` fails with EPERM while the backend dev server runs (query-engine DLL is locked) — stop the server before regenerating, then restart
+
+**Next:** Phase 3 — Product Management
+
+---
+
 ## 2026-07-15 — Phase 1 complete: Auth, Users & Roles
 
 **Phase:** 1 — Auth, Users & Roles

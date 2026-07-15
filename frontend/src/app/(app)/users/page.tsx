@@ -105,7 +105,7 @@ export default function UsersPage() {
         </div>
         <button
           onClick={() => setForm(emptyForm)}
-          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
         >
           + Add User
         </button>
@@ -172,7 +172,7 @@ export default function UsersPage() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-md bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="rounded-md bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save'}
             </button>
@@ -232,7 +232,7 @@ export default function UsersPage() {
                         roleId: String(u.role.id),
                       })
                     }
-                    className="text-xs font-medium text-emerald-700 hover:underline"
+                    className="text-xs font-medium text-slate-900 underline underline-offset-2"
                   >
                     Edit
                   </button>

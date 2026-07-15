@@ -57,10 +57,10 @@ fort/
 
 ## Phase 2 — Locations & Suppliers (§3.3, part of §3.7)
 
-- [ ] Prisma models: `Location` (name, type: Retail/Warehouse/Dispensary, address, contact person)
-- [ ] Prisma models: `Supplier` (name, TIN, phone, email, address, bank accounts)
-- [ ] CRUD APIs for both
-- [ ] Frontend: Locations page, Suppliers page (list, search, add/edit forms)
+- [x] Prisma models: `Location` (name, type: Retail/Warehouse/Dispensary, address, contact person)
+- [x] Prisma models: `Supplier` (name, TIN, phone, email, address, bank accounts)
+- [x] CRUD APIs for both
+- [x] Frontend: Locations page, Suppliers page (list, search, add/edit forms)
 
 ## Phase 3 — Product Management (§3.5)
 

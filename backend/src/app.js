@@ -19,6 +19,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', require('./modules/auth/auth.routes'));
 app.use('/api/users', require('./modules/users/users.routes'));
 app.use('/api/roles', require('./modules/roles/roles.routes'));
+app.use('/api/locations', require('./modules/locations/locations.routes'));
+app.use('/api/suppliers', require('./modules/suppliers/suppliers.routes'));
 
 app.use(notFound);
 app.use(errorHandler);

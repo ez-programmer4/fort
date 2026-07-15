@@ -109,7 +109,7 @@ export default function RolesPage() {
               onClick={() => selectRole(r)}
               className={`w-full rounded-lg border px-4 py-3 text-left ${
                 r.id === selectedId
-                  ? 'border-emerald-500 bg-emerald-50'
+                  ? 'border-slate-900 bg-slate-50'
                   : 'border-slate-200 bg-white hover:border-slate-300'
               }`}
             >
@@ -137,7 +137,7 @@ export default function RolesPage() {
                 <button
                   onClick={save}
                   disabled={saving}
-                  className="rounded-md bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                  className="rounded-md bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
                 >
                   {saving ? 'Saving…' : 'Save changes'}
                 </button>
@@ -163,7 +163,7 @@ export default function RolesPage() {
                           checked={selected.isSystem || checked.has(p.key)}
                           disabled={selected.isSystem}
                           onChange={() => toggle(p.key)}
-                          className="mt-0.5 accent-emerald-600"
+                          className="mt-0.5 accent-slate-900"
                         />
                         <span className="text-slate-700">{p.label}</span>
                       </label>
