@@ -77,11 +77,11 @@ fort/
 
 - [x] Prisma models: `Batch` (product, batch no., expiry, supplier, unit cost),
       `StockMovement` (type, direction, qty, reason, performed by, date, location) — done early in Phase 3
-- [ ] `Stock` table (batch × location current quantity) or computed view
-- [ ] Inventory view API: code, generic, brand, description, qty, price, supplier, batch, expiry — per location
-- [ ] Stock adjustment API (increase/decrease + reason) → writes `StockMovement`
+- [x] `Stock` table (batch × location current quantity) kept in sync by a shared stock service
+- [x] Inventory view API: code, generic, brand, description, qty, price, supplier, batch, expiry — per location
+- [x] Stock adjustment API (increase/decrease + reason) → writes `StockMovement`
 - [x] Bin Card report API: product + location + date range → In/Out/Balance rows (done in Phase 3)
-- [ ] Frontend: Inventory page (filter/search/export), Stock Adjustment modal
+- [x] Frontend: Inventory page (filter/search/export), Stock Adjustment form
 - [x] Frontend: Bin Card page + printable output (done in Phase 3)
 
 ## Phase 5 — Procurement / GRV (§3.7)

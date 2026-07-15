@@ -5,6 +5,29 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-15 — Phase 4 complete: Inventory & Stock
+
+**Phase:** 4 — Inventory Management
+
+**Done:**
+- `Stock` table (batch × location, unique pair, current quantity) — migration `stock_table`; existing test movements backfilled via a rebuild routine
+- **Stock service** (`backend/src/utils/stock.service.js`): `applyMovement(tx, …)` is now the single gate for all stock changes — upserts the Stock row, blocks negative stock, writes the StockMovement, all in one transaction. GRV (Phase 5) and Dispensing (Phase 6) will reuse it. Also exports `rebuildStock()` for maintenance
+- Inventory API: paginated stock-on-hand list (product info + qty + batch + expiry + supplier + location) with search/location filters, Excel export, `POST /api/inventory/adjust` (INCREASE/DECREASE, reason mandatory) → records `ADJUST_*` movements that the Alerts module (Phase 8) will surface
+- Frontend Inventory page: search + location filter, quantities with dispense unit, expiry badges (red "Expired" / amber "Nd left" within 90 days), Adjust form (only visible with `inventory.adjust` permission), Export button, pagination
+
+**Verified:**
+- Inventory shows Paracetamol qty 370 → increase 30 → 400; over-decrease of 99,999 rejected with 400 "Not enough stock: only 400 available…"
+- Adjustment immediately appears on the bin card (row 4, `ADJUST_INCREASE`, remark preserved, closing 400)
+- Excel export downloads; `tsc --noEmit` clean; /inventory renders (HTTP 200)
+
+**Decisions:**
+- Chose a materialized `Stock` table over computing quantities from movements each time — faster inventory queries and a hard guarantee against negative stock at the database boundary
+- Zero-quantity rows are hidden by default (`includeZero=true` shows them)
+
+**Next:** Phase 5 — Procurement (Purchase Orders, GRV)
+
+---
+
 ## 2026-07-15 — Phase 3 complete: Product Management + Bin Card
 
 **Phase:** 3 — Product Management (+ Bin Card pulled forward from Phase 4 per user request)

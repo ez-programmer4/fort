@@ -10,6 +10,7 @@ import { Icon, IconName } from '@/components/icons';
 const NAV: { href: string; label: string; icon: IconName; permission: string }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: 'dashboard', permission: 'dashboard.view' },
   { href: '/products', label: 'Products', icon: 'box', permission: 'products.view' },
+  { href: '/inventory', label: 'Inventory', icon: 'stack', permission: 'inventory.view' },
   { href: '/bincard', label: 'Bin Card', icon: 'document', permission: 'products.view' },
   { href: '/locations', label: 'Locations', icon: 'mapPin', permission: 'locations.manage' },
   { href: '/suppliers', label: 'Suppliers', icon: 'truck', permission: 'suppliers.manage' },
