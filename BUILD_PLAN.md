@@ -290,6 +290,12 @@ users straight to `/dashboard`.
       import **and sell**, not import-only. Ticker gained a second,
       reverse-direction row listing who products are sold to. Floating
       back-to-top button added.
+- [x] `frontend/src/components/marketing/decorative.tsx` — floating
+      pharma-themed background icons (capsule, tablet, bottle, medical
+      cross) at three density/color variants (Hero, Services, CTA banner),
+      slow-bobbing via a new `animate-float` keyframe, `-z-10` and
+      `pointer-events-none` so they never interfere with content. Hero's
+      trust line became icon badges; primary CTA arrows now slide on hover.
 - [x] `frontend/src/components/marketing/hooks.ts` — `useReveal` (scroll
       reveal) and `useCountUp` (eased count-up, starts once the stat
       scrolls into view)

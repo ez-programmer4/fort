@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Icon, type IconName } from '@/components/icons';
 import { useToast } from '@/components/ui/toast';
 import { GlobeToEthiopia } from './globe-map';
+import { FloatingPharmaIcons } from './decorative';
 import { useCountUp, useReveal } from './hooks';
 
 const CONTACT = {
@@ -220,6 +221,7 @@ function Hero() {
           backgroundSize: '28px 28px',
         }}
       />
+      <FloatingPharmaIcons variant="light" />
       <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-6 py-20 md:grid-cols-2 md:gap-8 md:py-28">
         <Reveal>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
@@ -237,10 +239,10 @@ function Hero() {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <a
               href="#contact"
-              className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
+              className="group inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
             >
               Get in touch
-              <Icon name="arrowRight" className="h-4 w-4" />
+              <Icon name="arrowRight" className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </a>
             <a
               href="#services"
@@ -249,9 +251,21 @@ function Hero() {
               What we import
             </a>
           </div>
-          <p className="mt-6 text-xs font-medium uppercase tracking-wide text-slate-400">
-            GMP-compliant sourcing &nbsp;·&nbsp; Cold-chain logistics &nbsp;·&nbsp; EFDA-registered
-          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            {[
+              { icon: 'shield' as const, label: 'GMP-compliant sourcing' },
+              { icon: 'snowflake' as const, label: 'Cold-chain logistics' },
+              { icon: 'check' as const, label: 'EFDA-registered' },
+            ].map((b) => (
+              <span
+                key={b.label}
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-xs font-medium text-slate-600"
+              >
+                <Icon name={b.icon} className="h-3.5 w-3.5 text-blue-600" />
+                {b.label}
+              </span>
+            ))}
+          </div>
         </Reveal>
 
         <Reveal delay={150}>
@@ -348,36 +362,39 @@ function Stats() {
 
 function Services() {
   return (
-    <section id="services" className="mx-auto max-w-7xl px-6 py-20 md:py-24">
-      <Reveal className="mx-auto max-w-2xl text-center">
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900">What we import</h2>
-        <p className="mt-3 text-base text-slate-600">
-          A full range of pharmaceutical and healthcare products, sourced and quality-checked before they
-          reach Ethiopian shelves.
-        </p>
-      </Reveal>
-      <div className="mt-14 grid gap-6 sm:grid-cols-3">
-        {SERVICES.map((s, i) => (
-          <Reveal key={s.title} delay={i * 100}>
-            <div className="group relative h-full overflow-hidden rounded-xl border border-slate-200 p-7 transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/5">
-              <span className="pointer-events-none absolute -right-2 -top-3 -z-10 text-6xl font-bold text-slate-50 transition-colors group-hover:text-blue-50">
-                0{i + 1}
-              </span>
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-900 transition-colors group-hover:bg-blue-600">
-                <Icon name={s.icon} className="h-6 w-6 text-white" />
+    <section id="services" className="relative overflow-hidden py-20 md:py-24">
+      <FloatingPharmaIcons variant="sparse" />
+      <div className="relative mx-auto max-w-7xl px-6">
+        <Reveal className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">What we import</h2>
+          <p className="mt-3 text-base text-slate-600">
+            A full range of pharmaceutical and healthcare products, sourced and quality-checked before they
+            reach Ethiopian shelves.
+          </p>
+        </Reveal>
+        <div className="mt-14 grid gap-6 sm:grid-cols-3">
+          {SERVICES.map((s, i) => (
+            <Reveal key={s.title} delay={i * 100}>
+              <div className="group relative h-full overflow-hidden rounded-xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/5">
+                <span className="pointer-events-none absolute -right-2 -top-3 -z-10 text-6xl font-bold text-slate-50 transition-colors group-hover:text-blue-50">
+                  0{i + 1}
+                </span>
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-900 transition-colors group-hover:bg-blue-600">
+                  <Icon name={s.icon} className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="mt-5 text-lg font-semibold text-slate-900">{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{s.description}</p>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {s.examples.map((e) => (
+                    <span key={e} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                      {e}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <h3 className="mt-5 text-lg font-semibold text-slate-900">{s.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{s.description}</p>
-              <div className="mt-5 flex flex-wrap gap-2">
-                {s.examples.map((e) => (
-                  <span key={e} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                    {e}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </Reveal>
-        ))}
+            </Reveal>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -514,6 +531,7 @@ function CtaBanner() {
           backgroundSize: '24px 24px',
         }}
       />
+      <FloatingPharmaIcons variant="dark" />
       <Reveal className="relative mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 py-16 text-center md:flex-row md:justify-between md:text-left">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Ready to partner with us?</h2>
@@ -523,10 +541,10 @@ function CtaBanner() {
         </div>
         <a
           href="#contact"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-100 hover:scale-105"
+          className="group inline-flex shrink-0 items-center gap-1.5 rounded-md bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition-all hover:scale-105 hover:bg-slate-100"
         >
           Contact our team
-          <Icon name="arrowRight" className="h-4 w-4" />
+          <Icon name="arrowRight" className="h-4 w-4 transition-transform group-hover:translate-x-1" />
         </a>
       </Reveal>
     </section>
@@ -636,10 +654,10 @@ function Contact() {
               <button
                 type="submit"
                 disabled={sending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
+                className="group inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
               >
                 Send message
-                <Icon name="arrowRight" className="h-4 w-4" />
+                <Icon name="arrowRight" className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>
             </form>
           </Reveal>

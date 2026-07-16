@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A7 polish: floating pharma-icon backgrounds + micro-interactions
+
+**Phase:** A7 follow-up — user asked for pharma-themed decorative background elements ("drugs" — pills, capsules, bottles) and more general creative polish.
+
+**Done:**
+- **New `frontend/src/components/marketing/decorative.tsx`**: four small line-art SVGs (capsule, round tablet with a score line, medicine bottle, medical cross) drawn in the same stroke style as the main icon set, and a `FloatingPharmaIcons` component that scatters them at fixed percentage positions with a slow `animate-float` bob (new keyframe in `globals.css`, staggered per-icon duration/delay so they drift out of sync, disabled under `prefers-reduced-motion`). Three density variants — `light` (Hero, 7 icons, slate-tinted), `sparse` (Services, 4 icons, blue-tinted), `dark` (CTA banner, 4 icons, white/10% for a dark background) — all `pointer-events-none` and `-z-10` so they never block clicks or bleed through card backgrounds.
+- Wiring the sparse variant into Services required giving that section `bg-white` on its cards (previously relying on the page's white background, which would have let the icon layer show through the card interior) and moving the `mx-auto max-w-7xl` width constraint from the `<section>` itself onto an inner wrapper, since the icons need to paint full-bleed behind the section while the content stays constrained.
+- **Trust line → badges**: the hero's plain "GMP-compliant sourcing · Cold-chain logistics · EFDA-registered" text line is now three small icon pill badges (shield/snowflake/check), matching the rest of the page's badge language.
+- **Micro-interaction**: every primary CTA's arrow icon now slides right on hover (`group-hover:translate-x-1`) — hero "Get in touch", CTA banner "Contact our team", and the contact form's "Send message" button.
+
+**Verified:** `tsc --noEmit` clean; `/` and `/login` both return HTTP 200; SSR-bypass check confirmed the badges, the floating-icon layer (`animate-float` class present), and every section still render with no runtime errors.
+
+---
+
 ## 2026-07-16 — Phase A7 addition: "Who We Serve" (retail/wholesale sales) + more creativity
 
 **Phase:** A7 follow-up — the user clarified that Fort Pharma PLC doesn't only import; it also sells the imported products directly to local customers (pharmacies, hospitals, wholesalers, and retail/walk-in customers), and asked for more creativity on the public page generally.

@@ -59,6 +59,15 @@ html {
     transform: translateY(0);
   }
 }
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
 
 .animate-dash-flow {
   animation: dash-flow 1s linear infinite;
@@ -79,12 +88,16 @@ html {
 .animate-count-fade-in {
   animation: count-fade-in 0.4s ease-out both;
 }
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .animate-dash-flow,
   .animate-pulse-ring,
   .animate-marquee,
-  .animate-marquee-reverse {
+  .animate-marquee-reverse,
+  .animate-float {
     animation: none;
   }
 }
