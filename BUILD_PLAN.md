@@ -321,6 +321,26 @@ the company's real figures before this goes live.
 
 ---
 
+## Phase A8 — Login Page Redesign
+
+- [x] `frontend/src/app/login/page.tsx` rebuilt as a split layout: a dark
+      branded panel (desktop only) with the Fort Pharma PLC logo, headline,
+      three feature highlights and the homepage's `FloatingPharmaIcons`
+      background; the form side keeps a "FortInventory Portal" badge,
+      icon-prefixed inputs, a show/hide password toggle, an icon error
+      banner, a spinner in the submit button, and a "back to homepage" link
+- [x] No fake "Forgot password?" link — no reset-password endpoint exists
+      on the backend, so the form has a "contact your administrator" note
+      instead of linking to a feature that doesn't work
+- [x] `components/ui/loading.tsx` `Spinner` gained an optional
+      `colorClassName` prop (default unchanged) so it can render white on
+      a dark button; existing call sites unaffected
+- [x] Verified: `tsc --noEmit` clean; `/login` returns 200; SSR-bypass
+      check confirmed the full form (brand panel, highlights, password
+      toggle) renders with no runtime errors
+
+---
+
 ## Build Order Rationale
 
 Auth first because every other module needs users/permissions. Locations,

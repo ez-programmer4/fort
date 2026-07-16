@@ -21,9 +21,15 @@ export function LoadingScreen({ label = 'Loading…' }: { label?: string }) {
 }
 
 /** Inline spinner. */
-export function Spinner({ className = 'h-5 w-5' }: { className?: string }) {
+export function Spinner({
+  className = 'h-5 w-5',
+  colorClassName = 'text-slate-900',
+}: {
+  className?: string;
+  colorClassName?: string;
+}) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className={`animate-spin text-slate-900 ${className}`} aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" className={`animate-spin ${colorClassName} ${className}`} aria-hidden="true">
       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.15" strokeWidth="4" />
       <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
     </svg>

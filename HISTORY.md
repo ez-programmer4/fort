@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Login page redesign
+
+**Phase:** A7 follow-up — user asked for a more styled login page, to match the effort put into the new public homepage.
+
+**Done:**
+- **`frontend/src/app/login/page.tsx`** rebuilt as a split layout: a dark branded panel (hidden below `md`) with the Fort Pharma PLC logo, a headline, three feature highlights (real-time visibility, full audit trail, role-based access — each with an icon), the same `FloatingPharmaIcons` background used on the homepage, and a footer credit line; the form panel keeps a "FortInventory Portal" badge (distinguishing the internal platform name from the public Fort Pharma PLC brand), icon-prefixed email/password inputs, a show/hide password toggle (new `eye`/`eyeSlash` icons), an icon-styled error banner, a spinner in the submit button while signing in, a "← Back to homepage" link, and a mobile-only compact logo (the brand panel is desktop-only).
+- **No fake "Forgot password?" link** — checked the backend first; there's no password-reset endpoint, so rather than link to a feature that doesn't exist, the form has a small "contact your administrator" note instead.
+- **`components/ui/loading.tsx`**: `Spinner` gained a `colorClassName` prop (default unchanged, `text-slate-900`) so it can be told to render white on a dark button — needed for the login button's dark background; all three existing call sites are unaffected since they don't pass it.
+- Login page now shows the branded `LoadingScreen` while the auth check resolves, instead of briefly flashing the login form (same fix pattern as the homepage's guest/authed gate).
+
+**Verified:** `tsc --noEmit` clean; `/login` returns HTTP 200. Since the page is gated behind the same client-side auth check as the homepage (SSR only shows `LoadingScreen` until the browser resolves the token check), used the same temporary-bypass technique to confirm the actual form — brand panel copy, all three highlights, password toggle markup — renders with no runtime errors, then reverted the bypass. Did not runtime-test the actual sign-in submission since `onSubmit`/`useAuth` logic was untouched.
+
+---
+
 ## 2026-07-16 — Phase A7 polish: floating pharma-icon backgrounds + micro-interactions
 
 **Phase:** A7 follow-up — user asked for pharma-themed decorative background elements ("drugs" — pills, capsules, bottles) and more general creative polish.
