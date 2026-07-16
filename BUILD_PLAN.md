@@ -246,6 +246,35 @@ Follow-up items reported after using the finished app.
 
 ---
 
+## Phase A7 — Public Homepage
+
+The company (FortInventory) imports pharmaceuticals from around the world and
+distributes them across Ethiopia. Root `/` previously just redirected
+straight to `/login`; it now shows a public marketing homepage to signed-out
+visitors, and still redirects signed-in users straight to `/dashboard`.
+
+- [x] `frontend/src/components/marketing/homepage.tsx` — sticky navbar
+      (mobile menu), hero, stats strip, "what we import" services grid,
+      4-step process, why-us section, CTA banner, contact (info cards +
+      mailto-based form), footer with a "Client Portal" link to `/login`
+- [x] `frontend/src/app/page.tsx` renders `<Homepage />` for guests instead
+      of redirecting to `/login`; still redirects authenticated users to
+      `/dashboard`
+- [x] Added marketing icon set (globe, mail, phone, check, arrowRight,
+      clock, x, star, beaker, heart, snowflake) to `components/icons.tsx`
+- [x] Self-hosted Inter font via `next/font/google`, wired as `font-sans`
+      through a Tailwind v4 `@theme` block
+- [x] Verified: `tsc --noEmit` clean; `/` and `/login` both return 200; SSR
+      output for the homepage checked directly (temporarily bypassed the
+      client-side auth gate) to confirm all sections render with no runtime
+      errors
+
+**Note:** contact details (address, phone, email) and stats (countries,
+years in operation, etc.) in `homepage.tsx` are placeholders — replace with
+the company's real figures before this goes live.
+
+---
+
 ## Build Order Rationale
 
 Auth first because every other module needs users/permissions. Locations,

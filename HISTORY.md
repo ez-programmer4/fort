@@ -5,6 +5,23 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A7 complete: Public Homepage
+
+**Phase:** A7 — public marketing homepage for FortInventory, the pharmaceutical import/distribution company. Requested directly (not from `adjustment_requirnment.md`): "need to add homepage for them ... figma like ui/ux with more aesthetic and professional."
+
+**Done:**
+- **New `frontend/src/components/marketing/homepage.tsx`**: a full public landing page — sticky navbar with a mobile menu; hero with headline/CTA and a "shipment overview" visual panel; a stats strip; a "what we import" services grid (prescription pharmaceuticals, OTC, consumables, equipment, cold-chain/vaccines, nutraceuticals); a 4-step "how we work" process; a why-us section that bridges to the internal FortInventory platform (real-time inventory technology) as a trust signal; a dark CTA banner; a contact section (info cards + a form that opens a prefilled `mailto:` — no backend endpoint exists for form submissions, so this was kept honest rather than faking a success state); and a footer with a "Client Portal" link into `/login`.
+- **`frontend/src/app/page.tsx`**: root `/` now renders the homepage for signed-out visitors instead of redirecting straight to `/login`; signed-in users still auto-redirect to `/dashboard` exactly as before.
+- **`components/icons.tsx`**: added marketing-oriented icons (globe, mail, phone, check, arrowRight, clock, x, star, beaker, heart, snowflake) to the existing outline icon set.
+- **Typography**: self-hosted Inter via `next/font/google` in the root layout, wired in as the `font-sans` stack through a Tailwind v4 `@theme` block in `globals.css` — used app-wide, not just on the homepage.
+- **Design**: kept the established monochrome convention (slate-900/white, `rounded-lg`/`rounded-xl` cards, `focus-visible` rings) with blue as the single accent color, so the public site and the internal app read as one product.
+
+**Note (placeholder content):** the address, phone, email and the four headline stats (countries sourced, products imported, years in operation, on-time clearance %) in `homepage.tsx` are placeholders — swap in the real figures before this is shown to real visitors.
+
+**Verified:** `tsc --noEmit` clean; `/` and `/login` both return HTTP 200. Because `/` is gated behind a client-side auth check (`AuthProvider`'s `loading` state starts `true`, so the server-rendered shell always shows "Loading…" until the client resolves it — this is pre-existing behavior, not new), a plain `curl` couldn't exercise the real homepage markup. Temporarily bypassed the gate to confirm the homepage renders server-side with no runtime errors (all sections present — hero headline, services, process, CTA, contact — in the full ~41KB output vs. ~12KB for the loading shell), then reverted the bypass.
+
+---
+
 ## 2026-07-16 — Phase A5 complete: Sales Print + Final Polish
 
 **Phase:** A5 — Sales Print + Final Polish (§2.4) — last of the adjustment phases (A1–A5)
