@@ -1,9 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { getTokens } from '@/lib/api';
 import { useSettings } from '@/lib/settings';
+import { Pagination } from '@/components/ui/pagination';
+import { SearchInput } from '@/components/ui/search-input';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SkeletonRows } from '@/components/ui/loading';
+import { useToast } from '@/components/ui/toast';
 
 const input =
   'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -170,16 +175,17 @@ function Slip({ order }: { order: OrderDetail }) {
 // ── new dispense flow: pick → editable summary → confirm ────
 
 function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispensed: (o: OrderDetail) => void }) {
+  const toast = useToast();
   const settings = useSettings();
   const [locationId, setLocationId] = useState('');
   const [stockQuery, setStockQuery] = useState('');
   const [stockOptions, setStockOptions] = useState<StockRow[]>([]);
+  const [stockLoading, setStockLoading] = useState(false);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paymentType, setPaymentType] = useState('CASH');
   const [whtType, setWhtType] = useState('NONE');
   const [whtRate, setWhtRate] = useState('0');
   const [notes, setNotes] = useState('');
-  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -187,15 +193,14 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
       setStockOptions([]);
       return;
     }
-    const t = setTimeout(() => {
-      const params = new URLSearchParams({ locationId, pageSize: '20' });
-      if (stockQuery) params.set('q', stockQuery);
-      api<{ items: StockRow[] }>(`/api/inventory?${params}`)
-        .then((d) => setStockOptions(d.items))
-        .catch((e) => setError(e.message));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [locationId, stockQuery]);
+    setStockLoading(true);
+    const params = new URLSearchParams({ locationId, pageSize: '20' });
+    if (stockQuery) params.set('q', stockQuery);
+    api<{ items: StockRow[] }>(`/api/inventory?${params}`)
+      .then((d) => setStockOptions(d.items))
+      .catch((e) => toast.error(e.message))
+      .finally(() => setStockLoading(false));
+  }, [locationId, stockQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function addToCart(s: StockRow) {
     if (cart.some((c) => c.stock.batchId === s.batchId)) return;
@@ -213,15 +218,14 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
   const whtAmount = whtType === 'NONE' ? 0 : (subtotal * (Number(whtRate) || 0)) / 100;
 
   async function confirm() {
-    setError('');
     for (const c of cart) {
       const q = Number(c.quantity);
       if (!Number.isInteger(q) || q <= 0) {
-        setError(`Enter a valid quantity for ${c.stock.genericName}`);
+        toast.error(`Enter a valid quantity for ${c.stock.genericName}`);
         return;
       }
       if (q > c.stock.quantity) {
-        setError(`Only ${c.stock.quantity} of ${c.stock.genericName} (batch ${c.stock.batchNo}) available`);
+        toast.error(`Only ${c.stock.quantity} of ${c.stock.genericName} (batch ${c.stock.batchNo}) available`);
         return;
       }
     }
@@ -246,15 +250,13 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
       setNotes('');
       onDispensed(d.order);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Dispensing failed');
+      toast.error(err instanceof Error ? err.message : 'Dispensing failed');
       setSaving(false);
     }
   }
 
   return (
     <div className="mt-4">
-      {error && <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
       <div className="rounded-lg border border-slate-200 bg-white p-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
@@ -276,11 +278,10 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
           {locationId && (
             <div className="md:col-span-2">
               <label className={label}>Search stock (product, batch…)</label>
-              <input
-                value={stockQuery}
-                onChange={(e) => setStockQuery(e.target.value)}
+              <SearchInput
+                onSearch={setStockQuery}
                 placeholder="Type to search available stock…"
-                className={`mt-1 w-full ${input}`}
+                className="mt-1 w-full"
               />
             </div>
           )}
@@ -300,36 +301,38 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
                 </tr>
               </thead>
               <tbody>
-                {stockOptions.length === 0 && (
+                {stockLoading && <SkeletonRows rows={3} cols={6} />}
+                {!stockLoading && stockOptions.length === 0 && (
                   <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400">No stock at this location.</td></tr>
                 )}
-                {stockOptions.map((s) => {
-                  const inCart = cart.some((c) => c.stock.batchId === s.batchId);
-                  return (
-                    <tr key={s.batchId} className="border-t border-slate-100">
-                      <td className="px-3 py-2">
-                        <span className="font-medium text-slate-900">{s.genericName}</span>
-                        {s.brandName && <span className="text-slate-500"> ({s.brandName})</span>}
-                        <span className="ml-1 font-mono text-xs text-slate-400">{s.code}</span>
-                      </td>
-                      <td className="px-3 py-2 text-slate-600">{s.batchNo}</td>
-                      <td className="px-3 py-2 text-slate-600">
-                        {s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : '—'}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.quantity}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{money(s.unitPrice)}</td>
-                      <td className="px-3 py-2 text-right">
-                        <button
-                          onClick={() => addToCart(s)}
-                          disabled={inCart}
-                          className="text-xs font-medium text-slate-900 underline underline-offset-2 disabled:text-slate-300 disabled:no-underline"
-                        >
-                          {inCart ? 'Added' : '+ Add'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {!stockLoading &&
+                  stockOptions.map((s) => {
+                    const inCart = cart.some((c) => c.stock.batchId === s.batchId);
+                    return (
+                      <tr key={s.batchId} className="border-t border-slate-100">
+                        <td className="px-3 py-2">
+                          <span className="font-medium text-slate-900">{s.genericName}</span>
+                          {s.brandName && <span className="text-slate-500"> ({s.brandName})</span>}
+                          <span className="ml-1 font-mono text-xs text-slate-400">{s.code}</span>
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">{s.batchNo}</td>
+                        <td className="px-3 py-2 text-slate-600">
+                          {s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">{s.quantity}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{money(s.unitPrice)}</td>
+                        <td className="px-3 py-2 text-right">
+                          <button
+                            onClick={() => addToCart(s)}
+                            disabled={inCart}
+                            className="text-xs font-medium text-slate-900 underline underline-offset-2 disabled:text-slate-300 disabled:no-underline"
+                          >
+                            {inCart ? 'Added' : '+ Add'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
@@ -459,48 +462,60 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
 // ── main page ────────────────────────────────────────────────
 
 export default function SalesPage() {
+  const toast = useToast();
   const [tab, setTab] = useState<'dispense' | 'history'>('dispense');
   const [locations, setLocations] = useState<Option[]>([]);
   const [orders, setOrders] = useState<OrderDetail[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(false);
   const [slipOrder, setSlipOrder] = useState<OrderDetail | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadTarget, setUploadTarget] = useState<number | null>(null);
 
-  const loadOrders = useCallback(async () => {
-    const d = await api<{ orders: OrderDetail[] }>('/api/sales?pageSize=50');
-    setOrders(d.orders);
+  const loadOrders = useCallback(async (search: string, pageNum: number, size: number) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size) });
+      if (search) params.set('q', search);
+      const d = await api<{ orders: OrderDetail[]; total: number }>(`/api/sales?${params}`);
+      setOrders(d.orders);
+      setTotal(d.total);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     api<{ locations: Option[] }>('/api/locations')
       .then((d) => setLocations(d.locations))
-      .catch((e) => setError(e.message));
-  }, []);
+      .catch((e) => toast.error(e.message));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (tab === 'history') loadOrders().catch((e) => setError(e.message));
-  }, [tab, loadOrders]);
+    if (tab === 'history') loadOrders(q, page, pageSize).catch((e) => toast.error(e.message));
+  }, [tab, q, page, pageSize, loadOrders]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onDispensed(order: OrderDetail) {
     setSlipOrder(order);
-    setNotice(`${order.dspNumber} dispensed — stock updated. You can print the slip below.`);
+    toast.success(`${order.dspNumber} dispensed — stock updated.`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || uploadTarget === null) return;
-    setError('');
     try {
       const fd = new FormData();
       fd.append('file', file);
       await api(`/api/sales/${uploadTarget}/attachments`, { method: 'POST', body: fd });
-      await loadOrders();
+      toast.success(`"${file.name}" attached.`);
+      await loadOrders(q, page, pageSize);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       if (fileRef.current) fileRef.current.value = '';
       setUploadTarget(null);
@@ -521,7 +536,7 @@ export default function SalesPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Download failed');
+      toast.error(err instanceof Error ? err.message : 'Download failed');
     }
   }
 
@@ -541,7 +556,7 @@ export default function SalesPage() {
         {(['dispense', 'history'] as const).map((t) => (
           <button
             key={t}
-            onClick={() => { setTab(t); setSlipOrder(null); setNotice(''); setError(''); }}
+            onClick={() => { setTab(t); setSlipOrder(null); setQ(''); setPage(1); }}
             className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
               tab === t ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
@@ -550,13 +565,6 @@ export default function SalesPage() {
           </button>
         ))}
       </div>
-
-      {error && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 print:hidden">{error}</p>}
-      {notice && (
-        <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 print:hidden">
-          {notice}
-        </p>
-      )}
 
       {slipOrder && (
         <div className="mt-4">
@@ -570,108 +578,143 @@ export default function SalesPage() {
       {tab === 'dispense' && !slipOrder && <NewDispense locations={locations} onDispensed={onDispensed} />}
 
       {tab === 'history' && !slipOrder && (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <input ref={fileRef} type="file" onChange={onUpload} className="hidden" />
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3">DSP No.</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Items</th>
-                <th className="px-4 py-3">Payment</th>
-                <th className="px-4 py-3 text-right">Total</th>
-                <th className="px-4 py-3">Date · By</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">No sales yet.</td></tr>
-              )}
-              {orders.map((o) => (
-                <>
-                  <tr key={o.id} className="border-b border-slate-100 last:border-0">
-                    <td className="px-4 py-3 font-mono text-xs text-slate-900">{o.dspNumber}</td>
-                    <td className="px-4 py-3 text-slate-600">{o.location.name}</td>
-                    <td className="px-4 py-3 text-slate-600">{o.items.length} line(s)</td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        o.paymentType === 'CASH' ? 'bg-slate-100 text-slate-700' : 'bg-amber-50 text-amber-700'
-                      }`}>
-                        {o.paymentType === 'CASH' ? 'Cash' : 'Credit'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium text-slate-900">{money(o.total)}</td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {new Date(o.createdAt).toLocaleDateString()} · {o.dispensedBy.fullName}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => setSlipOrder(o)} className="text-xs font-medium text-slate-900 underline underline-offset-2">
-                        Slip
-                      </button>
-                      <button
-                        onClick={() => setExpanded(expanded === o.id ? null : o.id)}
-                        className="ml-3 text-xs font-medium text-slate-500 hover:underline"
-                      >
-                        {expanded === o.id ? 'Hide' : 'Details'}
-                      </button>
+        <div>
+          <div className="mt-4">
+            <SearchInput
+              onSearch={(term) => {
+                setQ(term);
+                setPage(1);
+              }}
+              placeholder="Search DSP no. or product…"
+              className="w-72"
+            />
+          </div>
+
+          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <input ref={fileRef} type="file" onChange={onUpload} className="hidden" />
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">DSP No.</th>
+                  <th className="px-4 py-3">Location</th>
+                  <th className="px-4 py-3">Items</th>
+                  <th className="px-4 py-3">Payment</th>
+                  <th className="px-4 py-3 text-right">Total</th>
+                  <th className="px-4 py-3">Date · By</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && <SkeletonRows rows={5} cols={7} />}
+                {!loading && orders.length === 0 && (
+                  <tr>
+                    <td colSpan={7}>
+                      <EmptyState
+                        title={q ? 'No sales match your search' : 'No sales yet'}
+                        description={q ? 'Try a different DSP number or product name.' : 'Dispense stock from the New Dispense tab.'}
+                      />
                     </td>
                   </tr>
-                  {expanded === o.id && (
-                    <tr key={`${o.id}-d`} className="border-b border-slate-100 bg-slate-50">
-                      <td colSpan={7} className="px-6 py-3">
-                        <table className="w-full text-left text-xs">
-                          <thead className="uppercase tracking-wide text-slate-500">
-                            <tr>
-                              <th className="py-1 pr-3">Product</th>
-                              <th className="py-1 pr-3">Batch</th>
-                              <th className="py-1 pr-3 text-right">Qty</th>
-                              <th className="py-1 pr-3 text-right">List</th>
-                              <th className="py-1 pr-3 text-right">Sold At</th>
-                              <th className="py-1 text-right">Total</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {o.items.map((it) => (
-                              <tr key={it.id} className="border-t border-slate-200">
-                                <td className="py-1.5 pr-3 text-slate-900">{it.product.code} — {it.product.genericName}</td>
-                                <td className="py-1.5 pr-3 text-slate-600">{it.batch.batchNo}</td>
-                                <td className="py-1.5 pr-3 text-right tabular-nums">{it.quantity}</td>
-                                <td className="py-1.5 pr-3 text-right tabular-nums text-slate-500">{money(it.listPrice)}</td>
-                                <td className="py-1.5 pr-3 text-right tabular-nums">{money(it.unitPrice)}</td>
-                                <td className="py-1.5 text-right tabular-nums">{money(it.quantity * Number(it.unitPrice))}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-2">
-                          <div className="text-xs text-slate-600">
-                            <span className="font-medium">Attachments:</span>{' '}
-                            {o.attachments.length === 0 && <span className="text-slate-400">none</span>}
-                            {o.attachments.map((att) => (
-                              <button
-                                key={att.id}
-                                onClick={() => downloadAttachment(o.id, att.id, att.originalName)}
-                                className="ml-2 text-slate-900 underline underline-offset-2"
-                              >
-                                {att.originalName}
-                              </button>
-                            ))}
-                          </div>
-                          <button
-                            onClick={() => { setUploadTarget(o.id); fileRef.current?.click(); }}
-                            className="text-xs font-medium text-slate-900 underline underline-offset-2"
-                          >
-                            + Attach file
+                )}
+                {!loading &&
+                  orders.map((o) => (
+                    <Fragment key={o.id}>
+                      <tr className="border-b border-slate-100 last:border-0">
+                        <td className="px-4 py-3 font-mono text-xs text-slate-900">{o.dspNumber}</td>
+                        <td className="px-4 py-3 text-slate-600">{o.location.name}</td>
+                        <td className="px-4 py-3 text-slate-600">{o.items.length} line(s)</td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            o.paymentType === 'CASH' ? 'bg-slate-100 text-slate-700' : 'bg-amber-50 text-amber-700'
+                          }`}>
+                            {o.paymentType === 'CASH' ? 'Cash' : 'Credit'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums font-medium text-slate-900">{money(o.total)}</td>
+                        <td className="px-4 py-3 text-slate-500">
+                          {new Date(o.createdAt).toLocaleDateString()} · {o.dispensedBy.fullName}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button onClick={() => setSlipOrder(o)} className="text-xs font-medium text-slate-900 underline underline-offset-2">
+                            Slip
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              ))}
-            </tbody>
-          </table>
+                          <button
+                            onClick={() => setExpanded(expanded === o.id ? null : o.id)}
+                            className="ml-3 text-xs font-medium text-slate-500 hover:underline"
+                          >
+                            {expanded === o.id ? 'Hide' : 'Details'}
+                          </button>
+                        </td>
+                      </tr>
+                      {expanded === o.id && (
+                        <tr className="border-b border-slate-100 bg-slate-50">
+                          <td colSpan={7} className="px-6 py-3">
+                            <table className="w-full text-left text-xs">
+                              <thead className="uppercase tracking-wide text-slate-500">
+                                <tr>
+                                  <th className="py-1 pr-3">Product</th>
+                                  <th className="py-1 pr-3">Batch</th>
+                                  <th className="py-1 pr-3 text-right">Qty</th>
+                                  <th className="py-1 pr-3 text-right">List</th>
+                                  <th className="py-1 pr-3 text-right">Sold At</th>
+                                  <th className="py-1 text-right">Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {o.items.map((it) => (
+                                  <tr key={it.id} className="border-t border-slate-200">
+                                    <td className="py-1.5 pr-3 text-slate-900">{it.product.code} — {it.product.genericName}</td>
+                                    <td className="py-1.5 pr-3 text-slate-600">{it.batch.batchNo}</td>
+                                    <td className="py-1.5 pr-3 text-right tabular-nums">{it.quantity}</td>
+                                    <td className="py-1.5 pr-3 text-right tabular-nums text-slate-500">{money(it.listPrice)}</td>
+                                    <td className="py-1.5 pr-3 text-right tabular-nums">{money(it.unitPrice)}</td>
+                                    <td className="py-1.5 text-right tabular-nums">{money(it.quantity * Number(it.unitPrice))}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-2">
+                              <div className="text-xs text-slate-600">
+                                <span className="font-medium">Attachments:</span>{' '}
+                                {o.attachments.length === 0 && <span className="text-slate-400">none</span>}
+                                {o.attachments.map((att) => (
+                                  <button
+                                    key={att.id}
+                                    onClick={() => downloadAttachment(o.id, att.id, att.originalName)}
+                                    className="ml-2 text-slate-900 underline underline-offset-2"
+                                  >
+                                    {att.originalName}
+                                  </button>
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => { setUploadTarget(o.id); fileRef.current?.click(); }}
+                                className="text-xs font-medium text-slate-900 underline underline-offset-2"
+                              >
+                                + Attach file
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4">
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onPageChange={setPage}
+              onPageSizeChange={(s) => {
+                setPageSize(s);
+                setPage(1);
+              }}
+            />
+          </div>
         </div>
       )}
     </div>

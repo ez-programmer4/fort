@@ -1,8 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { AppSettings, useSettings } from '@/lib/settings';
+import { Drawer } from '@/components/ui/drawer';
+import { Pagination } from '@/components/ui/pagination';
+import { SearchInput } from '@/components/ui/search-input';
+import { Combobox, ComboOption } from '@/components/ui/combobox';
+import { DatePicker } from '@/components/ui/date-picker';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { SkeletonRows } from '@/components/ui/loading';
+import { useToast } from '@/components/ui/toast';
 
 // ── shared bits ──────────────────────────────────────────────
 
@@ -79,7 +88,7 @@ interface PO {
   receipts: { grvNumber: string }[];
 }
 
-// ── new PO form ──────────────────────────────────────────────
+// ── new PO form (rendered inside a Drawer) ───────────────────
 
 interface DraftLine {
   product: ProductOption;
@@ -100,33 +109,43 @@ function NewOrderForm({
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const toast = useToast();
   const [supplierId, setSupplierId] = useState('');
   const [locationId, setLocationId] = useState('');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([]);
-  const [productQuery, setProductQuery] = useState('');
   const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
   const [pickedProductId, setPickedProductId] = useState('');
-  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      api<{ products: ProductOption[] }>(
-        `/api/products?pageSize=20${productQuery ? `&q=${encodeURIComponent(productQuery)}` : ''}`,
-      )
-        .then((d) => setProductOptions(d.products))
-        .catch((e) => setError(e.message));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [productQuery]);
+  const searchProducts = useCallback((term: string) => {
+    api<{ products: ProductOption[] }>(
+      `/api/products?pageSize=20${term ? `&q=${encodeURIComponent(term)}` : ''}`,
+    )
+      .then((d) => setProductOptions(d.products))
+      .catch(() => {});
+  }, []);
 
-  function addLine() {
-    const product = productOptions.find((p) => p.id === Number(pickedProductId));
+  useEffect(() => {
+    searchProducts('');
+  }, [searchProducts]);
+
+  const productComboOptions: ComboOption[] = productOptions.map((p) => ({
+    value: String(p.id),
+    label: `${p.genericName}${p.brandName ? ` (${p.brandName})` : ''}`,
+    sublabel: p.code,
+  }));
+
+  function addLine(id: string) {
+    setPickedProductId(id);
+    const product = productOptions.find((p) => p.id === Number(id));
     if (!product) return;
-    if (lines.some((l) => l.product.id === product.id)) return;
-    setLines([
-      ...lines,
+    if (lines.some((l) => l.product.id === product.id)) {
+      setPickedProductId('');
+      return;
+    }
+    setLines((prev) => [
+      ...prev,
       { product, quantity: '1', unitCost: String(product.unitPrice), batchNo: '', expiryDate: '' },
     ]);
     setPickedProductId('');
@@ -143,13 +162,12 @@ function NewOrderForm({
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
     if (!locationId) {
-      setError('Select a receiving location');
+      toast.error('Select a receiving location');
       return;
     }
     if (lines.length === 0) {
-      setError('Add at least one product line');
+      toast.error('Add at least one product line');
       return;
     }
     setSaving(true);
@@ -171,25 +189,23 @@ function NewOrderForm({
       });
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      toast.error(err instanceof Error ? err.message : 'Save failed');
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={save} className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
-      <h2 className="text-sm font-semibold text-slate-900">New Purchase Order</h2>
-      {error && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+    <form onSubmit={save}>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <label className={label}>Supplier</label>
-          <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className={`mt-1 w-full ${input}`}>
-            <option value="">—</option>
-            {suppliers.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+          <Combobox
+            options={suppliers.map((s) => ({ value: String(s.id), label: s.name }))}
+            value={supplierId}
+            onChange={setSupplierId}
+            placeholder="Search supplier…"
+            className="mt-1"
+          />
         </div>
         <div>
           <label className={label}>Receiving location *</label>
@@ -207,85 +223,76 @@ function NewOrderForm({
       </div>
 
       <div className="mt-5 rounded-md border border-slate-200 p-3">
-        <p className="text-xs font-medium text-slate-600">Add products</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <input
-            value={productQuery}
-            onChange={(e) => setProductQuery(e.target.value)}
-            placeholder="Search products…"
-            className={`w-56 ${input}`}
-          />
-          <select
-            value={pickedProductId}
-            onChange={(e) => setPickedProductId(e.target.value)}
-            className={`w-72 ${input}`}
-          >
-            <option value="">Select product…</option>
-            {productOptions.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.code} — {p.genericName}{p.brandName ? ` (${p.brandName})` : ''}
-              </option>
-            ))}
-          </select>
-          <button type="button" onClick={addLine} disabled={!pickedProductId} className={`${btnGhost} disabled:opacity-40`}>
-            + Add line
-          </button>
-        </div>
+        <label className={label}>Add products</label>
+        <Combobox
+          options={productComboOptions}
+          value={pickedProductId}
+          onChange={addLine}
+          onSearch={searchProducts}
+          placeholder="Search product to add a line…"
+          className="mt-2 max-w-md"
+        />
 
         {lines.length > 0 && (
-          <table className="mt-3 w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="py-2 pr-3">Product</th>
-                <th className="py-2 pr-3">Qty *</th>
-                <th className="py-2 pr-3">Unit Cost *</th>
-                <th className="py-2 pr-3">Batch No.</th>
-                <th className="py-2 pr-3">Expiry</th>
-                <th className="py-2 pr-3 text-right">Line Total</th>
-                <th className="py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((l, i) => (
-                <tr key={l.product.id} className="border-t border-slate-100">
-                  <td className="py-2 pr-3">
-                    <p className="font-medium text-slate-900">{l.product.genericName}</p>
-                    <p className="text-xs text-slate-400">{l.product.code}</p>
-                  </td>
-                  <td className="py-2 pr-3">
-                    <input type="number" min="1" step="1" required value={l.quantity}
-                      onChange={(e) => setLine(i, { quantity: e.target.value })} className={`w-20 ${input}`} />
-                  </td>
-                  <td className="py-2 pr-3">
-                    <input type="number" min="0" step="0.01" required value={l.unitCost}
-                      onChange={(e) => setLine(i, { unitCost: e.target.value })} className={`w-28 ${input}`} />
-                  </td>
-                  <td className="py-2 pr-3">
-                    <input value={l.batchNo} placeholder="(at receiving)"
-                      onChange={(e) => setLine(i, { batchNo: e.target.value })} className={`w-32 ${input}`} />
-                  </td>
-                  <td className="py-2 pr-3">
-                    <input type="date" value={l.expiryDate}
-                      onChange={(e) => setLine(i, { expiryDate: e.target.value })} className={input} />
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums">
-                    {money((Number(l.quantity) || 0) * (Number(l.unitCost) || 0))}
-                  </td>
-                  <td className="py-2 text-right">
-                    <button type="button" onClick={() => setLines(lines.filter((_, idx) => idx !== i))}
-                      className="text-xs text-slate-400 hover:text-red-600">
-                      Remove
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="mt-3 w-full text-left text-sm">
+              <thead className="text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="py-2 pr-3">Product</th>
+                  <th className="py-2 pr-3">Qty *</th>
+                  <th className="py-2 pr-3">Unit Cost *</th>
+                  <th className="py-2 pr-3">Batch No.</th>
+                  <th className="py-2 pr-3">Expiry</th>
+                  <th className="py-2 pr-3 text-right">Line Total</th>
+                  <th className="py-2" />
                 </tr>
-              ))}
-              <tr className="border-t border-slate-200">
-                <td colSpan={5} className="py-2 pr-3 text-right text-sm font-medium text-slate-600">Subtotal</td>
-                <td className="py-2 pr-3 text-right font-semibold tabular-nums text-slate-900">{money(subtotal)}</td>
-                <td />
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {lines.map((l, i) => (
+                  <tr key={l.product.id} className="border-t border-slate-100">
+                    <td className="py-2 pr-3">
+                      <p className="font-medium text-slate-900">{l.product.genericName}</p>
+                      <p className="text-xs text-slate-400">{l.product.code}</p>
+                    </td>
+                    <td className="py-2 pr-3">
+                      <input type="number" min="1" step="1" required value={l.quantity}
+                        onChange={(e) => setLine(i, { quantity: e.target.value })} className={`w-20 ${input}`} />
+                    </td>
+                    <td className="py-2 pr-3">
+                      <input type="number" min="0" step="0.01" required value={l.unitCost}
+                        onChange={(e) => setLine(i, { unitCost: e.target.value })} className={`w-28 ${input}`} />
+                    </td>
+                    <td className="py-2 pr-3">
+                      <input value={l.batchNo} placeholder="(at receiving)"
+                        onChange={(e) => setLine(i, { batchNo: e.target.value })} className={`w-32 ${input}`} />
+                    </td>
+                    <td className="py-2 pr-3">
+                      <DatePicker
+                        value={l.expiryDate}
+                        onChange={(d) => setLine(i, { expiryDate: d })}
+                        placeholder="(optional)"
+                        className="w-36"
+                      />
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums">
+                      {money((Number(l.quantity) || 0) * (Number(l.unitCost) || 0))}
+                    </td>
+                    <td className="py-2 text-right">
+                      <button type="button" onClick={() => setLines(lines.filter((_, idx) => idx !== i))}
+                        className="text-xs text-slate-400 hover:text-red-600">
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                <tr className="border-t border-slate-200">
+                  <td colSpan={5} className="py-2 pr-3 text-right text-sm font-medium text-slate-600">Subtotal</td>
+                  <td className="py-2 pr-3 text-right font-semibold tabular-nums text-slate-900">{money(subtotal)}</td>
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -299,7 +306,7 @@ function NewOrderForm({
   );
 }
 
-// ── receive form ─────────────────────────────────────────────
+// ── receive form (rendered inside a Drawer) ──────────────────
 
 interface ReceiveLine {
   itemId: number;
@@ -311,6 +318,7 @@ interface ReceiveLine {
 }
 
 function ReceiveForm({ order, onDone, onCancel }: { order: PO; onDone: () => void; onCancel: () => void }) {
+  const toast = useToast();
   const settings = useSettings();
   const [lines, setLines] = useState<ReceiveLine[]>(
     order.items.map((it) => ({
@@ -325,7 +333,6 @@ function ReceiveForm({ order, onDone, onCancel }: { order: PO; onDone: () => voi
   const [whtType, setWhtType] = useState('NONE');
   const [whtRate, setWhtRate] = useState('0');
   const [notes, setNotes] = useState('');
-  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   function setLine(i: number, patch: Partial<ReceiveLine>) {
@@ -340,9 +347,8 @@ function ReceiveForm({ order, onDone, onCancel }: { order: PO; onDone: () => voi
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
     if (lines.some((l) => !l.batchNo.trim())) {
-      setError('Every line needs a batch number');
+      toast.error('Every line needs a batch number');
       return;
     }
     setSaving(true);
@@ -364,60 +370,60 @@ function ReceiveForm({ order, onDone, onCancel }: { order: PO; onDone: () => voi
       });
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Receiving failed');
+      toast.error(err instanceof Error ? err.message : 'Receiving failed');
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={save} className="mt-4 rounded-lg border border-slate-900 bg-white p-5">
-      <h2 className="text-sm font-semibold text-slate-900">
-        Receive {order.poNumber} → {order.location.name}
-        {order.supplier ? ` (from ${order.supplier.name})` : ''}
-      </h2>
-      {error && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
-      <table className="mt-4 w-full text-left text-sm">
-        <thead className="text-xs uppercase tracking-wide text-slate-500">
-          <tr>
-            <th className="py-2 pr-3">Product</th>
-            <th className="py-2 pr-3">Qty received *</th>
-            <th className="py-2 pr-3">Unit Cost *</th>
-            <th className="py-2 pr-3">Batch No. *</th>
-            <th className="py-2 pr-3">Expiry Date</th>
-            <th className="py-2 text-right">Line Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map((l, i) => (
-            <tr key={l.itemId} className="border-t border-slate-100">
-              <td className="py-2 pr-3">
-                <p className="font-medium text-slate-900">{l.product.genericName}</p>
-                <p className="text-xs text-slate-400">{l.product.code}</p>
-              </td>
-              <td className="py-2 pr-3">
-                <input type="number" min="1" step="1" required value={l.quantity}
-                  onChange={(e) => setLine(i, { quantity: e.target.value })} className={`w-24 ${input}`} />
-              </td>
-              <td className="py-2 pr-3">
-                <input type="number" min="0" step="0.01" required value={l.unitCost}
-                  onChange={(e) => setLine(i, { unitCost: e.target.value })} className={`w-28 ${input}`} />
-              </td>
-              <td className="py-2 pr-3">
-                <input required value={l.batchNo}
-                  onChange={(e) => setLine(i, { batchNo: e.target.value })} className={`w-32 ${input}`} />
-              </td>
-              <td className="py-2 pr-3">
-                <input type="date" value={l.expiryDate}
-                  onChange={(e) => setLine(i, { expiryDate: e.target.value })} className={input} />
-              </td>
-              <td className="py-2 text-right tabular-nums">
-                {money((Number(l.quantity) || 0) * (Number(l.unitCost) || 0))}
-              </td>
+    <form onSubmit={save}>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="py-2 pr-3">Product</th>
+              <th className="py-2 pr-3">Qty received *</th>
+              <th className="py-2 pr-3">Unit Cost *</th>
+              <th className="py-2 pr-3">Batch No. *</th>
+              <th className="py-2 pr-3">Expiry Date</th>
+              <th className="py-2 text-right">Line Total</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {lines.map((l, i) => (
+              <tr key={l.itemId} className="border-t border-slate-100">
+                <td className="py-2 pr-3">
+                  <p className="font-medium text-slate-900">{l.product.genericName}</p>
+                  <p className="text-xs text-slate-400">{l.product.code}</p>
+                </td>
+                <td className="py-2 pr-3">
+                  <input type="number" min="1" step="1" required value={l.quantity}
+                    onChange={(e) => setLine(i, { quantity: e.target.value })} className={`w-24 ${input}`} />
+                </td>
+                <td className="py-2 pr-3">
+                  <input type="number" min="0" step="0.01" required value={l.unitCost}
+                    onChange={(e) => setLine(i, { unitCost: e.target.value })} className={`w-28 ${input}`} />
+                </td>
+                <td className="py-2 pr-3">
+                  <input required value={l.batchNo}
+                    onChange={(e) => setLine(i, { batchNo: e.target.value })} className={`w-32 ${input}`} />
+                </td>
+                <td className="py-2 pr-3">
+                  <DatePicker
+                    value={l.expiryDate}
+                    onChange={(d) => setLine(i, { expiryDate: d })}
+                    placeholder="(optional)"
+                    className="w-36"
+                  />
+                </td>
+                <td className="py-2 text-right tabular-nums">
+                  {money((Number(l.quantity) || 0) * (Number(l.unitCost) || 0))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-4 border-t border-slate-200 pt-4">
         <div>
@@ -449,7 +455,7 @@ function ReceiveForm({ order, onDone, onCancel }: { order: PO; onDone: () => voi
         </div>
         <div className="text-right text-sm">
           <p className="text-slate-500">Subtotal: <span className="tabular-nums font-medium text-slate-900">{money(subtotal)}</span></p>
-          <p className="text-slate-500">Withholding: <span className="tabular-nums font-medium text-slate-900">−{money(whtAmount)}</span></p>
+          <p className="text-slate-500">Withholding: <span className="tabular-nums font-medium text-slate-900">{whtAmount === 0 ? money(0) : `−${money(whtAmount)}`}</span></p>
           <p className="mt-1 font-semibold text-slate-900">Net payable: <span className="tabular-nums">{money(subtotal - whtAmount)}</span></p>
         </div>
       </div>
@@ -503,7 +509,10 @@ interface Expense {
   createdBy: { fullName: string };
 }
 
+const emptyExpense = { description: '', category: '', supplierId: '', amount: '', whtType: 'NONE', whtRate: '0', notes: '' };
+
 export default function ProcurementPage() {
+  const toast = useToast();
   const settings = useSettings();
   const [tab, setTab] = useState<Tab>('orders');
   const [orders, setOrders] = useState<PO[]>([]);
@@ -515,24 +524,41 @@ export default function ProcurementPage() {
   const [receiving, setReceiving] = useState<PO | null>(null);
   const [expandedGrv, setExpandedGrv] = useState<number | null>(null);
   const [showNewExpense, setShowNewExpense] = useState(false);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [cancelPo, setCancelPo] = useState<PO | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // per-tab search + pagination
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   // expense form state
-  const [exp, setExp] = useState({ description: '', category: '', supplierId: '', amount: '', whtType: 'NONE', whtRate: '0', notes: '' });
+  const [exp, setExp] = useState(emptyExpense);
   const [expSaving, setExpSaving] = useState(false);
 
-  const loadOrders = useCallback(async () => {
-    const d = await api<{ orders: PO[] }>('/api/procurement/orders?pageSize=50');
-    setOrders(d.orders);
-  }, []);
-  const loadReceipts = useCallback(async () => {
-    const d = await api<{ receipts: Receipt[] }>('/api/procurement/receipts?pageSize=50');
-    setReceipts(d.receipts);
-  }, []);
-  const loadExpenses = useCallback(async () => {
-    const d = await api<{ expenses: Expense[] }>('/api/procurement/expenses?pageSize=50');
-    setExpenses(d.expenses);
+  const load = useCallback(async (which: Tab, search: string, pageNum: number, size: number) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size) });
+      if (search) params.set('q', search);
+      if (which === 'orders') {
+        const d = await api<{ orders: PO[]; total: number }>(`/api/procurement/orders?${params}`);
+        setOrders(d.orders);
+        setTotal(d.total);
+      } else if (which === 'grv') {
+        const d = await api<{ receipts: Receipt[]; total: number }>(`/api/procurement/receipts?${params}`);
+        setReceipts(d.receipts);
+        setTotal(d.total);
+      } else {
+        const d = await api<{ expenses: Expense[]; total: number }>(`/api/procurement/expenses?${params}`);
+        setExpenses(d.expenses);
+        setTotal(d.total);
+      }
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -544,28 +570,41 @@ export default function ProcurementPage() {
         setSuppliers(s.suppliers);
         setLocations(l.locations);
       })
-      .catch((e) => setError(e.message));
-  }, []);
+      .catch((e) => toast.error(e.message));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    setError('');
-    const run = tab === 'orders' ? loadOrders : tab === 'grv' ? loadReceipts : loadExpenses;
-    run().catch((e) => setError(e.message));
-  }, [tab, loadOrders, loadReceipts, loadExpenses]);
+    load(tab, q, page, pageSize).catch((e) => toast.error(e.message));
+  }, [tab, q, page, pageSize, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function cancelOrder(po: PO) {
-    setError('');
+  function switchTab(t: Tab) {
+    setTab(t);
+    setQ('');
+    setPage(1);
+    setTotal(0);
+    setShowNew(false);
+    setReceiving(null);
+    setShowNewExpense(false);
+  }
+
+  async function confirmCancelOrder() {
+    if (!cancelPo) return;
+    setCancelBusy(true);
     try {
-      await api(`/api/procurement/orders/${po.id}/cancel`, { method: 'POST' });
-      await loadOrders();
+      await api(`/api/procurement/orders/${cancelPo.id}/cancel`, { method: 'POST' });
+      toast.success(`${cancelPo.poNumber} cancelled.`);
+      setCancelPo(null);
+      await load('orders', q, page, pageSize);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Cancel failed');
+      toast.error(err instanceof Error ? err.message : 'Cancel failed');
+      setCancelPo(null);
+    } finally {
+      setCancelBusy(false);
     }
   }
 
   async function saveExpense(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
     setExpSaving(true);
     try {
       await api('/api/procurement/expenses', {
@@ -580,11 +619,12 @@ export default function ProcurementPage() {
           notes: exp.notes || null,
         }),
       });
+      toast.success('Purchase recorded.');
       setShowNewExpense(false);
-      setExp({ description: '', category: '', supplierId: '', amount: '', whtType: 'NONE', whtRate: '0', notes: '' });
-      await loadExpenses();
+      setExp(emptyExpense);
+      await load('expenses', q, page, pageSize);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setExpSaving(false);
     }
@@ -596,6 +636,9 @@ export default function ProcurementPage() {
     { key: 'expenses', label: 'Other Purchases' },
   ];
 
+  const searchPlaceholder =
+    tab === 'orders' ? 'Search PO no. or supplier…' : tab === 'grv' ? 'Search GRV, PO or supplier…' : 'Search description, category…';
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -603,10 +646,10 @@ export default function ProcurementPage() {
           <h1 className="text-2xl font-bold text-slate-900">Procurement</h1>
           <p className="mt-1 text-sm text-slate-500">Purchase orders, goods receiving and non-sale purchases.</p>
         </div>
-        {tab === 'orders' && !showNew && !receiving && (
+        {tab === 'orders' && (
           <button onClick={() => setShowNew(true)} className={btnPrimary}>+ New Purchase Order</button>
         )}
-        {tab === 'expenses' && !showNewExpense && (
+        {tab === 'expenses' && (
           <button onClick={() => setShowNewExpense(true)} className={btnPrimary}>+ Record Purchase</button>
         )}
       </div>
@@ -615,7 +658,7 @@ export default function ProcurementPage() {
         {tabs.map((t) => (
           <button
             key={t.key}
-            onClick={() => { setTab(t.key); setShowNew(false); setReceiving(null); setNotice(''); }}
+            onClick={() => switchTab(t.key)}
             className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
               tab === t.key
                 ? 'border-slate-900 text-slate-900'
@@ -627,48 +670,48 @@ export default function ProcurementPage() {
         ))}
       </div>
 
-      {error && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {notice && (
-        <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">{notice}</p>
-      )}
+      <div className="mt-4">
+        <SearchInput
+          key={tab}
+          onSearch={(term) => {
+            setQ(term);
+            setPage(1);
+          }}
+          placeholder={searchPlaceholder}
+          className="w-72"
+        />
+      </div>
 
       {tab === 'orders' && (
-        <div>
-          {showNew && (
-            <NewOrderForm
-              suppliers={suppliers}
-              locations={locations}
-              onDone={() => { setShowNew(false); setNotice('Purchase order created.'); loadOrders().catch(() => {}); }}
-              onCancel={() => setShowNew(false)}
-            />
-          )}
-          {receiving && (
-            <ReceiveForm
-              order={receiving}
-              onDone={() => { setReceiving(null); setNotice('Goods received — stock updated.'); loadOrders().catch(() => {}); }}
-              onCancel={() => setReceiving(null)}
-            />
-          )}
-
-          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3">PO No.</th>
+                <th className="px-4 py-3">Supplier</th>
+                <th className="px-4 py-3">Location</th>
+                <th className="px-4 py-3">Items</th>
+                <th className="px-4 py-3 text-right">Subtotal</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && <SkeletonRows rows={5} cols={8} />}
+              {!loading && orders.length === 0 && (
                 <tr>
-                  <th className="px-4 py-3">PO No.</th>
-                  <th className="px-4 py-3">Supplier</th>
-                  <th className="px-4 py-3">Location</th>
-                  <th className="px-4 py-3">Items</th>
-                  <th className="px-4 py-3 text-right">Subtotal</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Created</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <td colSpan={8}>
+                    <EmptyState
+                      title={q ? 'No purchase orders match your search' : 'No purchase orders yet'}
+                      description={q ? 'Try a different PO number or supplier.' : 'Create a purchase order to start procuring stock.'}
+                      action={q ? undefined : { label: '+ New Purchase Order', onClick: () => setShowNew(true) }}
+                    />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {orders.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">No purchase orders yet.</td></tr>
-                )}
-                {orders.map((po) => (
+              )}
+              {!loading &&
+                orders.map((po) => (
                   <tr key={po.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-4 py-3 font-mono text-xs text-slate-900">{po.poNumber}</td>
                     <td className="px-4 py-3 text-slate-600">{po.supplier?.name || '—'}</td>
@@ -687,12 +730,12 @@ export default function ProcurementPage() {
                       {po.status === 'OPEN' && (
                         <>
                           <button
-                            onClick={() => { setReceiving(po); setShowNew(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            onClick={() => setReceiving(po)}
                             className="text-xs font-medium text-slate-900 underline underline-offset-2"
                           >
                             Receive
                           </button>
-                          <button onClick={() => cancelOrder(po)} className="ml-3 text-xs font-medium text-slate-500 hover:underline">
+                          <button onClick={() => setCancelPo(po)} className="ml-3 text-xs font-medium text-red-600 hover:underline">
                             Cancel
                           </button>
                         </>
@@ -703,9 +746,8 @@ export default function ProcurementPage() {
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -726,162 +768,111 @@ export default function ProcurementPage() {
               </tr>
             </thead>
             <tbody>
-              {receipts.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400">No goods received yet.</td></tr>
+              {loading && <SkeletonRows rows={5} cols={9} />}
+              {!loading && receipts.length === 0 && (
+                <tr>
+                  <td colSpan={9}>
+                    <EmptyState
+                      title={q ? 'No receipts match your search' : 'No goods received yet'}
+                      description={q ? 'Try a different GRV, PO or supplier.' : 'Receive an open purchase order to create a GRV.'}
+                    />
+                  </td>
+                </tr>
               )}
-              {receipts.map((r) => (
-                <>
-                  <tr key={r.id} className="border-b border-slate-100 last:border-0">
-                    <td className="px-4 py-3 font-mono text-xs text-slate-900">{r.grvNumber}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600">{r.purchaseOrder?.poNumber || '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">{r.supplier?.name || '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">{r.location.name}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-900">{money(r.subtotal)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-600">
-                      {r.withholdingType === 'NONE' ? '—' : `−${money(r.withholdingAmount)} (${Number(r.withholdingRate)}% ${r.withholdingType.toLowerCase()})`}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-900">{money(r.netPayable)}</td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {new Date(r.createdAt).toLocaleDateString()} · {r.receivedBy.fullName}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setExpandedGrv(expandedGrv === r.id ? null : r.id)}
-                        className="text-xs font-medium text-slate-900 underline underline-offset-2"
-                      >
-                        {expandedGrv === r.id ? 'Hide' : 'Items'}
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedGrv === r.id && (
-                    <tr key={`${r.id}-detail`} className="border-b border-slate-100 bg-slate-50">
-                      <td colSpan={9} className="px-6 py-3">
-                        <table className="w-full text-left text-xs">
-                          <thead className="uppercase tracking-wide text-slate-500">
-                            <tr>
-                              <th className="py-1 pr-3">Product</th>
-                              <th className="py-1 pr-3">Batch</th>
-                              <th className="py-1 pr-3">Expiry</th>
-                              <th className="py-1 pr-3 text-right">Qty</th>
-                              <th className="py-1 pr-3 text-right">Unit Cost</th>
-                              <th className="py-1 text-right">Total</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {r.items.map((it) => (
-                              <tr key={it.id} className="border-t border-slate-200">
-                                <td className="py-1.5 pr-3 text-slate-900">{it.product.code} — {it.product.genericName}</td>
-                                <td className="py-1.5 pr-3 text-slate-600">{it.batch.batchNo}</td>
-                                <td className="py-1.5 pr-3 text-slate-600">
-                                  {it.batch.expiryDate ? new Date(it.batch.expiryDate).toLocaleDateString() : '—'}
-                                </td>
-                                <td className="py-1.5 pr-3 text-right tabular-nums">{it.quantity}</td>
-                                <td className="py-1.5 pr-3 text-right tabular-nums">{money(it.unitCost)}</td>
-                                <td className="py-1.5 text-right tabular-nums">{money(it.quantity * Number(it.unitCost))}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+              {!loading &&
+                receipts.map((r) => (
+                  <Fragment key={r.id}>
+                    <tr className="border-b border-slate-100 last:border-0">
+                      <td className="px-4 py-3 font-mono text-xs text-slate-900">{r.grvNumber}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-slate-600">{r.purchaseOrder?.poNumber || '—'}</td>
+                      <td className="px-4 py-3 text-slate-600">{r.supplier?.name || '—'}</td>
+                      <td className="px-4 py-3 text-slate-600">{r.location.name}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-900">{money(r.subtotal)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-600">
+                        {r.withholdingType === 'NONE' ? '—' : `−${money(r.withholdingAmount)} (${Number(r.withholdingRate)}% ${r.withholdingType.toLowerCase()})`}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-900">{money(r.netPayable)}</td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {new Date(r.createdAt).toLocaleDateString()} · {r.receivedBy.fullName}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => setExpandedGrv(expandedGrv === r.id ? null : r.id)}
+                          className="text-xs font-medium text-slate-900 underline underline-offset-2"
+                        >
+                          {expandedGrv === r.id ? 'Hide' : 'Items'}
+                        </button>
                       </td>
                     </tr>
-                  )}
-                </>
-              ))}
+                    {expandedGrv === r.id && (
+                      <tr className="border-b border-slate-100 bg-slate-50">
+                        <td colSpan={9} className="px-6 py-3">
+                          <table className="w-full text-left text-xs">
+                            <thead className="uppercase tracking-wide text-slate-500">
+                              <tr>
+                                <th className="py-1 pr-3">Product</th>
+                                <th className="py-1 pr-3">Batch</th>
+                                <th className="py-1 pr-3">Expiry</th>
+                                <th className="py-1 pr-3 text-right">Qty</th>
+                                <th className="py-1 pr-3 text-right">Unit Cost</th>
+                                <th className="py-1 text-right">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {r.items.map((it) => (
+                                <tr key={it.id} className="border-t border-slate-200">
+                                  <td className="py-1.5 pr-3 text-slate-900">{it.product.code} — {it.product.genericName}</td>
+                                  <td className="py-1.5 pr-3 text-slate-600">{it.batch.batchNo}</td>
+                                  <td className="py-1.5 pr-3 text-slate-600">
+                                    {it.batch.expiryDate ? new Date(it.batch.expiryDate).toLocaleDateString() : '—'}
+                                  </td>
+                                  <td className="py-1.5 pr-3 text-right tabular-nums">{it.quantity}</td>
+                                  <td className="py-1.5 pr-3 text-right tabular-nums">{money(it.unitCost)}</td>
+                                  <td className="py-1.5 text-right tabular-nums">{money(it.quantity * Number(it.unitCost))}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
             </tbody>
           </table>
         </div>
       )}
 
       {tab === 'expenses' && (
-        <div>
-          {showNewExpense && (
-            <form onSubmit={saveExpense} className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
-              <h2 className="text-sm font-semibold text-slate-900">Record Non-Sale Purchase</h2>
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-                <div className="md:col-span-2">
-                  <label className={label}>Description *</label>
-                  <input required value={exp.description}
-                    onChange={(e) => setExp({ ...exp, description: e.target.value })}
-                    placeholder="e.g. Office supplies — printer paper"
-                    className={`mt-1 w-full ${input}`} />
-                </div>
-                <div>
-                  <label className={label}>Category</label>
-                  <input value={exp.category}
-                    onChange={(e) => setExp({ ...exp, category: e.target.value })}
-                    placeholder="Office supplies" className={`mt-1 w-full ${input}`} />
-                </div>
-                <div>
-                  <label className={label}>Supplier</label>
-                  <select value={exp.supplierId} onChange={(e) => setExp({ ...exp, supplierId: e.target.value })}
-                    className={`mt-1 w-full ${input}`}>
-                    <option value="">—</option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={label}>Amount *</label>
-                  <input required type="number" min="0.01" step="0.01" value={exp.amount}
-                    onChange={(e) => setExp({ ...exp, amount: e.target.value })} className={`mt-1 w-full ${input}`} />
-                </div>
-                <div>
-                  <label className={label}>Withholding</label>
-                  <select
-                    value={exp.whtType}
-                    onChange={(e) => {
-                      const opt = WHT_OPTIONS.find((o) => o.value === e.target.value)!;
-                      setExp({ ...exp, whtType: opt.value, whtRate: String(whtRateFor(opt.value, settings)) });
-                    }}
-                    className={`mt-1 w-full ${input}`}
-                  >
-                    {WHT_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
-                </div>
-                {exp.whtType !== 'NONE' && (
-                  <div>
-                    <label className={label}>Rate %</label>
-                    <input type="number" min="0" max="100" step="0.01" value={exp.whtRate}
-                      onChange={(e) => setExp({ ...exp, whtRate: e.target.value })} className={`mt-1 w-full ${input}`} />
-                  </div>
-                )}
-                <div>
-                  <label className={label}>Notes</label>
-                  <input value={exp.notes} onChange={(e) => setExp({ ...exp, notes: e.target.value })}
-                    className={`mt-1 w-full ${input}`} />
-                </div>
-              </div>
-              <div className="mt-5 flex gap-2">
-                <button type="submit" disabled={expSaving} className={btnPrimary}>
-                  {expSaving ? 'Saving…' : 'Save'}
-                </button>
-                <button type="button" onClick={() => setShowNewExpense(false)} className={btnGhost}>Cancel</button>
-              </div>
-            </form>
-          )}
-
-          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Description</th>
+                <th className="px-4 py-3">Category</th>
+                <th className="px-4 py-3">Supplier</th>
+                <th className="px-4 py-3 text-right">Amount</th>
+                <th className="px-4 py-3 text-right">Withholding</th>
+                <th className="px-4 py-3 text-right">Net Payable</th>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">By</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && <SkeletonRows rows={5} cols={8} />}
+              {!loading && expenses.length === 0 && (
                 <tr>
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Supplier</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
-                  <th className="px-4 py-3 text-right">Withholding</th>
-                  <th className="px-4 py-3 text-right">Net Payable</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">By</th>
+                  <td colSpan={8}>
+                    <EmptyState
+                      title={q ? 'No purchases match your search' : 'No non-sale purchases recorded'}
+                      description={q ? 'Try a different description or category.' : 'Record office supplies and other non-sale purchases here.'}
+                      action={q ? undefined : { label: '+ Record Purchase', onClick: () => setShowNewExpense(true) }}
+                    />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {expenses.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">No non-sale purchases recorded.</td></tr>
-                )}
-                {expenses.map((x) => (
+              )}
+              {!loading &&
+                expenses.map((x) => (
                   <tr key={x.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-4 py-3 font-medium text-slate-900">{x.description}</td>
                     <td className="px-4 py-3 text-slate-600">{x.category || '—'}</td>
@@ -895,11 +886,161 @@ export default function ProcurementPage() {
                     <td className="px-4 py-3 text-slate-500">{x.createdBy.fullName}</td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
+            </tbody>
+          </table>
         </div>
       )}
+
+      <div className="mt-4">
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={(s) => {
+            setPageSize(s);
+            setPage(1);
+          }}
+        />
+      </div>
+
+      <Drawer
+        open={showNew}
+        onClose={() => setShowNew(false)}
+        title="New Purchase Order"
+        subtitle="Pick a supplier, receiving location and product lines"
+        width="xl"
+      >
+        {showNew && (
+          <NewOrderForm
+            suppliers={suppliers}
+            locations={locations}
+            onDone={() => {
+              setShowNew(false);
+              toast.success('Purchase order created.');
+              load('orders', q, page, pageSize).catch(() => {});
+            }}
+            onCancel={() => setShowNew(false)}
+          />
+        )}
+      </Drawer>
+
+      <Drawer
+        open={receiving !== null}
+        onClose={() => setReceiving(null)}
+        title={receiving ? `Receive ${receiving.poNumber}` : 'Receive'}
+        subtitle={
+          receiving
+            ? `Into ${receiving.location.name}${receiving.supplier ? ` — from ${receiving.supplier.name}` : ''}`
+            : undefined
+        }
+        width="xl"
+      >
+        {receiving && (
+          <ReceiveForm
+            order={receiving}
+            onDone={() => {
+              setReceiving(null);
+              toast.success('Goods received — stock updated.');
+              load('orders', q, page, pageSize).catch(() => {});
+            }}
+            onCancel={() => setReceiving(null)}
+          />
+        )}
+      </Drawer>
+
+      <Drawer
+        open={showNewExpense}
+        onClose={() => setShowNewExpense(false)}
+        title="Record Non-Sale Purchase"
+        subtitle="Office supplies, services and other expenses"
+        width="md"
+      >
+        {showNewExpense && (
+          <form onSubmit={saveExpense} className="space-y-4">
+            <div>
+              <label className={label}>Description *</label>
+              <input required value={exp.description}
+                onChange={(e) => setExp({ ...exp, description: e.target.value })}
+                placeholder="e.g. Office supplies — printer paper"
+                className={`mt-1 w-full ${input}`} />
+            </div>
+            <div>
+              <label className={label}>Category</label>
+              <input value={exp.category}
+                onChange={(e) => setExp({ ...exp, category: e.target.value })}
+                placeholder="Office supplies" className={`mt-1 w-full ${input}`} />
+            </div>
+            <div>
+              <label className={label}>Supplier</label>
+              <Combobox
+                options={suppliers.map((s) => ({ value: String(s.id), label: s.name }))}
+                value={exp.supplierId}
+                onChange={(v) => setExp({ ...exp, supplierId: v })}
+                placeholder="Search supplier…"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className={label}>Amount *</label>
+              <input required type="number" min="0.01" step="0.01" value={exp.amount}
+                onChange={(e) => setExp({ ...exp, amount: e.target.value })} className={`mt-1 w-full ${input}`} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={label}>Withholding</label>
+                <select
+                  value={exp.whtType}
+                  onChange={(e) => {
+                    const opt = WHT_OPTIONS.find((o) => o.value === e.target.value)!;
+                    setExp({ ...exp, whtType: opt.value, whtRate: String(whtRateFor(opt.value, settings)) });
+                  }}
+                  className={`mt-1 w-full ${input}`}
+                >
+                  {WHT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              {exp.whtType !== 'NONE' && (
+                <div>
+                  <label className={label}>Rate %</label>
+                  <input type="number" min="0" max="100" step="0.01" value={exp.whtRate}
+                    onChange={(e) => setExp({ ...exp, whtRate: e.target.value })} className={`mt-1 w-full ${input}`} />
+                </div>
+              )}
+            </div>
+            <div>
+              <label className={label}>Notes</label>
+              <input value={exp.notes} onChange={(e) => setExp({ ...exp, notes: e.target.value })}
+                className={`mt-1 w-full ${input}`} />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button type="submit" disabled={expSaving} className={btnPrimary}>
+                {expSaving ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => setShowNewExpense(false)} className={btnGhost}>Cancel</button>
+            </div>
+          </form>
+        )}
+      </Drawer>
+
+      <ConfirmDialog
+        open={cancelPo !== null}
+        title="Cancel purchase order?"
+        message={
+          <>
+            <span className="font-mono text-xs font-medium text-slate-900">{cancelPo?.poNumber}</span> will be
+            marked cancelled. It cannot be received afterwards.
+          </>
+        }
+        confirmLabel="Cancel order"
+        cancelLabel="Keep order"
+        danger
+        busy={cancelBusy}
+        onConfirm={confirmCancelOrder}
+        onCancel={() => setCancelPo(null)}
+      />
     </div>
   );
 }

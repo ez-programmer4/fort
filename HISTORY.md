@@ -5,6 +5,28 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A2 complete: Roll-out Across All Modules
+
+**Phase:** A2 — Roll-out Across All Modules (§1 applied)
+
+**Done:**
+- **Backend pagination** added (optional `?page&pageSize`, backward-compatible — no `page` still returns the full list): `suppliers.controller.js`, `users.controller.js` (both gained `q` search too; every other list endpoint — inventory, procurement orders/receipts/expenses, sales, wallet credits/payments, inventory movements — already supported it)
+- **Suppliers** — Drawer form (bank accounts sub-list), Pagination, SearchInput, toasts, Delete + ConfirmDialog, SkeletonRows, EmptyState
+- **Users** — Drawer form, Pagination, SearchInput, toasts, SkeletonRows, EmptyState
+- **Products** — Drawer form (xl width, alert-thresholds section), Pagination, SearchInput, supplier Combobox, toasts, SkeletonRows, EmptyState; Excel import/export and template unchanged
+- **Inventory** — Pagination, SearchInput, stock-adjustment Drawer, toasts, SkeletonRows, EmptyState
+- **Procurement** (3 tabs) — New Purchase Order and Receive GRV forms moved into xl Drawers with product Combobox + DatePicker for expiry; Record Purchase (expense) in a md Drawer with supplier Combobox; per-tab SearchInput + Pagination; Cancel PO now uses a danger ConfirmDialog instead of a bare confirm
+- **Sales & Dispensing** — stock picker now uses SearchInput (debounced) with a branded SkeletonRows loading state; Sales History gained SearchInput + Pagination; toasts throughout; dispense summary/confirm flow unchanged
+- **Wallet** — DateRangePicker replaces native from/to inputs; SearchInput + Pagination on both Outstanding Credits and Payment History tabs; Record Payment moved into a Drawer; toasts
+- **Audit Trail** — SearchInput, DateRangePicker (backend already supported `from`/`to`), Pagination, SkeletonRows, EmptyState
+- **Reports** — DateRangePicker replaces native from/to inputs; skeleton loading for both the finance summary and the sales table
+
+**Verified:** `tsc --noEmit` clean; all 15 app pages render HTTP 200 (dashboard, alerts, products, inventory, bincard, procurement, sales, wallet, reports, audit, locations, suppliers, users, roles, settings); smoke-tested paginated APIs (suppliers, users, wallet credits, wallet payments, inventory movements) — correct `{items, total, page, pageSize}` shape and unpaginated fallback still intact for dropdown consumers
+
+**Next:** Phase A3 — Alerts module adjustments (Dispose action, search/filter, clickable product-details drawer)
+
+---
+
 ## 2026-07-16 — Phase A1 complete: Shared UI Component Library
 
 **Phase:** A1 — Shared UI Component Library

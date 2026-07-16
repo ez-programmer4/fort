@@ -167,16 +167,16 @@ Build once, reuse everywhere (all monochrome, keyboard-accessible):
 
 ## Phase A2 — Roll-out Across All Modules (§1 applied)
 
-- [ ] Pagination on every table: products, inventory, users, locations, suppliers,
+- [x] Pagination on every table: products, inventory, users, locations, suppliers,
       procurement (3 tabs), sales history, wallet (credits + payments), audit trail
-- [ ] All Add/Edit forms become Drawers: users, locations, suppliers, products,
+- [x] All Add/Edit forms become Drawers: users, locations, suppliers, products,
       stock adjustment, new PO, receive GRV, expense, record payment
-- [ ] Debounced 2+ char search everywhere a search box exists
-- [ ] Combobox for supplier & product selection: product form, PO lines, dispense
+- [x] Debounced 2+ char search everywhere a search box exists
+- [x] Combobox for supplier & product selection: product form, PO lines, dispense
       stock picker, bin card product select (§2.3)
-- [ ] Custom DatePicker replaces native date inputs: bin card, wallet, reports,
+- [x] Custom DatePicker replaces native date inputs: bin card, wallet, reports,
       audit, PO receive expiry, sales history
-- [ ] ➕ Branded loading + skeleton rows during data fetch on all pages
+- [x] ➕ Branded loading + skeleton rows during data fetch on all pages
 
 ## Phase A3 — Alerts Module Adjustments (§2.1)
 

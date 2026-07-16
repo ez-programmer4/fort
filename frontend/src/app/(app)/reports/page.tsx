@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api, apiDownload } from '@/lib/api';
+import { DateRangePicker } from '@/components/ui/date-picker';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SkeletonRows } from '@/components/ui/loading';
+import { useToast } from '@/components/ui/toast';
 
 const input =
   'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -37,6 +41,7 @@ interface SalesData {
 }
 
 export default function ReportsPage() {
+  const toast = useToast();
   const [tab, setTab] = useState<'finance' | 'sales'>('finance');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -44,7 +49,7 @@ export default function ReportsPage() {
   const [locationId, setLocationId] = useState('');
   const [finance, setFinance] = useState<Finance | null>(null);
   const [sales, setSales] = useState<SalesData | null>(null);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const params = useCallback(() => {
     const p = new URLSearchParams();
@@ -57,22 +62,19 @@ export default function ReportsPage() {
   useEffect(() => {
     api<{ locations: Option[] }>('/api/locations')
       .then((d) => setLocations(d.locations))
-      .catch((e) => setError(e.message));
-  }, []);
+      .catch((e) => toast.error(e.message));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    setError('');
+    setLoading(true);
     const q = params();
-    if (tab === 'finance') {
-      api<Finance>(`/api/reports/finance?${q}`).then(setFinance).catch((e) => setError(e.message));
-    } else {
-      api<SalesData>(`/api/reports/sales?${q}`).then(setSales).catch((e) => setError(e.message));
-    }
-  }, [tab, params]);
+    const req = tab === 'finance' ? api<Finance>(`/api/reports/finance?${q}`).then(setFinance) : api<SalesData>(`/api/reports/sales?${q}`).then(setSales);
+    req.catch((e) => toast.error(e.message)).finally(() => setLoading(false));
+  }, [tab, params]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function downloadPdf() {
     const path = tab === 'finance' ? '/api/reports/finance.pdf' : '/api/reports/sales.pdf';
-    apiDownload(`${path}?${params()}`, `${tab}-report.pdf`).catch((e) => setError(e.message));
+    apiDownload(`${path}?${params()}`, `${tab}-report.pdf`).catch((e) => toast.error(e.message));
   }
 
   const financeRows = finance
@@ -115,16 +117,19 @@ export default function ReportsPage() {
         ))}
       </div>
 
-      {error && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
       <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4">
         <div>
-          <label className={label}>From</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={`mt-1 ${input}`} />
-        </div>
-        <div>
-          <label className={label}>To</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={`mt-1 ${input}`} />
+          <label className={label}>Date range</label>
+          <DateRangePicker
+            from={from}
+            to={to}
+            onChange={(r) => {
+              setFrom(r.from);
+              setTo(r.to);
+            }}
+            placeholder="All time"
+            className="mt-1"
+          />
         </div>
         <div>
           <label className={label}>Location</label>
@@ -137,25 +142,33 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {tab === 'finance' && finance && (
+      {tab === 'finance' && (
         <div className="mt-4 max-w-xl rounded-lg border border-slate-200 bg-white p-6">
-          {financeRows.map((r) => (
-            <div
-              key={r.label}
-              className={`flex items-center justify-between border-b border-slate-100 py-2.5 last:border-0 ${
-                r.bold ? 'font-semibold' : ''
-              }`}
-            >
-              <span className={r.bold ? 'text-slate-900' : 'text-slate-500'}>{r.label}</span>
-              <span className={`tabular-nums ${r.value < 0 ? 'text-slate-600' : 'text-slate-900'}`}>
-                {r.value < 0 ? `−${money(Math.abs(r.value))}` : money(r.value)}
-              </span>
+          {loading && (
+            <div className="space-y-3">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <div key={i} className="h-5 animate-pulse rounded bg-slate-100" />
+              ))}
             </div>
-          ))}
+          )}
+          {!loading && finance &&
+            financeRows.map((r) => (
+              <div
+                key={r.label}
+                className={`flex items-center justify-between border-b border-slate-100 py-2.5 last:border-0 ${
+                  r.bold ? 'font-semibold' : ''
+                }`}
+              >
+                <span className={r.bold ? 'text-slate-900' : 'text-slate-500'}>{r.label}</span>
+                <span className={`tabular-nums ${r.value < 0 ? 'text-slate-600' : 'text-slate-900'}`}>
+                  {r.value < 0 ? `−${money(Math.abs(r.value))}` : money(r.value)}
+                </span>
+              </div>
+            ))}
         </div>
       )}
 
-      {tab === 'sales' && sales && (
+      {tab === 'sales' && (
         <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -169,20 +182,27 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody>
-              {sales.days.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">No sales in this period.</td></tr>
-              )}
-              {sales.days.map((d) => (
-                <tr key={d.date} className="border-b border-slate-100">
-                  <td className="px-4 py-2.5 text-slate-900">{new Date(d.date).toLocaleDateString()}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">{d.count}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-slate-900">{money(d.gross)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">{money(d.cash)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">{money(d.credit)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-medium text-slate-900">{money(d.net)}</td>
+              {loading && <SkeletonRows rows={6} cols={6} />}
+              {!loading && sales && sales.days.length === 0 && (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState title="No sales in this period" description="Try widening the date range." />
+                  </td>
                 </tr>
-              ))}
-              {sales.days.length > 0 && (
+              )}
+              {!loading &&
+                sales &&
+                sales.days.map((d) => (
+                  <tr key={d.date} className="border-b border-slate-100">
+                    <td className="px-4 py-2.5 text-slate-900">{new Date(d.date).toLocaleDateString()}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">{d.count}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-slate-900">{money(d.gross)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">{money(d.cash)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">{money(d.credit)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-medium text-slate-900">{money(d.net)}</td>
+                  </tr>
+                ))}
+              {!loading && sales && sales.days.length > 0 && (
                 <tr className="bg-slate-50 font-semibold">
                   <td className="px-4 py-2.5 text-slate-900">Total</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{sales.totals.count}</td>

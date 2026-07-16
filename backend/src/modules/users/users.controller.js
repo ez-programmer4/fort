@@ -13,8 +13,35 @@ const userSelect = {
 
 async function list(req, res, next) {
   try {
-    const users = await prisma.user.findMany({ select: userSelect, orderBy: { id: 'asc' } });
-    res.json({ users });
+    const q = String(req.query.q || '').trim();
+    const where = q
+      ? {
+          OR: [
+            { fullName: { contains: q, mode: 'insensitive' } },
+            { email: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : undefined;
+
+    // Without ?page, return the full list (backward compatible).
+    if (!req.query.page) {
+      const users = await prisma.user.findMany({ where, select: userSelect, orderBy: { id: 'asc' } });
+      return res.json({ users, total: users.length });
+    }
+
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
+    const [total, users] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        select: userSelect,
+        orderBy: { id: 'asc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    res.json({ users, total, page, pageSize });
   } catch (err) {
     next(err);
   }

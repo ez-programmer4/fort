@@ -4,20 +4,35 @@ const { ApiError } = require('../../middleware/error');
 async function list(req, res, next) {
   try {
     const q = String(req.query.q || '').trim();
-    const suppliers = await prisma.supplier.findMany({
-      where: q
-        ? {
-            OR: [
-              { name: { contains: q, mode: 'insensitive' } },
-              { tin: { contains: q, mode: 'insensitive' } },
-              { phone: { contains: q, mode: 'insensitive' } },
-              { email: { contains: q, mode: 'insensitive' } },
-            ],
-          }
-        : undefined,
-      orderBy: { name: 'asc' },
-    });
-    res.json({ suppliers });
+    const where = q
+      ? {
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { tin: { contains: q, mode: 'insensitive' } },
+            { phone: { contains: q, mode: 'insensitive' } },
+            { email: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : undefined;
+
+    // Without ?page, return the full list (dropdown/filter consumers).
+    if (!req.query.page) {
+      const suppliers = await prisma.supplier.findMany({ where, orderBy: { name: 'asc' } });
+      return res.json({ suppliers, total: suppliers.length });
+    }
+
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
+    const [total, suppliers] = await Promise.all([
+      prisma.supplier.count({ where }),
+      prisma.supplier.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    res.json({ suppliers, total, page, pageSize });
   } catch (err) {
     next(err);
   }
