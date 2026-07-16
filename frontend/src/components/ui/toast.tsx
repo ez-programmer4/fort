@@ -90,7 +90,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => dismiss(t.id)}
               aria-label="Dismiss"
-              className="shrink-0 rounded p-0.5 text-slate-400 hover:text-white"
+              className="shrink-0 rounded p-0.5 text-slate-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

@@ -216,53 +216,55 @@ export default function BinCardPage() {
             </div>
           </div>
 
-          <table className="mt-4 w-full text-left text-sm">
-            <thead className="border-b border-slate-300 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="py-2 pr-3">Date</th>
-                <th className="py-2 pr-3">Batch</th>
-                <th className="py-2 pr-3">Expiry</th>
-                <th className="py-2 pr-3">Supplier</th>
-                <th className="py-2 pr-3 text-right">In</th>
-                <th className="py-2 pr-3 text-right">Out</th>
-                <th className="py-2 pr-3 text-right">Balance</th>
-                <th className="py-2 pr-3">Performed By</th>
-                <th className="py-2">Remark</th>
-              </tr>
-            </thead>
-            <tbody>
-              {card.rows.length === 0 && (
+          <div className="overflow-x-auto print:overflow-visible">
+            <table className="mt-4 w-full text-left text-sm">
+              <thead className="border-b border-slate-300 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-sm text-slate-400">
-                    No stock movements for this product/location in the selected period.
-                  </td>
+                  <th className="py-2 pr-3">Date</th>
+                  <th className="py-2 pr-3">Batch</th>
+                  <th className="py-2 pr-3">Expiry</th>
+                  <th className="py-2 pr-3">Supplier</th>
+                  <th className="py-2 pr-3 text-right">In</th>
+                  <th className="py-2 pr-3 text-right">Out</th>
+                  <th className="py-2 pr-3 text-right">Balance</th>
+                  <th className="py-2 pr-3">Performed By</th>
+                  <th className="py-2">Remark</th>
                 </tr>
-              )}
-              {card.rows.map((r, i) => (
-                <tr key={i} className="border-b border-slate-100 last:border-0">
-                  <td className="py-2 pr-3 text-slate-600">
-                    {new Date(r.date).toLocaleDateString()}
-                  </td>
-                  <td className="py-2 pr-3 text-slate-900">{r.batchNo}</td>
-                  <td className="py-2 pr-3 text-slate-600">
-                    {r.expiryDate ? new Date(r.expiryDate).toLocaleDateString() : '—'}
-                  </td>
-                  <td className="py-2 pr-3 text-slate-600">{r.supplier}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-900">
-                    {r.in || ''}
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-900">
-                    {r.out || ''}
-                  </td>
-                  <td className="py-2 pr-3 text-right font-medium tabular-nums text-slate-900">
-                    {r.balance}
-                  </td>
-                  <td className="py-2 pr-3 text-slate-600">{r.performedBy}</td>
-                  <td className="py-2 text-slate-600">{r.remark}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {card.rows.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="py-8 text-center text-sm text-slate-400">
+                      No stock movements for this product/location in the selected period.
+                    </td>
+                  </tr>
+                )}
+                {card.rows.map((r, i) => (
+                  <tr key={i} className="border-b border-slate-100 last:border-0">
+                    <td className="py-2 pr-3 text-slate-600">
+                      {new Date(r.date).toLocaleDateString()}
+                    </td>
+                    <td className="py-2 pr-3 text-slate-900">{r.batchNo}</td>
+                    <td className="py-2 pr-3 text-slate-600">
+                      {r.expiryDate ? new Date(r.expiryDate).toLocaleDateString() : '—'}
+                    </td>
+                    <td className="py-2 pr-3 text-slate-600">{r.supplier}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-slate-900">
+                      {r.in || ''}
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-slate-900">
+                      {r.out || ''}
+                    </td>
+                    <td className="py-2 pr-3 text-right font-medium tabular-nums text-slate-900">
+                      {r.balance}
+                    </td>
+                    <td className="py-2 pr-3 text-slate-600">{r.performedBy}</td>
+                    <td className="py-2 text-slate-600">{r.remark}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

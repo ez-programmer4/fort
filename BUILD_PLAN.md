@@ -210,10 +210,14 @@ Build once, reuse everywhere (all monochrome, keyboard-accessible):
 
 ## Phase A5 — Sales Print + Final Polish (§2.4)
 
-- [ ] **Printable Sales History** — professional print layout with date-range picker
-- [ ] ➕ Sales history date-range filter on screen (not just for print)
-- [ ] ➕ Final consistency sweep: spacing, typography, focus states, tablet check
-- [ ] Verify everything end-to-end, update HISTORY.md
+- [x] **Printable Sales History** — professional print layout with date-range picker
+- [x] ➕ Sales history date-range filter on screen (not just for print)
+- [x] ➕ Final consistency sweep: spacing, typography, focus states, tablet check
+- [x] Verify everything end-to-end, update HISTORY.md
+
+---
+
+**All adjustment phases (A1–A5) complete — the professional UX pass is done.**
 
 ---
 

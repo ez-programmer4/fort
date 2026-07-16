@@ -25,7 +25,7 @@ const orderInclude = {
 async function list(req, res, next) {
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
-    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
+    const pageSize = Math.min(500, Math.max(1, Number(req.query.pageSize) || 20));
     const where = {};
     if (req.query.q) {
       where.OR = [
@@ -35,6 +35,11 @@ async function list(req, res, next) {
     }
     if (req.query.locationId) where.locationId = Number(req.query.locationId);
     if (req.query.paymentType) where.paymentType = String(req.query.paymentType);
+
+    const from = req.query.from ? new Date(`${req.query.from}T00:00:00`) : null;
+    const to = req.query.to ? new Date(`${req.query.to}T23:59:59.999`) : null;
+    if ((from && isNaN(from)) || (to && isNaN(to))) throw new ApiError(400, 'Invalid date range');
+    if (from || to) where.createdAt = { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) };
 
     const [total, orders] = await Promise.all([
       prisma.dispenseOrder.count({ where }),

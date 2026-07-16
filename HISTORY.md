@@ -5,6 +5,25 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A5 complete: Sales Print + Final Polish
+
+**Phase:** A5 — Sales Print + Final Polish (§2.4) — last of the adjustment phases (A1–A5)
+
+**Done:**
+- **Backend**: `sales.controller.js` `list` now accepts optional `from`/`to` (same `YYYY-MM-DD` + invalid-date-→ 400 pattern as audit/bincard/wallet); pageSize cap raised from 100 to 500 so the print flow can pull a full filtered date range in one request.
+- **Frontend — Sales History**: on-screen `DateRangePicker` next to the existing search box, scoping the table (and pagination) live — not just for print.
+- **Frontend — Printable Sales History report** (`SalesHistoryReport` in `sales/page.tsx`): branded header (pharmacy name/address/phone from Settings), the active date range and search filter, summary line (order count, total, cash/credit split), a full order table (DSP no., date, location, customer, payment, total) with a totals footer, and a signature block — same visual language as the existing Dispense Slip and Bin Card. "Print Sales History" fetches every order matching the current filters (up to 500) before switching to the report view, so the printed list isn't limited to the on-screen page; `window.print()` triggers the browser print dialog.
+- **Final consistency sweep**:
+  - `roles/page.tsx` modernized — last page still on the pre-monochrome `text-slate-800` convention and inline error/success banners; now `text-slate-900`, `rounded-lg` (was `rounded-xl`, the only stray corner-radius in the app), `useToast()`, and a branded loading state
+  - `focus-visible` rings added to every icon-only shared control that previously relied on the bare browser default: Drawer close button, Toast dismiss, SearchInput clear, Combobox clear
+  - Fixed three wide tables with no horizontal-scroll wrapper that could overflow at tablet widths (`overflow-x-auto`, with `print:overflow-visible` on the two that also print): Bin Card's 9-column movement table, the Dispense Slip's item table, and the new Sales History report table; also wrapped the Dispense Summary's 8-column editable cart table
+
+**Verified:** `tsc --noEmit` clean; all 15 pages HTTP 200; API smoke test on the new date filter — unfiltered vs. a range covering everything returned the same total, a future-only range returned 0, and an invalid date string correctly returned 400.
+
+**Adjustment phases (A1–A5) are now complete.** The system has gone from an 11-phase functional build to a fully polished, professional UI: shared component library, pagination/search/drawers/comboboxes/date-pickers everywhere, alerts with dispose + product-details + urgency sorting, a real analytics dashboard (customers, profit trends, charts), and printable sales history — with a consistency pass to close it out.
+
+---
+
 ## 2026-07-16 — Phase A4 complete: Dashboard Enhancements
 
 **Phase:** A4 — Dashboard Enhancements (§2.2)

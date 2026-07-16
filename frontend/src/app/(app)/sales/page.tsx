@@ -6,6 +6,7 @@ import { getTokens } from '@/lib/api';
 import { useSettings } from '@/lib/settings';
 import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
+import { DateRangePicker } from '@/components/ui/date-picker';
 import { Combobox, ComboOption } from '@/components/ui/combobox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
@@ -114,40 +115,42 @@ function Slip({ order }: { order: OrderDetail }) {
         {order.notes && <p className="col-span-2"><span className="text-slate-500">Notes:</span> <span className="text-slate-900">{order.notes}</span></p>}
       </div>
 
-      <table className="mt-4 w-full text-left text-sm">
-        <thead className="border-b border-slate-300 text-xs uppercase tracking-wide text-slate-500">
-          <tr>
-            <th className="py-2 pr-3">#</th>
-            <th className="py-2 pr-3">Product</th>
-            <th className="py-2 pr-3">Batch</th>
-            <th className="py-2 pr-3">Expiry</th>
-            <th className="py-2 pr-3 text-right">Qty</th>
-            <th className="py-2 pr-3">Unit</th>
-            <th className="py-2 pr-3 text-right">Price</th>
-            <th className="py-2 text-right">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {order.items.map((it, i) => (
-            <tr key={it.id} className="border-b border-slate-100">
-              <td className="py-2 pr-3 text-slate-500">{i + 1}</td>
-              <td className="py-2 pr-3">
-                <span className="font-medium text-slate-900">{it.product.genericName}</span>
-                {it.product.brandName && <span className="text-slate-500"> ({it.product.brandName})</span>}
-                <span className="ml-1 font-mono text-xs text-slate-400">{it.product.code}</span>
-              </td>
-              <td className="py-2 pr-3 text-slate-600">{it.batch.batchNo}</td>
-              <td className="py-2 pr-3 text-slate-600">
-                {it.batch.expiryDate ? new Date(it.batch.expiryDate).toLocaleDateString() : '—'}
-              </td>
-              <td className="py-2 pr-3 text-right tabular-nums">{it.quantity}</td>
-              <td className="py-2 pr-3 text-slate-600">{it.product.dispenseUnit || '—'}</td>
-              <td className="py-2 pr-3 text-right tabular-nums">{money(it.unitPrice)}</td>
-              <td className="py-2 text-right tabular-nums">{money(it.quantity * Number(it.unitPrice))}</td>
+      <div className="overflow-x-auto print:overflow-visible">
+        <table className="mt-4 w-full text-left text-sm">
+          <thead className="border-b border-slate-300 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="py-2 pr-3">#</th>
+              <th className="py-2 pr-3">Product</th>
+              <th className="py-2 pr-3">Batch</th>
+              <th className="py-2 pr-3">Expiry</th>
+              <th className="py-2 pr-3 text-right">Qty</th>
+              <th className="py-2 pr-3">Unit</th>
+              <th className="py-2 pr-3 text-right">Price</th>
+              <th className="py-2 text-right">Total</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {order.items.map((it, i) => (
+              <tr key={it.id} className="border-b border-slate-100">
+                <td className="py-2 pr-3 text-slate-500">{i + 1}</td>
+                <td className="py-2 pr-3">
+                  <span className="font-medium text-slate-900">{it.product.genericName}</span>
+                  {it.product.brandName && <span className="text-slate-500"> ({it.product.brandName})</span>}
+                  <span className="ml-1 font-mono text-xs text-slate-400">{it.product.code}</span>
+                </td>
+                <td className="py-2 pr-3 text-slate-600">{it.batch.batchNo}</td>
+                <td className="py-2 pr-3 text-slate-600">
+                  {it.batch.expiryDate ? new Date(it.batch.expiryDate).toLocaleDateString() : '—'}
+                </td>
+                <td className="py-2 pr-3 text-right tabular-nums">{it.quantity}</td>
+                <td className="py-2 pr-3 text-slate-600">{it.product.dispenseUnit || '—'}</td>
+                <td className="py-2 pr-3 text-right tabular-nums">{money(it.unitPrice)}</td>
+                <td className="py-2 text-right tabular-nums">{money(it.quantity * Number(it.unitPrice))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <div className="mt-4 flex justify-end">
         <div className="w-64 text-sm">
@@ -176,6 +179,109 @@ function Slip({ order }: { order: OrderDetail }) {
         </div>
         <div>
           <div className="border-t border-slate-400 pt-1 text-slate-500">Received by (signature)</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── printable sales history report ──────────────────────────
+
+function SalesHistoryReport({
+  orders,
+  from,
+  to,
+  q,
+}: {
+  orders: OrderDetail[];
+  from: string;
+  to: string;
+  q: string;
+}) {
+  const settings = useSettings();
+  const tagline = [settings?.pharmacyAddress, settings?.pharmacyPhone].filter(Boolean).join(' · ');
+  const totals = orders.reduce(
+    (acc, o) => {
+      acc.count += 1;
+      acc.total += Number(o.total);
+      if (o.paymentType === 'CASH') acc.cash += Number(o.total);
+      else acc.credit += Number(o.total);
+      return acc;
+    },
+    { count: 0, total: 0, cash: 0, credit: 0 },
+  );
+
+  return (
+    <div id="sales-history-report" className="rounded-lg border border-slate-200 bg-white p-6 print:border-0 print:p-0">
+      <div className="flex items-start justify-between border-b border-slate-300 pb-4">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-slate-900">
+            {settings?.pharmacyName || 'FortInventory'}
+          </h2>
+          <p className="text-sm text-slate-500">{tagline ? `${tagline} — ` : ''}Sales History Report</p>
+        </div>
+        <div className="text-right text-sm">
+          <p className="font-medium text-slate-900">
+            {from || to ? `${from || 'Earliest'} → ${to || 'Today'}` : 'All time'}
+          </p>
+          <p className="text-slate-500">Generated {new Date().toLocaleString()}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-x-8 gap-y-1 text-sm md:grid-cols-4">
+        <p><span className="text-slate-500">Orders:</span> <span className="font-medium text-slate-900">{totals.count}</span></p>
+        <p><span className="text-slate-500">Total:</span> <span className="font-medium text-slate-900">{money(totals.total)}</span></p>
+        <p><span className="text-slate-500">Cash:</span> <span className="text-slate-900">{money(totals.cash)}</span></p>
+        <p><span className="text-slate-500">Credit:</span> <span className="text-slate-900">{money(totals.credit)}</span></p>
+        {q && <p className="col-span-2 md:col-span-4"><span className="text-slate-500">Search filter:</span> <span className="text-slate-900">&ldquo;{q}&rdquo;</span></p>}
+      </div>
+
+      <div className="overflow-x-auto print:overflow-visible">
+        <table className="mt-4 w-full text-left text-sm">
+          <thead className="border-b border-slate-300 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="py-2 pr-3">DSP No.</th>
+              <th className="py-2 pr-3">Date</th>
+              <th className="py-2 pr-3">Location</th>
+              <th className="py-2 pr-3">Customer</th>
+              <th className="py-2 pr-3">Payment</th>
+              <th className="py-2 text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.length === 0 && (
+              <tr>
+                <td colSpan={6} className="py-6 text-center text-slate-400">No sales match the selected filters.</td>
+              </tr>
+            )}
+            {orders.map((o) => (
+              <tr key={o.id} className="border-b border-slate-100">
+                <td className="py-2 pr-3 font-mono text-xs text-slate-900">{o.dspNumber}</td>
+                <td className="py-2 pr-3 text-slate-600">{new Date(o.createdAt).toLocaleDateString()}</td>
+                <td className="py-2 pr-3 text-slate-600">{o.location.name}</td>
+                <td className="py-2 pr-3 text-slate-600">{o.customer?.name || 'Walk-in'}</td>
+                <td className="py-2 pr-3 text-slate-600">{o.paymentType === 'CASH' ? 'Cash' : 'Credit'}</td>
+                <td className="py-2 text-right tabular-nums text-slate-900">{money(o.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+          {orders.length > 0 && (
+            <tfoot>
+              <tr className="border-t border-slate-300 font-semibold">
+                <td colSpan={5} className="py-2 pr-3 text-right text-slate-600">Total</td>
+                <td className="py-2 text-right tabular-nums text-slate-900">{money(totals.total)}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+
+      <div className="mt-10 grid grid-cols-2 gap-16 text-sm">
+        <div>
+          <div className="border-t border-slate-400 pt-1 text-slate-500">Prepared by (signature)</div>
+        </div>
+        <div>
+          <div className="border-t border-slate-400 pt-1 text-slate-500">Approved by (signature)</div>
         </div>
       </div>
     </div>
@@ -388,60 +494,62 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
           <h2 className="text-sm font-semibold text-slate-900">
             Dispense Summary — review and adjust before confirming
           </h2>
-          <table className="mt-3 w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="py-2 pr-3">Product</th>
-                <th className="py-2 pr-3">Batch</th>
-                <th className="py-2 pr-3 text-right">Available</th>
-                <th className="py-2 pr-3">Quantity</th>
-                <th className="py-2 pr-3 text-right">List Price</th>
-                <th className="py-2 pr-3">Sale Price (this sale)</th>
-                <th className="py-2 pr-3 text-right">Line Total</th>
-                <th className="py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {cart.map((c, i) => (
-                <tr key={c.stock.batchId} className="border-t border-slate-100">
-                  <td className="py-2 pr-3">
-                    <p className="font-medium text-slate-900">{c.stock.genericName}</p>
-                    <p className="text-xs text-slate-400">{c.stock.code}</p>
-                  </td>
-                  <td className="py-2 pr-3 text-slate-600">{c.stock.batchNo}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-600">{c.stock.quantity}</td>
-                  <td className="py-2 pr-3">
-                    <input
-                      type="number" min="1" max={c.stock.quantity} step="1"
-                      value={c.quantity}
-                      onChange={(e) => setLine(i, { quantity: e.target.value })}
-                      className={`w-24 ${input}`}
-                    />
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-500">{money(c.stock.unitPrice)}</td>
-                  <td className="py-2 pr-3">
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={c.unitPrice}
-                      onChange={(e) => setLine(i, { unitPrice: e.target.value })}
-                      className={`w-28 ${input}`}
-                    />
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums font-medium">
-                    {money((Number(c.quantity) || 0) * (Number(c.unitPrice) || 0))}
-                  </td>
-                  <td className="py-2 text-right">
-                    <button
-                      onClick={() => setCart(cart.filter((_, idx) => idx !== i))}
-                      className="text-xs text-slate-400 hover:text-red-600"
-                    >
-                      Remove
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="mt-3 w-full text-left text-sm">
+              <thead className="text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="py-2 pr-3">Product</th>
+                  <th className="py-2 pr-3">Batch</th>
+                  <th className="py-2 pr-3 text-right">Available</th>
+                  <th className="py-2 pr-3">Quantity</th>
+                  <th className="py-2 pr-3 text-right">List Price</th>
+                  <th className="py-2 pr-3">Sale Price (this sale)</th>
+                  <th className="py-2 pr-3 text-right">Line Total</th>
+                  <th className="py-2" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {cart.map((c, i) => (
+                  <tr key={c.stock.batchId} className="border-t border-slate-100">
+                    <td className="py-2 pr-3">
+                      <p className="font-medium text-slate-900">{c.stock.genericName}</p>
+                      <p className="text-xs text-slate-400">{c.stock.code}</p>
+                    </td>
+                    <td className="py-2 pr-3 text-slate-600">{c.stock.batchNo}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-slate-600">{c.stock.quantity}</td>
+                    <td className="py-2 pr-3">
+                      <input
+                        type="number" min="1" max={c.stock.quantity} step="1"
+                        value={c.quantity}
+                        onChange={(e) => setLine(i, { quantity: e.target.value })}
+                        className={`w-24 ${input}`}
+                      />
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-slate-500">{money(c.stock.unitPrice)}</td>
+                    <td className="py-2 pr-3">
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={c.unitPrice}
+                        onChange={(e) => setLine(i, { unitPrice: e.target.value })}
+                        className={`w-28 ${input}`}
+                      />
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums font-medium">
+                      {money((Number(c.quantity) || 0) * (Number(c.unitPrice) || 0))}
+                    </td>
+                    <td className="py-2 text-right">
+                      <button
+                        onClick={() => setCart(cart.filter((_, idx) => idx !== i))}
+                        className="text-xs text-slate-400 hover:text-red-600"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <div className="mt-4 flex flex-wrap items-end gap-4 border-t border-slate-200 pt-4">
             <div className="w-56">
@@ -526,17 +634,24 @@ export default function SalesPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [q, setQ] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [loading, setLoading] = useState(false);
   const [slipOrder, setSlipOrder] = useState<OrderDetail | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadTarget, setUploadTarget] = useState<number | null>(null);
+  const [printReport, setPrintReport] = useState(false);
+  const [printOrders, setPrintOrders] = useState<OrderDetail[]>([]);
+  const [printBusy, setPrintBusy] = useState(false);
 
-  const loadOrders = useCallback(async (search: string, pageNum: number, size: number) => {
+  const loadOrders = useCallback(async (search: string, pageNum: number, size: number, f: string, t: string) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size) });
       if (search) params.set('q', search);
+      if (f) params.set('from', f);
+      if (t) params.set('to', t);
       const d = await api<{ orders: OrderDetail[]; total: number }>(`/api/sales?${params}`);
       setOrders(d.orders);
       setTotal(d.total);
@@ -545,6 +660,23 @@ export default function SalesPage() {
     }
   }, []);
 
+  async function openPrintReport() {
+    setPrintBusy(true);
+    try {
+      const params = new URLSearchParams({ page: '1', pageSize: '500' });
+      if (q) params.set('q', q);
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      const d = await api<{ orders: OrderDetail[]; total: number }>(`/api/sales?${params}`);
+      setPrintOrders(d.orders);
+      setPrintReport(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not load sales history');
+    } finally {
+      setPrintBusy(false);
+    }
+  }
+
   useEffect(() => {
     api<{ locations: Option[] }>('/api/locations')
       .then((d) => setLocations(d.locations))
@@ -552,8 +684,8 @@ export default function SalesPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (tab === 'history') loadOrders(q, page, pageSize).catch((e) => toast.error(e.message));
-  }, [tab, q, page, pageSize, loadOrders]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (tab === 'history') loadOrders(q, page, pageSize, from, to).catch((e) => toast.error(e.message));
+  }, [tab, q, page, pageSize, from, to, loadOrders]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onDispensed(order: OrderDetail) {
     setSlipOrder(order);
@@ -569,7 +701,7 @@ export default function SalesPage() {
       fd.append('file', file);
       await api(`/api/sales/${uploadTarget}/attachments`, { method: 'POST', body: fd });
       toast.success(`"${file.name}" attached.`);
-      await loadOrders(q, page, pageSize);
+      await loadOrders(q, page, pageSize, from, to);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -606,13 +738,16 @@ export default function SalesPage() {
         {slipOrder && (
           <button onClick={() => window.print()} className={btnPrimary}>Print Slip</button>
         )}
+        {printReport && (
+          <button onClick={() => window.print()} className={btnPrimary}>Print</button>
+        )}
       </div>
 
       <div className="mt-5 flex gap-1 border-b border-slate-200 print:hidden">
         {(['dispense', 'history'] as const).map((t) => (
           <button
             key={t}
-            onClick={() => { setTab(t); setSlipOrder(null); setQ(''); setPage(1); }}
+            onClick={() => { setTab(t); setSlipOrder(null); setPrintReport(false); setQ(''); setPage(1); }}
             className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
               tab === t ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
@@ -631,19 +766,47 @@ export default function SalesPage() {
         </div>
       )}
 
-      {tab === 'dispense' && !slipOrder && <NewDispense locations={locations} onDispensed={onDispensed} />}
+      {printReport && (
+        <div className="mt-4">
+          <SalesHistoryReport orders={printOrders} from={from} to={to} q={q} />
+          <button onClick={() => setPrintReport(false)} className={`mt-3 ${btnGhost} print:hidden`}>
+            Close report
+          </button>
+        </div>
+      )}
 
-      {tab === 'history' && !slipOrder && (
+      {tab === 'dispense' && !slipOrder && !printReport && <NewDispense locations={locations} onDispensed={onDispensed} />}
+
+      {tab === 'history' && !slipOrder && !printReport && (
         <div>
-          <div className="mt-4">
-            <SearchInput
-              onSearch={(term) => {
-                setQ(term);
-                setPage(1);
-              }}
-              placeholder="Search DSP no. or product…"
-              className="w-72"
-            />
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <SearchInput
+                onSearch={(term) => {
+                  setQ(term);
+                  setPage(1);
+                }}
+                placeholder="Search DSP no. or product…"
+                className="w-72"
+              />
+              <div>
+                <label className={label}>Date range</label>
+                <DateRangePicker
+                  from={from}
+                  to={to}
+                  onChange={(r) => {
+                    setFrom(r.from);
+                    setTo(r.to);
+                    setPage(1);
+                  }}
+                  placeholder="All time"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <button onClick={openPrintReport} disabled={printBusy} className={`${btnGhost} disabled:opacity-50`}>
+              {printBusy ? 'Preparing…' : 'Print Sales History'}
+            </button>
           </div>
 
           <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
