@@ -5,6 +5,18 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A7 correction: real Ethiopia outline + real product categories
+
+**Phase:** A7 follow-up — the user pointed out the hero's Ethiopia shape wasn't real ("i need the map real then current is not real" — the hand-plotted low-poly polygon from the previous pass didn't actually resemble the country), and that the invented six-category services list didn't match reality: the company imports exactly three types — **Medication, Equipment, Cosmetics**.
+
+**Done:**
+- **Real Ethiopia outline**: replaced the hand-plotted polygon in `globe-map.tsx` with one extracted from actual boundary data. Used `world-atlas` (`countries-50m.json`, Natural Earth-derived TopoJSON) + `topojson-client` in a throwaway scratchpad script — pulled Ethiopia's feature by ISO-3166 numeric code `231`, simplified its ~300-point ring down to 90 points, and projected it (equirectangular, aspect-ratio preserved) into the hero's existing SVG coordinate space. Addis Ababa's pin was re-projected the same way from its real coordinates (9.0572416, 38.7138769), landing almost exactly where the old placeholder pin was (627,211 vs. 624,210) — confirming the original layout math was sound, just the outline itself was fake. `world-atlas`/`topojson-client` were only used to *generate* the static path once; the result is hardcoded into the component, so no map library ships to the browser.
+- **Real product categories**: `SERVICES` in `homepage.tsx` now lists the company's actual three import categories — Medication (`beaker` icon), Equipment (`gear` icon), Cosmetics (new `sparkles` icon added to `components/icons.tsx`) — each with a short description and a few example-product tags (e.g. Medication: antibiotics, analgesics, chronic-disease therapies, OTC). Grid simplified from a 6-card `sm:grid-cols-2 lg:grid-cols-3` layout to a 3-card `sm:grid-cols-3` layout, with slightly larger cards to fill the space now that there are fewer of them.
+
+**Verified:** `tsc --noEmit` clean; `/` and `/login` both return HTTP 200; same SSR-bypass check as prior A7 passes confirmed the real polygon renders (spot-checked the emitted `<polygon points>` against the extracted data) and all three category names + their example tags render, with no runtime errors.
+
+---
+
 ## 2026-07-16 — Phase A7 enhancement: globe/map hero, real map, rebrand to Fort Pharma PLC
 
 **Phase:** A7 follow-up — user asked for a more creative homepage (not the generic SaaS-landing look), specifically: an animated globe-to-Ethiopia-map graphic on the hero, and the real business location integrated via Google Maps. They also shared their Google Maps listing, which showed the actual registered business name is **Fort Pharma PLC**, not FortInventory (that's the internal software).

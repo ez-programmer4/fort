@@ -1,11 +1,14 @@
 'use client';
 
-// Decorative, hand-plotted low-poly outline of Ethiopia (not survey-accurate) —
-// stylized for the hero graphic, not for navigation.
+// Ethiopia's real national outline, extracted from Natural Earth boundary data
+// (world-atlas countries-50m, ISO-3166 numeric 231) and simplified to ~90
+// points, projected to fit this viewBox. Not for navigational use, but a true
+// (simplified) representation of the country's actual shape, not a guess.
 const ETHIOPIA_POLYGON =
-  '555.6,72.6 643.8,65 706.8,110.4 744.6,160.8 858,236.4 757.2,337.2 681.6,349.8 568.2,324.6 517.8,274.2 480,236.4 505.2,173.4 530.4,123';
+  '537.5,304.2 532.6,299.4 529.4,289.8 522.9,273.7 517.0,267.5 506.1,259.0 501.9,251.6 491.7,246.4 480.5,243.4 480.0,237.7 485.6,227.4 495.1,227.5 506.3,224.6 507.0,219.2 506.4,201.8 508.5,190.4 512.5,181.7 515.7,166.1 520.1,164.1 525.7,166.9 529.7,156.4 532.0,144.4 537.1,135.6 548.0,118.2 556.2,116.1 560.1,113.5 563.6,97.8 566.7,92.1 570.2,75.6 581.1,75.0 585.2,73.6 591.8,72.6 597.5,78.5 604.0,63.9 610.5,64.0 614.4,65.4 621.8,71.3 636.7,66.0 640.0,69.9 648.6,68.4 658.1,70.8 666.6,71.1 680.9,78.6 696.4,95.4 709.3,107.7 718.9,117.2 720.3,126.0 711.7,138.2 706.9,149.8 709.7,161.7 717.3,160.8 730.1,158.5 735.1,160.6 735.5,163.1 730.1,171.0 733.5,177.0 736.8,183.0 744.8,192.6 751.7,202.8 760.6,208.8 781.6,218.3 805.7,226.2 841.3,238.1 860.0,238.9 855.2,252.1 828.4,278.0 807.7,299.6 789.7,319.3 765.8,318.3 760.7,319.3 747.8,323.5 736.4,333.7 722.3,337.6 710.8,342.3 696.7,344.5 690.6,344.1 680.8,336.0 661.2,344.4 651.9,354.1 638.1,356.1 624.6,353.5 611.0,352.3 592.6,340.2 578.7,332.0 563.6,331.5 554.4,326.9 550.2,318.3 551.1,311.6 541.5,306.2 538.0,307.0';
 
-const ADDIS = { x: 624, y: 210 };
+// Addis Ababa's real coordinates (9.0572416, 38.7138769), projected the same way.
+const ADDIS = { x: 627.3, y: 211.2 };
 
 const ORIGINS = [
   { id: 'china', label: 'China', x: 300, y: 120, labelX: 352, labelY: 88 },
@@ -112,8 +115,8 @@ export function GlobeToEthiopia() {
       </g>
 
       {/* Ethiopia */}
-      <polygon points={ETHIOPIA_POLYGON} fill="url(#ethiopiaFill)" stroke="#0f172a" strokeWidth="2" strokeLinejoin="round" />
-      <text x="669" y="315" textAnchor="middle" className="fill-slate-900 text-[15px] font-bold tracking-wide">
+      <polygon points={ETHIOPIA_POLYGON} fill="url(#ethiopiaFill)" stroke="#0f172a" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <text x="650" y="300" textAnchor="middle" className="fill-slate-900 text-[15px] font-bold tracking-wide">
         ETHIOPIA
       </text>
 

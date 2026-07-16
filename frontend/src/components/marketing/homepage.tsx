@@ -32,36 +32,27 @@ const STATS: { value: number; suffix: string; label: string }[] = [
   { value: 99, suffix: '%', label: 'On-time customs clearance' },
 ];
 
-const SERVICES: { icon: IconName; title: string; description: string }[] = [
+const SERVICES: { icon: IconName; title: string; description: string; examples: string[] }[] = [
   {
     icon: 'beaker',
-    title: 'Prescription Pharmaceuticals',
-    description: 'EFDA-registered generic and branded medicines sourced from GMP-certified manufacturers worldwide.',
+    title: 'Medication',
+    description:
+      'EFDA-registered prescription and over-the-counter medicines, sourced from GMP-certified manufacturers worldwide.',
+    examples: ['Antibiotics', 'Analgesics', 'Chronic-disease therapies', 'OTC medicines'],
   },
   {
-    icon: 'heart',
-    title: 'OTC & Consumer Health',
-    description: 'Everyday over-the-counter medicines and wellness products for pharmacies and retail chains.',
+    icon: 'gear',
+    title: 'Equipment',
+    description:
+      'Medical, diagnostic and surgical equipment for hospitals, clinics and pharmacies, backed by documentation and after-sales support.',
+    examples: ['Diagnostic devices', 'Surgical instruments', 'Consumables', 'Cold-chain units'],
   },
   {
-    icon: 'box',
-    title: 'Medical Consumables & Devices',
-    description: 'Gloves, dressings, syringes and diagnostic consumables, stocked and distributed at scale.',
-  },
-  {
-    icon: 'clipboard',
-    title: 'Surgical & Diagnostic Equipment',
-    description: 'Reliable equipment for hospitals and clinics, backed by documentation and after-sales support.',
-  },
-  {
-    icon: 'snowflake',
-    title: 'Cold-Chain & Vaccines',
-    description: 'Temperature-controlled logistics from origin to destination, monitored at every handover.',
-  },
-  {
-    icon: 'star',
-    title: 'Nutraceuticals & Supplements',
-    description: 'Vitamins and supplements from trusted global brands, sourced for quality and shelf performance.',
+    icon: 'sparkles',
+    title: 'Cosmetics',
+    description:
+      'Quality-assured cosmetic and personal care products from trusted global brands, sourced for safety and shelf performance.',
+    examples: ['Skincare', 'Personal care', 'Wellness & beauty'],
   },
 ];
 
@@ -297,15 +288,22 @@ function Services() {
           reach Ethiopian shelves.
         </p>
       </Reveal>
-      <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-14 grid gap-6 sm:grid-cols-3">
         {SERVICES.map((s, i) => (
-          <Reveal key={s.title} delay={i * 80}>
-            <div className="group h-full rounded-xl border border-slate-200 p-6 transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-900 transition-colors group-hover:bg-blue-600">
-                <Icon name={s.icon} className="h-5 w-5 text-white" />
+          <Reveal key={s.title} delay={i * 100}>
+            <div className="group h-full rounded-xl border border-slate-200 p-7 transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-900 transition-colors group-hover:bg-blue-600">
+                <Icon name={s.icon} className="h-6 w-6 text-white" />
               </div>
-              <h3 className="mt-4 text-base font-semibold text-slate-900">{s.title}</h3>
+              <h3 className="mt-5 text-lg font-semibold text-slate-900">{s.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">{s.description}</p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {s.examples.map((e) => (
+                  <span key={e} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                    {e}
+                  </span>
+                ))}
+              </div>
             </div>
           </Reveal>
         ))}

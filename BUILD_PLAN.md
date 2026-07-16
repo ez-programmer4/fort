@@ -267,10 +267,15 @@ users straight to `/dashboard`.
 - [x] `frontend/src/components/marketing/globe-map.tsx` — hand-built SVG
       hero graphic: a wireframe globe with pulsing origin markers (China,
       India, Germany, UAE) and animated dashed flight paths (with a moving
-      dot per path via native SVG `<animateMotion>`) arcing across to a
-      hand-plotted low-poly Ethiopia outline with a pulsing Addis Ababa pin
-      — no chart/map library, pure SVG + CSS keyframes (`dash-flow`,
+      dot per path via native SVG `<animateMotion>`) arcing across to
+      Ethiopia's **real national outline** (extracted once from `world-atlas`
+      TopoJSON boundary data via a throwaway script, simplified to 90 points,
+      then hardcoded — no map library ships to the browser) with a pulsing
+      Addis Ababa pin at its real coordinates — CSS keyframes (`dash-flow`,
       `pulse-ring` in `globals.css`)
+- [x] Real product categories in the services grid — Medication, Equipment,
+      Cosmetics (replacing an earlier, invented six-category list) — each
+      with a few example-product tags
 - [x] `frontend/src/components/marketing/hooks.ts` — `useReveal` (scroll
       reveal) and `useCountUp` (eased count-up, starts once the stat
       scrolls into view)
