@@ -4,12 +4,16 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Icon, type IconName } from '@/components/icons';
 import { useToast } from '@/components/ui/toast';
+import { GlobeToEthiopia } from './globe-map';
+import { useCountUp, useReveal } from './hooks';
 
 const CONTACT = {
   address: 'Bole Road, near Friendship Building, Addis Ababa, Ethiopia',
   phone: '+251 11 663 0000',
-  email: 'info@fortinventory.com',
+  email: 'info@fortpharma.com',
   hours: 'Mon – Sat, 8:30am – 6:00pm',
+  mapEmbedSrc: 'https://maps.google.com/maps?q=9.0572416,38.7138769&z=16&output=embed',
+  directionsUrl: 'https://www.google.com/maps/place/Fort+Pharma+PLC/@9.0572469,38.7112966,17z',
 };
 
 const NAV_LINKS = [
@@ -19,11 +23,13 @@ const NAV_LINKS = [
   { href: '#contact', label: 'Contact' },
 ];
 
-const STATS = [
-  { value: '15+', label: 'Sourcing countries' },
-  { value: '500+', label: 'Products imported' },
-  { value: '8', label: 'Years in operation' },
-  { value: '99%', label: 'On-time customs clearance' },
+const COUNTRIES = ['India', 'China', 'Germany', 'Turkey', 'UAE', 'Switzerland', 'South Korea', 'Belgium', 'France', 'Egypt'];
+
+const STATS: { value: number; suffix: string; label: string }[] = [
+  { value: 15, suffix: '+', label: 'Sourcing countries' },
+  { value: 500, suffix: '+', label: 'Products imported' },
+  { value: 8, suffix: '', label: 'Years in operation' },
+  { value: 99, suffix: '%', label: 'On-time customs clearance' },
 ];
 
 const SERVICES: { icon: IconName; title: string; description: string }[] = [
@@ -77,6 +83,27 @@ const WHY_US = [
 const inputClass =
   'w-full rounded-md border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900';
 
+function Reveal({
+  children,
+  className = '',
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const { ref, visible } = useReveal<HTMLDivElement>();
+  return (
+    <div
+      ref={ref}
+      className={`transition-all duration-700 ease-out ${visible ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'} ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function Homepage() {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -84,6 +111,7 @@ export default function Homepage() {
     <div className="min-h-screen bg-white text-slate-900">
       <Navbar menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
       <Hero />
+      <CountryTicker />
       <Stats />
       <Services />
       <Process />
@@ -95,14 +123,22 @@ export default function Homepage() {
   );
 }
 
+function Brand({ dark = false }: { dark?: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">
+        FP
+      </span>
+      <span className={`text-lg font-bold tracking-tight ${dark ? 'text-white' : 'text-slate-900'}`}>Fort Pharma PLC</span>
+    </div>
+  );
+}
+
 function Navbar({ menuOpen, setMenuOpen }: { menuOpen: boolean; setMenuOpen: (v: boolean) => void }) {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-sm font-bold text-white">F</span>
-          <span className="text-lg font-bold tracking-tight text-slate-900">FortInventory</span>
-        </div>
+        <Brand />
 
         <nav className="hidden items-center gap-8 md:flex">
           {NAV_LINKS.map((l) => (
@@ -163,26 +199,25 @@ function Hero() {
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.4]"
         style={{
-          backgroundImage:
-            'radial-gradient(circle at 1px 1px, rgb(148 163 184 / 0.35) 1px, transparent 0)',
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(148 163 184 / 0.35) 1px, transparent 0)',
           backgroundSize: '28px 28px',
         }}
       />
-      <div className="relative mx-auto grid max-w-7xl gap-12 px-6 py-20 md:grid-cols-2 md:items-center md:py-28">
-        <div>
+      <div className="relative mx-auto max-w-4xl px-6 pb-4 pt-20 text-center md:pt-28">
+        <Reveal>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
             <Icon name="globe" className="h-3.5 w-3.5 text-blue-600" />
             Global Pharmaceutical Imports
           </span>
-          <h1 className="mt-5 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+          <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
             Quality medicines, sourced globally. Delivered across Ethiopia.
           </h1>
-          <p className="mt-5 max-w-lg text-base leading-relaxed text-slate-600">
-            FortInventory imports EFDA-registered pharmaceuticals, medical consumables and equipment
+          <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-600">
+            Fort Pharma PLC imports EFDA-registered pharmaceuticals, medical consumables and equipment
             from trusted manufacturers around the world, and distributes them reliably to pharmacies,
             hospitals and clinics nationwide.
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <a
               href="#contact"
               className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
@@ -200,48 +235,52 @@ function Hero() {
           <p className="mt-6 text-xs font-medium uppercase tracking-wide text-slate-400">
             GMP-compliant sourcing &nbsp;·&nbsp; Cold-chain logistics &nbsp;·&nbsp; EFDA-registered
           </p>
-        </div>
-
-        <div className="relative">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <span className="text-sm font-semibold text-slate-900">Shipment Overview</span>
-              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">On schedule</span>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-4">
-              {[
-                { icon: 'globe' as const, label: 'Origin', value: '12 countries' },
-                { icon: 'truck' as const, label: 'In transit', value: '6 shipments' },
-                { icon: 'snowflake' as const, label: 'Cold-chain', value: 'Monitored' },
-                { icon: 'shield' as const, label: 'Compliance', value: 'EFDA cleared' },
-              ].map((item) => (
-                <div key={item.label} className="rounded-lg border border-slate-100 bg-slate-50 p-3.5">
-                  <Icon name={item.icon} className="h-5 w-5 text-blue-600" />
-                  <p className="mt-2 text-xs text-slate-500">{item.label}</p>
-                  <p className="text-sm font-semibold text-slate-900">{item.value}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 rounded-lg bg-slate-900 p-4">
-              <p className="text-xs text-slate-300">Powered by real-time inventory technology</p>
-              <p className="mt-1 text-sm font-semibold text-white">Full traceability, warehouse to dispensary</p>
-            </div>
-          </div>
-        </div>
+        </Reveal>
       </div>
+
+      <Reveal delay={150} className="relative mx-auto max-w-6xl px-4 pb-10 pt-6 md:pb-16">
+        <GlobeToEthiopia />
+      </Reveal>
     </section>
+  );
+}
+
+function CountryTicker() {
+  const items = [...COUNTRIES, ...COUNTRIES];
+  return (
+    <div className="overflow-hidden border-y border-slate-200 bg-white py-3.5">
+      <div className="flex w-max animate-marquee items-center gap-10 whitespace-nowrap px-6">
+        {items.map((c, i) => (
+          <span key={`${c}-${i}`} className="flex items-center gap-2 text-sm font-medium text-slate-500">
+            <Icon name="globe" className="h-3.5 w-3.5 text-blue-500" />
+            Sourced from {c}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ stat }: { stat: (typeof STATS)[number] }) {
+  const { ref, visible } = useReveal<HTMLDivElement>();
+  const count = useCountUp(stat.value, visible);
+  return (
+    <div ref={ref} className="text-center">
+      <p className="text-3xl font-bold tracking-tight text-slate-900">
+        {count}
+        {stat.suffix}
+      </p>
+      <p className="mt-1 text-sm text-slate-500">{stat.label}</p>
+    </div>
   );
 }
 
 function Stats() {
   return (
-    <section className="border-y border-slate-200 bg-white">
+    <section className="bg-white">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-12 sm:grid-cols-4">
         {STATS.map((s) => (
-          <div key={s.label} className="text-center">
-            <p className="text-3xl font-bold tracking-tight text-slate-900">{s.value}</p>
-            <p className="mt-1 text-sm text-slate-500">{s.label}</p>
-          </div>
+          <StatCard key={s.label} stat={s} />
         ))}
       </div>
     </section>
@@ -251,25 +290,24 @@ function Stats() {
 function Services() {
   return (
     <section id="services" className="mx-auto max-w-7xl px-6 py-20 md:py-24">
-      <div className="mx-auto max-w-2xl text-center">
+      <Reveal className="mx-auto max-w-2xl text-center">
         <h2 className="text-3xl font-bold tracking-tight text-slate-900">What we import</h2>
         <p className="mt-3 text-base text-slate-600">
           A full range of pharmaceutical and healthcare products, sourced and quality-checked before they
           reach Ethiopian shelves.
         </p>
-      </div>
+      </Reveal>
       <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {SERVICES.map((s) => (
-          <div
-            key={s.title}
-            className="group rounded-xl border border-slate-200 p-6 transition-all hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/5"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-900 transition-colors group-hover:bg-blue-600">
-              <Icon name={s.icon} className="h-5 w-5 text-white" />
+        {SERVICES.map((s, i) => (
+          <Reveal key={s.title} delay={i * 80}>
+            <div className="group h-full rounded-xl border border-slate-200 p-6 transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-900 transition-colors group-hover:bg-blue-600">
+                <Icon name={s.icon} className="h-5 w-5 text-white" />
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-slate-900">{s.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">{s.description}</p>
             </div>
-            <h3 className="mt-4 text-base font-semibold text-slate-900">{s.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">{s.description}</p>
-          </div>
+          </Reveal>
         ))}
       </div>
     </section>
@@ -280,13 +318,13 @@ function Process() {
   return (
     <section id="process" className="bg-slate-50 py-20 md:py-24">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">How we work</h2>
           <p className="mt-3 text-base text-slate-600">From sourcing to your shelf — a compliant, traceable supply chain.</p>
-        </div>
+        </Reveal>
         <div className="mt-14 grid gap-8 md:grid-cols-4">
           {PROCESS.map((step, i) => (
-            <div key={step.title} className="relative">
+            <Reveal key={step.title} delay={i * 100} className="relative">
               <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-900 text-sm font-bold text-slate-900">
                 {i + 1}
               </div>
@@ -298,7 +336,7 @@ function Process() {
               )}
               <h3 className="mt-4 text-sm font-semibold text-slate-900">{step.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.description}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -310,8 +348,8 @@ function WhyUs() {
   return (
     <section id="why-us" className="mx-auto max-w-7xl px-6 py-20 md:py-24">
       <div className="grid gap-12 md:grid-cols-2 md:items-center">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Why partners choose FortInventory</h2>
+        <Reveal>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Why partners choose Fort Pharma</h2>
           <p className="mt-3 text-base text-slate-600">
             We combine global sourcing relationships with strict regulatory compliance and modern
             inventory technology, so partners can trust every shipment.
@@ -326,9 +364,9 @@ function WhyUs() {
               </li>
             ))}
           </ul>
-        </div>
+        </Reveal>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-900 p-8">
+        <Reveal delay={150} className="rounded-2xl border border-slate-200 bg-slate-900 p-8">
           <Icon name="chart" className="h-8 w-8 text-blue-400" />
           <h3 className="mt-5 text-lg font-semibold text-white">Real-time inventory technology</h3>
           <p className="mt-2 text-sm leading-relaxed text-slate-300">
@@ -345,7 +383,7 @@ function WhyUs() {
               <p className="mt-1 text-xs text-slate-400">Warehouse network</p>
             </div>
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -354,7 +392,7 @@ function WhyUs() {
 function CtaBanner() {
   return (
     <section className="bg-slate-900">
-      <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 py-16 text-center md:flex-row md:justify-between md:text-left">
+      <Reveal className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 py-16 text-center md:flex-row md:justify-between md:text-left">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Ready to partner with us?</h2>
           <p className="mt-2 text-sm text-slate-300">
@@ -368,7 +406,7 @@ function CtaBanner() {
           Contact our team
           <Icon name="arrowRight" className="h-4 w-4" />
         </a>
-      </div>
+      </Reveal>
     </section>
   );
 }
@@ -400,17 +438,17 @@ function Contact() {
   return (
     <section id="contact" className="bg-slate-50 py-20 md:py-24">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">Get in touch</h2>
           <p className="mt-3 text-base text-slate-600">
             Have a sourcing or distribution inquiry? Send us a message and our team will respond shortly.
           </p>
-        </div>
+        </Reveal>
 
-        <div className="mt-14 grid gap-10 md:grid-cols-5">
-          <div className="space-y-5 md:col-span-2">
-            {infoItems.map((item) => (
-              <div key={item.label} className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5">
+        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {infoItems.map((item, i) => (
+            <Reveal key={item.label} delay={i * 70}>
+              <div className="flex h-full items-start gap-4 rounded-xl border border-slate-200 bg-white p-5">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-900">
                   <Icon name={item.icon} className="h-5 w-5 text-white" />
                 </span>
@@ -419,47 +457,70 @@ function Contact() {
                   <p className="mt-0.5 text-sm font-medium text-slate-900">{item.value}</p>
                 </div>
               </div>
-            ))}
-          </div>
+            </Reveal>
+          ))}
+        </div>
 
-          <form onSubmit={onSubmit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 md:col-span-3">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-slate-700">Name</label>
-                <input required value={name} onChange={(e) => setName(e.target.value)} className={`mt-1 ${inputClass}`} placeholder="Your name" />
+        <div className="mt-6 grid gap-6 md:grid-cols-2">
+          <Reveal className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <iframe
+              title="Fort Pharma PLC on Google Maps"
+              src={CONTACT.mapEmbedSrc}
+              className="h-72 w-full grow"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+            <a
+              href={CONTACT.directionsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 border-t border-slate-200 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900"
+            >
+              <Icon name="mapPin" className="h-4 w-4" />
+              Get directions
+            </a>
+          </Reveal>
+
+          <Reveal delay={100}>
+            <form onSubmit={onSubmit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Name</label>
+                  <input required value={name} onChange={(e) => setName(e.target.value)} className={`mt-1 ${inputClass}`} placeholder="Your name" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={`mt-1 ${inputClass}`}
+                    placeholder="you@company.com"
+                  />
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Email</label>
-                <input
-                  type="email"
+                <label className="block text-sm font-medium text-slate-700">Message</label>
+                <textarea
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={`mt-1 ${inputClass}`}
-                  placeholder="you@company.com"
+                  rows={5}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className={`mt-1 ${inputClass} resize-none`}
+                  placeholder="Tell us what you're looking for…"
                 />
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Message</label>
-              <textarea
-                required
-                rows={5}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className={`mt-1 ${inputClass} resize-none`}
-                placeholder="Tell us what you're looking for…"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={sending}
-              className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
-            >
-              Send message
-              <Icon name="arrowRight" className="h-4 w-4" />
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={sending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
+              >
+                Send message
+                <Icon name="arrowRight" className="h-4 w-4" />
+              </button>
+            </form>
+          </Reveal>
         </div>
       </div>
     </section>
@@ -472,10 +533,7 @@ function Footer() {
       <div className="mx-auto max-w-7xl px-6 py-12">
         <div className="flex flex-col justify-between gap-8 md:flex-row">
           <div className="max-w-xs">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-sm font-bold text-white">F</span>
-              <span className="text-lg font-bold tracking-tight text-slate-900">FortInventory</span>
-            </div>
+            <Brand />
             <p className="mt-3 text-sm leading-relaxed text-slate-500">
               Importing quality-assured pharmaceuticals from around the world, distributed reliably
               across Ethiopia.
@@ -515,7 +573,7 @@ function Footer() {
           </div>
         </div>
         <div className="mt-10 border-t border-slate-100 pt-6">
-          <p className="text-xs text-slate-400">© {new Date().getFullYear()} FortInventory. All rights reserved.</p>
+          <p className="text-xs text-slate-400">© {new Date().getFullYear()} Fort Pharma PLC. All rights reserved.</p>
         </div>
       </div>
     </footer>

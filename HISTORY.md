@@ -5,6 +5,23 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A7 enhancement: globe/map hero, real map, rebrand to Fort Pharma PLC
+
+**Phase:** A7 follow-up — user asked for a more creative homepage (not the generic SaaS-landing look), specifically: an animated globe-to-Ethiopia-map graphic on the hero, and the real business location integrated via Google Maps. They also shared their Google Maps listing, which showed the actual registered business name is **Fort Pharma PLC**, not FortInventory (that's the internal software).
+
+**Done:**
+- **Rebrand**: the public homepage now presents as Fort Pharma PLC (navbar, footer, page metadata) with FortInventory repositioned as "our internal inventory platform" — mentioned in the Why Us section and still the name on the staff login portal. Confirmed this split with the user before making the change.
+- **`components/marketing/globe-map.tsx`** (new): a hand-built SVG hero illustration — a wireframe globe (meridian/parallel bezier curves) with four pulsing origin markers (China, India, Germany, UAE), animated dashed "flight path" arcs from each origin to a hand-plotted low-poly Ethiopia outline, each path with a small dot travelling along it via native SVG `<animateMotion>` (staggered `begin` offsets so shipments don't all move in lock-step), landing on a pulsing Addis Ababa pin. Ethiopia's outline is a decorative, hand-plotted low-poly polygon (not survey-accurate) — good enough to read as "Ethiopia" alongside the label and pin, without pretending to be a precise map. No chart/mapping library — pure SVG + two CSS keyframes (`dash-flow`, `pulse-ring` in `globals.css`, both disabled under `prefers-reduced-motion: reduce`).
+- **Real Google Map integration**: the Contact section now embeds an actual Google Map (`maps.google.com/maps?q=<lat>,<lng>&z=16&output=embed`, no API key needed) centered on Fort Pharma PLC's real coordinates (9.0572416, 38.7138769) taken from the Google Maps listing the user linked, plus a "Get directions" link straight to that listing.
+- **Motion/polish pass**: `components/marketing/hooks.ts` (new) — `useReveal` (IntersectionObserver-based scroll-reveal, fires once) and `useCountUp` (eased count-up animation, starts when the stat scrolls into view) — wired into every major section (fade+slide up, staggered per card/step) and the four hero stats (15+ countries, 500+ products, 8 years, 99% on-time clearance now animate up from 0). Added a country-sourcing marquee ticker strip below the hero (auto-scrolling, pauses on hover, seamless loop via a duplicated list + `translateX(-50%)`).
+- Contact form and other Phase A7 structure (services grid, 4-step process, why-us, CTA banner, footer) unchanged from the initial pass — see the entry below.
+
+**Verified:** `tsc --noEmit` clean; `/` and `/login` both return HTTP 200. Same SSR-bypass technique as the initial A7 verification (the homepage is normally hidden behind a client-side auth check, so a plain `curl` only sees the SSR "Loading…" shell) — confirmed all new content (Fort Pharma PLC branding, "ETHIOPIA"/"Addis Ababa" labels from the SVG, the map iframe, all four sourced-from-country ticker entries) renders with no runtime errors, then reverted the bypass.
+
+**Still placeholder:** the street address, phone and email in `CONTACT` (`homepage.tsx`) are still placeholders — only the map coordinates and directions link are real, taken from the Google Maps listing the user shared.
+
+---
+
 ## 2026-07-16 — Phase A7 complete: Public Homepage
 
 **Phase:** A7 — public marketing homepage for FortInventory, the pharmaceutical import/distribution company. Requested directly (not from `adjustment_requirnment.md`): "need to add homepage for them ... figma like ui/ux with more aesthetic and professional."

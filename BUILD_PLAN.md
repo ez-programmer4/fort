@@ -248,15 +248,36 @@ Follow-up items reported after using the finished app.
 
 ## Phase A7 — Public Homepage
 
-The company (FortInventory) imports pharmaceuticals from around the world and
-distributes them across Ethiopia. Root `/` previously just redirected
-straight to `/login`; it now shows a public marketing homepage to signed-out
-visitors, and still redirects signed-in users straight to `/dashboard`.
+The public-facing company is **Fort Pharma PLC** (the registered business,
+per its Google Maps listing), which imports pharmaceuticals from around the
+world and distributes them across Ethiopia; **FortInventory** is its
+internal inventory platform (mentioned on the homepage as the tech behind
+the operation, and still the name/branding of the staff login portal). Root
+`/` previously just redirected straight to `/login`; it now shows a public
+marketing homepage to signed-out visitors, and still redirects signed-in
+users straight to `/dashboard`.
 
 - [x] `frontend/src/components/marketing/homepage.tsx` — sticky navbar
-      (mobile menu), hero, stats strip, "what we import" services grid,
-      4-step process, why-us section, CTA banner, contact (info cards +
-      mailto-based form), footer with a "Client Portal" link to `/login`
+      (mobile menu), hero, country-sourcing marquee ticker, animated
+      count-up stats, "what we import" services grid, 4-step process,
+      why-us section, CTA banner, contact (info cards + real embedded
+      Google Map + "Get directions" + mailto-based form), footer with a
+      "Client Portal" link to `/login` — all major sections fade/slide in
+      on scroll via a small `useReveal` IntersectionObserver hook
+- [x] `frontend/src/components/marketing/globe-map.tsx` — hand-built SVG
+      hero graphic: a wireframe globe with pulsing origin markers (China,
+      India, Germany, UAE) and animated dashed flight paths (with a moving
+      dot per path via native SVG `<animateMotion>`) arcing across to a
+      hand-plotted low-poly Ethiopia outline with a pulsing Addis Ababa pin
+      — no chart/map library, pure SVG + CSS keyframes (`dash-flow`,
+      `pulse-ring` in `globals.css`)
+- [x] `frontend/src/components/marketing/hooks.ts` — `useReveal` (scroll
+      reveal) and `useCountUp` (eased count-up, starts once the stat
+      scrolls into view)
+- [x] Real Google Maps embed (`output=embed`, no API key) + "Get
+      directions" link, both pointed at Fort Pharma PLC's actual
+      coordinates (9.0572416, 38.7138769) from the Google Maps listing the
+      user provided
 - [x] `frontend/src/app/page.tsx` renders `<Homepage />` for guests instead
       of redirecting to `/login`; still redirects authenticated users to
       `/dashboard`
@@ -266,8 +287,8 @@ visitors, and still redirects signed-in users straight to `/dashboard`.
       through a Tailwind v4 `@theme` block
 - [x] Verified: `tsc --noEmit` clean; `/` and `/login` both return 200; SSR
       output for the homepage checked directly (temporarily bypassed the
-      client-side auth gate) to confirm all sections render with no runtime
-      errors
+      client-side auth gate) to confirm all sections — including the new
+      globe/map graphic and ticker — render with no runtime errors
 
 **Note:** contact details (address, phone, email) and stats (countries,
 years in operation, etc.) in `homepage.tsx` are placeholders — replace with

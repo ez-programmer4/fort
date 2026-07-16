@@ -13,3 +13,61 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes count-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-dash-flow {
+  animation: dash-flow 1s linear infinite;
+}
+.animate-pulse-ring {
+  animation: pulse-ring 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.animate-marquee {
+  animation: marquee 26s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+.animate-count-fade-in {
+  animation: count-fade-in 0.4s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-dash-flow,
+  .animate-pulse-ring,
+  .animate-marquee {
+    animation: none;
+  }
+}

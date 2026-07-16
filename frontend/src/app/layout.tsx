@@ -7,9 +7,9 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: 'FortInventory — Global Pharmaceutical Imports',
+  title: 'Fort Pharma PLC — Global Pharmaceutical Imports',
   description:
-    'FortInventory imports quality-assured pharmaceuticals, medical consumables and equipment from around the world and distributes them across Ethiopia.',
+    'Fort Pharma PLC imports quality-assured pharmaceuticals, medical consumables and equipment from around the world and distributes them across Ethiopia.',
 };
 
 export default function RootLayout({
