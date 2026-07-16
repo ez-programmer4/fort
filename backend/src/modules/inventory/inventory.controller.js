@@ -114,6 +114,37 @@ async function adjust(req, res, next) {
   }
 }
 
+// Dispose expired / near-expiry stock (write-off). Always a stock-out; reason is mandatory.
+async function dispose(req, res, next) {
+  try {
+    const { batchId, locationId, quantity, reason } = req.body || {};
+    if (!batchId || !locationId) throw new ApiError(400, 'batchId and locationId are required');
+    if (!reason || !String(reason).trim()) throw new ApiError(400, 'A reason is required to dispose stock');
+
+    const batch = await prisma.batch.findUnique({ where: { id: Number(batchId) } });
+    if (!batch) throw new ApiError(404, 'Batch not found');
+    const location = await prisma.location.findUnique({ where: { id: Number(locationId) } });
+    if (!location) throw new ApiError(404, 'Location not found');
+
+    const result = await prisma.$transaction((tx) =>
+      applyMovement(tx, {
+        productId: batch.productId,
+        batchId: batch.id,
+        locationId: location.id,
+        type: 'DISPOSE',
+        direction: 'OUT',
+        quantity: Number(quantity),
+        reason: String(reason).trim(),
+        performedById: req.user.id,
+      }),
+    );
+
+    res.status(201).json({ ok: true, quantityAfter: result.quantityAfter });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function exportInventory(req, res, next) {
   try {
     const where = buildWhere(req.query);
@@ -202,4 +233,4 @@ async function movements(req, res, next) {
   }
 }
 
-module.exports = { list, adjust, exportInventory, movements };
+module.exports = { list, adjust, dispose, exportInventory, movements };

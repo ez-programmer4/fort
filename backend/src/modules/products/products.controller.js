@@ -139,4 +139,39 @@ async function update(req, res, next) {
   }
 }
 
-module.exports = { list, create, update, buildWhere, TYPES, productInclude };
+// Full picture for one product: identity, current stock by batch/location, recent movements.
+async function detail(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const product = await prisma.product.findUnique({ where: { id }, include: productInclude });
+    if (!product) throw new ApiError(404, 'Product not found');
+
+    const stocks = await prisma.stock.findMany({
+      where: { batch: { productId: id }, quantity: { gt: 0 } },
+      include: {
+        batch: { select: { batchNo: true, expiryDate: true, supplier: { select: { name: true } } } },
+        location: { select: { id: true, name: true } },
+      },
+      orderBy: [{ location: { name: 'asc' } }, { batch: { expiryDate: 'asc' } }],
+    });
+
+    const movements = await prisma.stockMovement.findMany({
+      where: { productId: id },
+      include: {
+        batch: { select: { batchNo: true } },
+        location: { select: { name: true } },
+        performedBy: { select: { fullName: true } },
+      },
+      orderBy: { id: 'desc' },
+      take: 20,
+    });
+
+    const totalStock = stocks.reduce((s, x) => s + x.quantity, 0);
+
+    res.json({ product, stocks, movements, totalStock });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, create, update, detail, buildWhere, TYPES, productInclude };

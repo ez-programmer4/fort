@@ -180,12 +180,16 @@ Build once, reuse everywhere (all monochrome, keyboard-accessible):
 
 ## Phase A3 — Alerts Module Adjustments (§2.1)
 
-- [ ] **Dispose** action on expired / near-expiry alerts → new `DISPOSE` stock-out
+- [x] **Dispose** action on expired / near-expiry alerts → new `DISPOSE` stock-out
       movement (reason required, permission-gated), clears the alert as stock leaves
-- [ ] Search + filter inside the alerts list (product search, location, type tabs stay)
-- [ ] **Clickable product details** — product drawer from any alert: product info,
+- [x] Search + filter inside the alerts list (product search, location, type tabs stay)
+- [x] **Clickable product details** — product drawer from any alert: product info,
       current stock by batch/location, recent movements
-- [ ] ➕ Dispose confirmation with quantity preview (ConfirmDialog)
+- [x] ➕ Dispose confirmation with quantity preview (ConfirmDialog)
+- [x] ➕ Clickable summary cards per alert type (counts, icon, color) that double as tab filters
+- [x] ➕ Alerts sorted by urgency server-side (soonest expiry / biggest deficit-excess / most recent first)
+- [x] ➕ Disposals show up in the Adjustments tab and Audit Trail (`DISPOSE` movement type, labeled)
+- [x] ➕ Manual Refresh control (alerts are computed live, not cached)
 
 ## Phase A4 — Dashboard Enhancements (§2.2)
 

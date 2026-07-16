@@ -36,6 +36,7 @@ const TYPE_LABELS: Record<string, string> = {
   DISPENSE: 'Dispensed',
   ADJUST_INCREASE: 'Adjustment +',
   ADJUST_DECREASE: 'Adjustment −',
+  DISPOSE: 'Disposed',
 };
 
 export default function AuditPage() {

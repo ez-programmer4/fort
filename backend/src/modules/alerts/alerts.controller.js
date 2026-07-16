@@ -43,8 +43,10 @@ async function buildAlerts(locationId) {
         type: 'EXPIRED',
         product: batch.product,
         location: s.location,
+        batchId: batch.id,
         batchNo: batch.batchNo,
         expiryDate: batch.expiryDate,
+        daysToExpiry: days,
         supplier: batch.supplier?.name || null,
         quantity: s.quantity,
         unit: batch.product.dispenseUnit,
@@ -55,8 +57,10 @@ async function buildAlerts(locationId) {
         type: 'EXPIRING',
         product: batch.product,
         location: s.location,
+        batchId: batch.id,
         batchNo: batch.batchNo,
         expiryDate: batch.expiryDate,
+        daysToExpiry: days,
         supplier: batch.supplier?.name || null,
         quantity: s.quantity,
         unit: batch.product.dispenseUnit,
@@ -82,6 +86,7 @@ async function buildAlerts(locationId) {
         batchNo: null, expiryDate: null, supplier: null,
         quantity: qty,
         unit: product.dispenseUnit,
+        severity: product.minStock - qty,
         detail: `${qty} ${unit} on hand — below this product's minimum of ${product.minStock} ${unit}`,
       });
     }
@@ -92,6 +97,7 @@ async function buildAlerts(locationId) {
         batchNo: null, expiryDate: null, supplier: null,
         quantity: qty,
         unit: product.dispenseUnit,
+        severity: qty - product.maxStock,
         detail: `${qty} ${unit} on hand — above this product's maximum of ${product.maxStock} ${unit}`,
       });
     }
@@ -116,6 +122,7 @@ async function buildAlerts(locationId) {
           batchNo: null, expiryDate: null, supplier: null,
           quantity: 0,
           unit: product.dispenseUnit,
+          severity: product.minStock,
           detail: `Out of stock — this product's minimum is ${product.minStock} ${product.dispenseUnit || 'unit(s)'}`,
         });
       }
@@ -137,7 +144,7 @@ async function list(req, res, next) {
       const since = new Date(Date.now() - ADJUSTMENT_LOOKBACK_DAYS * 86400000);
       const adjustments = await prisma.stockMovement.findMany({
         where: {
-          type: { in: ['ADJUST_INCREASE', 'ADJUST_DECREASE'] },
+          type: { in: ['ADJUST_INCREASE', 'ADJUST_DECREASE', 'DISPOSE'] },
           createdAt: { gte: since },
           ...(locationId ? { locationId } : {}),
         },
@@ -150,6 +157,11 @@ async function list(req, res, next) {
         orderBy: { createdAt: 'desc' },
       });
       for (const m of adjustments) {
+        const unit = m.product.dispenseUnit || 'unit(s)';
+        const verbPhrase =
+          m.type === 'ADJUST_INCREASE' ? `Increased by ${m.quantity}`
+          : m.type === 'DISPOSE' ? `Disposed ${m.quantity}`
+          : `Decreased by ${m.quantity}`;
         alerts.push({
           type: 'ADJUSTMENT',
           product: m.product,
@@ -163,7 +175,7 @@ async function list(req, res, next) {
           reason: m.reason,
           performedBy: m.performedBy.fullName,
           moveDate: m.createdAt,
-          detail: `${m.type === 'ADJUST_INCREASE' ? 'Increased' : 'Decreased'} by ${m.quantity} ${m.product.dispenseUnit || 'unit(s)'} — ${m.reason || 'no reason'}`,
+          detail: `${verbPhrase} ${unit} — ${m.reason || 'no reason'}`,
         });
       }
     }
@@ -173,6 +185,18 @@ async function list(req, res, next) {
       if (!valid.includes(type)) throw new ApiError(400, `type must be one of: ${valid.join(', ')}`);
       alerts = alerts.filter((a) => a.type === type);
     }
+
+    // Most urgent first: expired > low stock > expiring soon > over stock > adjustments;
+    // within a type, worst-first (soonest expiry, biggest deficit/excess, most recent).
+    const TYPE_RANK = { EXPIRED: 0, LOW_STOCK: 1, EXPIRING: 2, OVER_STOCK: 3, ADJUSTMENT: 4 };
+    alerts.sort((a, b) => {
+      const rankDiff = TYPE_RANK[a.type] - TYPE_RANK[b.type];
+      if (rankDiff !== 0) return rankDiff;
+      if (a.type === 'EXPIRED' || a.type === 'EXPIRING') return a.daysToExpiry - b.daysToExpiry;
+      if (a.type === 'LOW_STOCK' || a.type === 'OVER_STOCK') return (b.severity ?? 0) - (a.severity ?? 0);
+      if (a.type === 'ADJUSTMENT') return new Date(b.moveDate).getTime() - new Date(a.moveDate).getTime();
+      return 0;
+    });
 
     const counts = {};
     for (const a of alerts) counts[a.type] = (counts[a.type] || 0) + 1;

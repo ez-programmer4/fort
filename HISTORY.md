@@ -5,6 +5,30 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A3 complete: Alerts Module Adjustments
+
+**Phase:** A3 — Alerts Module Adjustments (§2.1)
+
+**Done:**
+- **Backend — Dispose action**: `POST /api/inventory/dispose` (`inventory.controller.js`/`.routes.js`), gated by `inventory.adjust`. Always a stock-out through the shared `applyMovement` service with a new `DISPOSE` movement type; reason is mandatory (400 without one). Stock, bin card and audit trail all update atomically, exactly like `adjust`.
+- **Backend — product detail**: `GET /api/products/:id/detail` (`products.controller.js`/`.routes.js`) returns product identity + alert thresholds, current stock by batch/location, and the last 20 stock movements — powers the new product-details drawer.
+- **Backend — alerts feed**: `DISPOSE` movements now flow into the existing Adjustments bucket alongside `ADJUST_INCREASE`/`ADJUST_DECREASE` (last 30 days), so a disposal is visible as an audit entry right after it clears the alert. Alerts are now sorted server-side by urgency: Expired → Low Stock → Expiring → Over Stock → Adjustments, and within each group by soonest-expiry / biggest-deficit-or-excess / most-recent.
+- **Frontend — Alerts page rewrite**:
+  - Clickable summary cards (one per alert type, icon + color + live count) that double as tab filters — click again to clear
+  - SearchInput filters by product name, code or batch number (client-side over the live alert set)
+  - Manual Refresh button with its own spinner, since alerts are computed live rather than cached
+  - **Dispose** action on Expired/Expiring rows (permission-gated) opens a `ConfirmDialog` with an editable quantity (capped at what's on hand) and a required reason — mirrors the stock-adjustment UX
+  - **Product Details Drawer** — click any product name to open a drawer with full product info, alert thresholds, current stock broken down by batch/location, and its 20 most recent movements
+  - Adjustment-tab rows now show a colored sub-badge (Increased / Decreased / Disposed) so disposals stand out from ordinary adjustments
+  - SkeletonRows loading, EmptyState for no-match/no-alerts, toasts for all outcomes — brings Alerts to full parity with the rest of the app after Phase A2
+- **Audit Trail**: `DISPOSE` added to the movement-type label map ("Disposed")
+
+**Verified:** `tsc --noEmit` clean; all 15 pages HTTP 200; smoke-tested end-to-end — disposed 5 units from an expired batch via the API, confirmed stock decremented (50→45), the movement appeared correctly labeled in both the Adjustments alert feed and `/api/inventory/movements?type=DISPOSE`, and the missing-reason case correctly returns 400
+
+**Next:** Phase A4 — Dashboard enhancements (Customer entity, Profits Overview, Top Customers, charts, period selector)
+
+---
+
 ## 2026-07-16 — Phase A2 complete: Roll-out Across All Modules
 
 **Phase:** A2 — Roll-out Across All Modules (§1 applied)

@@ -12,6 +12,11 @@ const upload = multer({
 router.use(requireAuth);
 
 router.get('/', requirePermission('products.view', 'products.manage'), ctrl.list);
+router.get(
+  '/:id/detail',
+  requirePermission('products.view', 'products.manage', 'inventory.view', 'alerts.view'),
+  ctrl.detail,
+);
 router.get('/template', requirePermission('products.manage'), excel.template);
 router.get('/export', requirePermission('products.view', 'products.manage'), excel.exportProducts);
 router.post('/import', requirePermission('products.manage'), upload.single('file'), excel.importProducts);
