@@ -236,11 +236,25 @@ model ExpensePurchase {
 
 // ── Phase 6: Sales & Dispensing ──────────────────────────────
 
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+
+  dispenseOrders DispenseOrder[]
+
+  @@index([name])
+}
+
 model DispenseOrder {
   id                Int            @id @default(autoincrement())
   dspNumber         String         @unique
   locationId        Int
   location          Location       @relation(fields: [locationId], references: [id])
+  customerId        Int?
+  customer          Customer?      @relation(fields: [customerId], references: [id])
   paymentType       String         @default("CASH") // CASH | CREDIT
   subtotal          Decimal        @db.Decimal(14, 2)
   withholdingType   String         @default("NONE") // NONE | GOODS | SERVICES

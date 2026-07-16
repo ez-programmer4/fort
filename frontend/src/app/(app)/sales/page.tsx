@@ -6,6 +6,7 @@ import { getTokens } from '@/lib/api';
 import { useSettings } from '@/lib/settings';
 import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
+import { Combobox, ComboOption } from '@/components/ui/combobox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
@@ -65,6 +66,7 @@ interface OrderDetail {
   notes: string | null;
   createdAt: string;
   location: Option;
+  customer: { id: number; name: string; phone: string | null } | null;
   dispensedBy: { fullName: string };
   items: {
     id: number;
@@ -101,6 +103,14 @@ function Slip({ order }: { order: OrderDetail }) {
         <p><span className="text-slate-500">Location:</span> <span className="font-medium text-slate-900">{order.location.name}</span></p>
         <p><span className="text-slate-500">Dispensed by:</span> <span className="text-slate-900">{order.dispensedBy.fullName}</span></p>
         <p><span className="text-slate-500">Payment:</span> <span className="text-slate-900">{order.paymentType === 'CASH' ? 'Cash' : 'Credit'}</span></p>
+        {order.customer && (
+          <p>
+            <span className="text-slate-500">Customer:</span>{' '}
+            <span className="text-slate-900">
+              {order.customer.name}{order.customer.phone ? ` · ${order.customer.phone}` : ''}
+            </span>
+          </p>
+        )}
         {order.notes && <p className="col-span-2"><span className="text-slate-500">Notes:</span> <span className="text-slate-900">{order.notes}</span></p>}
       </div>
 
@@ -182,6 +192,8 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
   const [stockOptions, setStockOptions] = useState<StockRow[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [customerId, setCustomerId] = useState('');
+  const [customerOptions, setCustomerOptions] = useState<ComboOption[]>([]);
   const [paymentType, setPaymentType] = useState('CASH');
   const [whtType, setWhtType] = useState('NONE');
   const [whtRate, setWhtRate] = useState('0');
@@ -201,6 +213,36 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
       .catch((e) => toast.error(e.message))
       .finally(() => setStockLoading(false));
   }, [locationId, stockQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const searchCustomers = useCallback((term: string) => {
+    api<{ customers: { id: number; name: string; phone: string | null }[] }>(
+      `/api/customers?q=${encodeURIComponent(term)}`,
+    )
+      .then((d) =>
+        setCustomerOptions(
+          d.customers.map((c) => ({ value: String(c.id), label: c.name, sublabel: c.phone || undefined })),
+        ),
+      )
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    searchCustomers('');
+  }, [searchCustomers]);
+
+  async function createCustomer(name: string) {
+    try {
+      const d = await api<{ customer: { id: number; name: string; phone: string | null } }>('/api/customers', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      });
+      setCustomerOptions((prev) => [{ value: String(d.customer.id), label: d.customer.name }, ...prev]);
+      setCustomerId(String(d.customer.id));
+      toast.success(`Customer "${d.customer.name}" added.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not add customer');
+    }
+  }
 
   function addToCart(s: StockRow) {
     if (cart.some((c) => c.stock.batchId === s.batchId)) return;
@@ -235,6 +277,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
         method: 'POST',
         body: JSON.stringify({
           locationId: Number(locationId),
+          customerId: customerId ? Number(customerId) : null,
           paymentType,
           withholdingType: whtType,
           withholdingRate: Number(whtRate) || 0,
@@ -248,6 +291,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
       });
       setCart([]);
       setNotes('');
+      setCustomerId('');
       onDispensed(d.order);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Dispensing failed');
@@ -400,6 +444,18 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
           </table>
 
           <div className="mt-4 flex flex-wrap items-end gap-4 border-t border-slate-200 pt-4">
+            <div className="w-56">
+              <label className={label}>Customer (optional)</label>
+              <Combobox
+                options={customerOptions}
+                value={customerId}
+                onChange={setCustomerId}
+                onSearch={searchCustomers}
+                onCreate={createCustomer}
+                placeholder="Walk-in — search or add…"
+                className="mt-1"
+              />
+            </div>
             <div>
               <label className={label}>Payment</label>
               <select value={paymentType} onChange={(e) => setPaymentType(e.target.value)} className={`mt-1 ${input}`}>
@@ -597,6 +653,7 @@ export default function SalesPage() {
                 <tr>
                   <th className="px-4 py-3">DSP No.</th>
                   <th className="px-4 py-3">Location</th>
+                  <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3">Items</th>
                   <th className="px-4 py-3">Payment</th>
                   <th className="px-4 py-3 text-right">Total</th>
@@ -605,10 +662,10 @@ export default function SalesPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading && <SkeletonRows rows={5} cols={7} />}
+                {loading && <SkeletonRows rows={5} cols={8} />}
                 {!loading && orders.length === 0 && (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={8}>
                       <EmptyState
                         title={q ? 'No sales match your search' : 'No sales yet'}
                         description={q ? 'Try a different DSP number or product name.' : 'Dispense stock from the New Dispense tab.'}
@@ -622,6 +679,7 @@ export default function SalesPage() {
                       <tr className="border-b border-slate-100 last:border-0">
                         <td className="px-4 py-3 font-mono text-xs text-slate-900">{o.dspNumber}</td>
                         <td className="px-4 py-3 text-slate-600">{o.location.name}</td>
+                        <td className="px-4 py-3 text-slate-600">{o.customer?.name || <span className="text-slate-400">Walk-in</span>}</td>
                         <td className="px-4 py-3 text-slate-600">{o.items.length} line(s)</td>
                         <td className="px-4 py-3">
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -648,7 +706,7 @@ export default function SalesPage() {
                       </tr>
                       {expanded === o.id && (
                         <tr className="border-b border-slate-100 bg-slate-50">
-                          <td colSpan={7} className="px-6 py-3">
+                          <td colSpan={8} className="px-6 py-3">
                             <table className="w-full text-left text-xs">
                               <thead className="uppercase tracking-wide text-slate-500">
                                 <tr>

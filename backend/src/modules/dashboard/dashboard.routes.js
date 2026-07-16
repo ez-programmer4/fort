@@ -5,5 +5,6 @@ const ctrl = require('./dashboard.controller');
 router.use(requireAuth);
 
 router.get('/', requirePermission('dashboard.view'), ctrl.overview);
+router.get('/analytics', requirePermission('dashboard.view'), ctrl.analytics);
 
 module.exports = router;

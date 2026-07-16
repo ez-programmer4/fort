@@ -14,6 +14,10 @@ interface ComboboxProps {
   onChange: (value: string) => void;
   /** For server-side lists: called (debounced) with the typed term; parent refreshes `options`. */
   onSearch?: (term: string) => void;
+  /** Quick-create: when set, a "+ Create '<term>'" row appears whenever the typed
+   *  term doesn't exactly match an existing option. The parent creates the record
+   *  and is responsible for updating `options`/`value` afterwards. */
+  onCreate?: (term: string) => void | Promise<void>;
   placeholder?: string;
   emptyText?: string;
   className?: string;
@@ -29,6 +33,7 @@ export function Combobox({
   value,
   onChange,
   onSearch,
+  onCreate,
   placeholder = 'Search & select…',
   emptyText = 'No matches',
   className,
@@ -69,7 +74,12 @@ export function Combobox({
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
 
-  useEffect(() => setHighlight(0), [filtered.length, open]);
+  const trimmedTerm = term.trim();
+  const exactMatch = filtered.some((o) => o.label.toLowerCase() === trimmedTerm.toLowerCase());
+  const showCreate = Boolean(onCreate) && trimmedTerm.length > 0 && !exactMatch;
+  const totalItems = filtered.length + (showCreate ? 1 : 0);
+
+  useEffect(() => setHighlight(0), [filtered.length, showCreate, open]);
 
   useEffect(() => {
     const el = listRef.current?.children[highlight] as HTMLElement | undefined;
@@ -83,6 +93,13 @@ export function Combobox({
     setOpen(false);
   }
 
+  async function handleCreate() {
+    if (!onCreate || !trimmedTerm) return;
+    await onCreate(trimmedTerm);
+    setTerm('');
+    setOpen(false);
+  }
+
   function onKeyDown(e: React.KeyboardEvent) {
     if (!open && (e.key === 'ArrowDown' || e.key === 'Enter')) {
       setOpen(true);
@@ -90,13 +107,14 @@ export function Combobox({
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setHighlight((h) => Math.min(h + 1, filtered.length - 1));
+      setHighlight((h) => Math.min(h + 1, totalItems - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setHighlight((h) => Math.max(h - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (filtered[highlight]) pick(filtered[highlight]);
+      if (highlight < filtered.length && filtered[highlight]) pick(filtered[highlight]);
+      else if (showCreate) handleCreate();
     } else if (e.key === 'Escape') {
       setOpen(false);
     }
@@ -149,7 +167,7 @@ export function Combobox({
           role="listbox"
           className="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-xl"
         >
-          {filtered.length === 0 && (
+          {filtered.length === 0 && !showCreate && (
             <li className="px-3 py-2.5 text-sm text-slate-400">{emptyText}</li>
           )}
           {filtered.map((o, i) => (
@@ -170,6 +188,22 @@ export function Combobox({
               {o.sublabel && <p className="truncate text-xs text-slate-400">{o.sublabel}</p>}
             </li>
           ))}
+          {showCreate && (
+            <li
+              role="option"
+              aria-selected={false}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleCreate();
+              }}
+              onMouseEnter={() => setHighlight(filtered.length)}
+              className={`cursor-pointer border-t border-slate-100 px-3 py-2 text-sm font-medium text-slate-900 ${
+                highlight === filtered.length ? 'bg-slate-100' : ''
+              }`}
+            >
+              + Create &ldquo;{trimmedTerm}&rdquo;
+            </li>
+          )}
         </ul>
       )}
     </div>

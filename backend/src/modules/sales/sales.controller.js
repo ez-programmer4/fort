@@ -9,6 +9,7 @@ const UPLOAD_DIR = path.join(__dirname, '..', '..', '..', 'uploads');
 
 const orderInclude = {
   location: { select: { id: true, name: true } },
+  customer: { select: { id: true, name: true, phone: true } },
   dispensedBy: { select: { fullName: true } },
   items: {
     include: {
@@ -68,13 +69,17 @@ async function getOne(req, res, next) {
 // Validates batch stock and writes stock-out movements atomically.
 async function create(req, res, next) {
   try {
-    const { locationId, paymentType = 'CASH', withholdingType = 'NONE', withholdingRate = 0, notes, items } = req.body || {};
+    const { locationId, customerId, paymentType = 'CASH', withholdingType = 'NONE', withholdingRate = 0, notes, items } = req.body || {};
     if (!locationId) throw new ApiError(400, 'locationId is required');
     if (!['CASH', 'CREDIT'].includes(paymentType)) throw new ApiError(400, 'paymentType must be CASH or CREDIT');
     if (!Array.isArray(items) || items.length === 0) throw new ApiError(400, 'At least one item is required');
 
     const location = await prisma.location.findUnique({ where: { id: Number(locationId) } });
     if (!location) throw new ApiError(404, 'Location not found');
+    if (customerId) {
+      const customer = await prisma.customer.findUnique({ where: { id: Number(customerId) } });
+      if (!customer) throw new ApiError(404, 'Customer not found');
+    }
 
     const parsed = [];
     for (const [i, it] of items.entries()) {
@@ -111,6 +116,7 @@ async function create(req, res, next) {
         data: {
           dspNumber,
           locationId: Number(locationId),
+          customerId: customerId ? Number(customerId) : null,
           paymentType,
           subtotal,
           withholdingType,

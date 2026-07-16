@@ -193,17 +193,20 @@ Build once, reuse everywhere (all monochrome, keyboard-accessible):
 
 ## Phase A4 — Dashboard Enhancements (§2.2)
 
-- [ ] **Customer entity** (required for Top Customers — not in v1.0): optional
+- [x] **Customer entity** (required for Top Customers — not in v1.0): optional
       customer (name/phone) captured at dispensing via Combobox with quick-create
-- [ ] **Profits Overview** — Gross Profit + Net Profit/Loss (gross − expenses),
+- [x] **Profits Overview** — Gross Profit + Net Profit/Loss (gross − expenses),
       trend indicators ↑/↓ with % vs previous period
-- [ ] **Top Customers** — ranked by sales volume & frequency, last order date
-- [ ] **Charts** (line/area/bar, monochrome palette):
+- [x] **Top Customers** — ranked by sales volume & frequency, last order date
+- [x] **Charts** (line/area/bar, monochrome palette):
   - Sales vs Purchases trend
   - Gross & Net Profit trends
   - Top products by margin · Top products by volume
   - Monthly performance overview
-- [ ] ➕ Period selector for the dashboard (7d / 30d / 90d / 12m)
+- [x] ➕ Period selector for the dashboard (7d / 30d / 90d / 12m)
+- [x] ➕ Reusable `Combobox` quick-create (`onCreate`) — generic addition, not just for customers
+- [x] ➕ Hand-built SVG chart components (`TrendChart`, `RankBars`) validated against the
+      dataviz skill's color/contrast checks — no new chart-library dependency
 
 ## Phase A5 — Sales Print + Final Polish (§2.4)
 

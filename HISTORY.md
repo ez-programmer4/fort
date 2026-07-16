@@ -5,6 +5,30 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A4 complete: Dashboard Enhancements
+
+**Phase:** A4 — Dashboard Enhancements (§2.2)
+
+**Done:**
+- **Schema**: new `Customer` model (name, phone, email) and an optional `DispenseOrder.customerId` FK — migration `20260716075137_phase_a4_customers` applied cleanly.
+- **Backend — customers module**: `GET /api/customers?q=` (search, top 20) and `POST /api/customers` (quick-create, name required) — `customers.controller.js`/`.routes.js`, mounted at `/api/customers`.
+- **Backend — sales**: `sales.controller.js` accepts an optional `customerId` on dispense creation (validated if present) and includes `customer` on every order response (list, getOne, create).
+- **Backend — dashboard analytics**: new `GET /api/dashboard/analytics?period=7d|30d|90d|12m` (`dashboard.controller.js`), fully period-scoped and compared against the equivalent prior period:
+  - **Profit overview** — total sales, COGS, gross profit, expenses, net profit/loss for the current and previous period, plus `trend.gross`/`trend.net` percentage change
+  - **Top customers** — grouped by `customerId`, ranked by total spend, with order count and last-order date (walk-in/no-customer sales excluded)
+  - **Chart series** — Sales vs Purchases and Gross/Net Profit trend, bucketed by day (7d/30d), week (90d) or month (12m); Top Products by margin and by volume (from `DispenseItem` aggregation); a fixed last-12-months Monthly Overview independent of the period selector
+  - The existing `GET /api/dashboard` overview (stock value, today's sales, alerts, top movers, recent sales) is unchanged — analytics is additive, not a replacement
+- **Frontend — Combobox**: added an optional `onCreate` prop — when set, a "+ Create '<term>'" row appears for unmatched search terms. Purely additive (undefined everywhere else), so no existing Combobox usage changed behavior.
+- **Frontend — Sales page**: customer `Combobox` with quick-create in the Dispense Summary footer ("Walk-in" if left blank); customer name shown on the printed slip and as a new column in Sales History.
+- **Frontend — chart components** (`components/ui/charts.tsx`): hand-built SVG `TrendChart` (up to 2 series, hairline gridlines, crosshair + tooltip, legend, direct end-labels) and `RankBars` (ranked horizontal bar list, value at the tip) — no new npm dependency. Followed the dataviz skill's procedure: form chosen per data job, categorical colors (`#2a78d6` blue / `#008300` green, slots 1–2 of the reference palette) validated with `scripts/validate_palette.js` against the app's white card surface — CVD separation, normal-vision floor and contrast all pass.
+- **Frontend — Dashboard**: new "Performance Overview" section below the existing snapshot — a 7d/30d/90d/12m period-preset row (scopes everything below it, per the dataviz skill's filter-composition rule) driving one `/api/dashboard/analytics` call; 4 profit stat cards (Total Sales, Gross Profit with trend badge, Expenses, Net Profit/Loss with trend badge, red when negative); Sales-vs-Purchases and Gross/Net-Profit trend charts; Top-Products-by-Margin/Volume rank bars; a fixed Monthly Overview chart; and a Top Customers table.
+
+**Verified:** `npx prisma migrate dev` applied without data loss; `tsc --noEmit` clean; all 15 pages HTTP 200; full API smoke test — created a customer, searched it, dispensed a sale with `customerId` attached, confirmed the customer appears correctly in `topCustomers` (1 order, correct total), confirmed `/api/dashboard/analytics` returns sane data for all four periods (correct bucket counts: 8/31/14/12 points for salesVsPurchases, always 12 for monthlyOverview), and confirmed customer-create validation (missing name → 400).
+
+**Next:** Phase A5 — Sales print + final polish (printable sales history with date-range picker, on-screen date filter, final consistency sweep)
+
+---
+
 ## 2026-07-16 — Phase A3 complete: Alerts Module Adjustments
 
 **Phase:** A3 — Alerts Module Adjustments (§2.1)
