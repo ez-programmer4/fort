@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A7 addition: "Who We Serve" (retail/wholesale sales) + more creativity
+
+**Phase:** A7 follow-up — the user clarified that Fort Pharma PLC doesn't only import; it also sells the imported products directly to local customers (pharmacies, hospitals, wholesalers, and retail/walk-in customers), and asked for more creativity on the public page generally.
+
+**Done:**
+- **New "Who We Serve" section** (`WhoWeServe()` in `homepage.tsx`, `#customers` anchor, added to the nav): four customer-segment cards — Pharmacies & Drug Stores, Hospitals & Clinics, Wholesalers & Distributors, Retail Customers — each with a circular icon avatar, styled distinctly from the Services cards (circular vs. square icon treatment) for visual variety. Placed between Services ("what we import") and Process ("how we work") so the page's narrative now reads: import → sell to → how it works → why us.
+- **Copy updated everywhere the page implied import-only**: hero headline ("...Sold and delivered across Ethiopia"), hero subhead (imports "and sells them directly to pharmacies, hospitals, wholesalers and customers"), Why-Us intro, and the Process section's last step renamed "Distribution & Sales" ("Sold and delivered to pharmacies, hospitals, wholesalers and customers across Ethiopia").
+- **Two-directional ticker**: the country-sourcing marquee now has a second row underneath, scrolling the opposite direction, listing who the products are *sold to* (Pharmacies, Hospitals & Clinics, Wholesalers, Distributors, Retail Customers, Drug Stores) — the ticker itself now visually tells the import → sell story. New `marquee-reverse` keyframe in `globals.css`.
+- **Floating back-to-top button**: appears after scrolling past ~600px, smooth-scrolls to top, hidden in print.
+
+**Verified:** `tsc --noEmit` clean; `/` and `/login` both return HTTP 200; SSR-bypass check confirmed the new section ("Who we serve", all four segment titles), the updated Process step title, and both ticker rows render with no runtime errors.
+
+---
+
 ## 2026-07-16 — Phase A7 polish: real orthographic globe, side-by-side hero, creative pass
 
 **Phase:** A7 follow-up — the user asked for the globe itself to use a real world map (not the abstract wireframe sphere from the previous pass), for the graphic to sit to the right of the hero text instead of stacked below it, and for more creativity across the rest of the page's sections.

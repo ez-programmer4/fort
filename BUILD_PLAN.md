@@ -282,6 +282,14 @@ users straight to `/dashboard`.
       numbered-corner service cards, icon badges on process steps, a
       glow/dot-grid treatment on the dark Why-Us and CTA panels, smooth
       anchor-link scrolling
+- [x] **"Who We Serve" section** (`#customers`) — Fort Pharma PLC doesn't
+      only import, it sells directly to local customers: four segment cards
+      (Pharmacies & Drug Stores, Hospitals & Clinics, Wholesalers &
+      Distributors, Retail Customers). Copy updated throughout (hero,
+      Why-Us, Process's last step renamed "Distribution & Sales") to say
+      import **and sell**, not import-only. Ticker gained a second,
+      reverse-direction row listing who products are sold to. Floating
+      back-to-top button added.
 - [x] `frontend/src/components/marketing/hooks.ts` — `useReveal` (scroll
       reveal) and `useCountUp` (eased count-up, starts once the stat
       scrolls into view)

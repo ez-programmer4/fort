@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Icon, type IconName } from '@/components/icons';
 import { useToast } from '@/components/ui/toast';
@@ -18,12 +18,36 @@ const CONTACT = {
 
 const NAV_LINKS = [
   { href: '#services', label: 'Services' },
+  { href: '#customers', label: 'Who We Serve' },
   { href: '#process', label: 'How We Work' },
   { href: '#why-us', label: 'Why Us' },
   { href: '#contact', label: 'Contact' },
 ];
 
 const COUNTRIES = ['India', 'China', 'Germany', 'Turkey', 'UAE', 'Switzerland', 'South Korea', 'Belgium', 'France', 'Egypt'];
+
+const WHO_WE_SERVE: { icon: IconName; title: string; description: string }[] = [
+  {
+    icon: 'beaker',
+    title: 'Pharmacies & Drug Stores',
+    description: 'Retail and community pharmacies stocked with our full product range, from Addis Ababa to regional towns.',
+  },
+  {
+    icon: 'heart',
+    title: 'Hospitals & Clinics',
+    description: 'Public and private healthcare facilities relying on us for consistent, quality-assured supply.',
+  },
+  {
+    icon: 'truck',
+    title: 'Wholesalers & Distributors',
+    description: 'Regional wholesalers and distributors who resell our products to pharmacies across the country.',
+  },
+  {
+    icon: 'users',
+    title: 'Retail Customers',
+    description: 'Individual and walk-in customers served directly through our sales counter and partner outlets.',
+  },
+];
 
 const STATS: { icon: IconName; value: number; suffix: string; label: string }[] = [
   { icon: 'globe', value: 15, suffix: '+', label: 'Sourcing countries' },
@@ -60,7 +84,7 @@ const PROCESS: { icon: IconName; title: string; description: string }[] = [
   { icon: 'globe', title: 'Sourcing & Verification', description: 'We vet manufacturers and suppliers against GMP and quality standards before onboarding.' },
   { icon: 'shield', title: 'Regulatory Compliance', description: 'Every product is cleared through EFDA registration and import documentation.' },
   { icon: 'truck', title: 'Import & Logistics', description: 'Cold-chain and standard freight, customs clearance, and quality checks on arrival.' },
-  { icon: 'mapPin', title: 'Nationwide Distribution', description: 'Delivered to pharmacies, hospitals and distributors across Ethiopia.' },
+  { icon: 'mapPin', title: 'Distribution & Sales', description: 'Sold and delivered to pharmacies, hospitals, wholesalers and customers across Ethiopia.' },
 ];
 
 const WHY_US = [
@@ -105,11 +129,13 @@ export default function Homepage() {
       <CountryTicker />
       <Stats />
       <Services />
+      <WhoWeServe />
       <Process />
       <WhyUs />
       <CtaBanner />
       <Contact />
       <Footer />
+      <BackToTop />
     </div>
   );
 }
@@ -201,12 +227,12 @@ function Hero() {
             Global Pharmaceutical Imports
           </span>
           <h1 className="mt-5 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-            Quality medicines, sourced globally. Delivered across Ethiopia.
+            Quality medicines, sourced globally. Sold and delivered across Ethiopia.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600">
             Fort Pharma PLC imports EFDA-registered pharmaceuticals, medical consumables and equipment
-            from trusted manufacturers around the world, and distributes them reliably to pharmacies,
-            hospitals and clinics nationwide.
+            from trusted manufacturers around the world — and sells them directly to pharmacies,
+            hospitals, wholesalers and customers across Ethiopia.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <a
@@ -236,19 +262,54 @@ function Hero() {
   );
 }
 
+const SOLD_TO = ['Pharmacies', 'Hospitals & Clinics', 'Wholesalers', 'Distributors', 'Retail Customers', 'Drug Stores'];
+
 function CountryTicker() {
-  const items = [...COUNTRIES, ...COUNTRIES];
+  const sourced = [...COUNTRIES, ...COUNTRIES];
+  const soldTo = [...SOLD_TO, ...SOLD_TO];
   return (
-    <div className="overflow-hidden border-y border-slate-200 bg-white py-3.5">
-      <div className="flex w-max animate-marquee items-center gap-10 whitespace-nowrap px-6">
-        {items.map((c, i) => (
-          <span key={`${c}-${i}`} className="flex items-center gap-2 text-sm font-medium text-slate-500">
+    <div className="overflow-hidden border-y border-slate-200 bg-white py-3 text-sm font-medium text-slate-500">
+      <div className="flex w-max animate-marquee items-center gap-10 whitespace-nowrap px-6 py-0.5">
+        {sourced.map((c, i) => (
+          <span key={`${c}-${i}`} className="flex items-center gap-2">
             <Icon name="globe" className="h-3.5 w-3.5 text-blue-500" />
             Sourced from {c}
           </span>
         ))}
       </div>
+      <div className="mt-2 flex w-max animate-marquee-reverse items-center gap-10 whitespace-nowrap px-6 py-0.5">
+        {soldTo.map((c, i) => (
+          <span key={`${c}-${i}`} className="flex items-center gap-2">
+            <Icon name="truck" className="h-3.5 w-3.5 text-slate-400" />
+            Sold to {c}
+          </span>
+        ))}
+      </div>
     </div>
+  );
+}
+
+function BackToTop() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 600);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      aria-label="Back to top"
+      className={`fixed bottom-6 right-6 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition-all duration-300 hover:bg-blue-600 print:hidden ${
+        visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'
+      }`}
+    >
+      <Icon name="chevronUp" className="h-5 w-5" />
+    </button>
   );
 }
 
@@ -322,6 +383,37 @@ function Services() {
   );
 }
 
+function WhoWeServe() {
+  return (
+    <section id="customers" className="mx-auto max-w-7xl px-6 py-20 md:py-24">
+      <Reveal className="mx-auto max-w-2xl text-center">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+          <Icon name="users" className="h-3.5 w-3.5 text-blue-600" />
+          Beyond importing
+        </span>
+        <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">Who we serve</h2>
+        <p className="mt-3 text-base text-slate-600">
+          We don&apos;t just import — we sell directly to the customers who keep Ethiopia&apos;s
+          healthcare supply chain moving.
+        </p>
+      </Reveal>
+      <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {WHO_WE_SERVE.map((c, i) => (
+          <Reveal key={c.title} delay={i * 90}>
+            <div className="group flex h-full flex-col items-center rounded-xl border border-slate-200 p-6 text-center transition-all hover:-translate-y-1 hover:border-blue-200 hover:shadow-md hover:shadow-slate-900/5">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white">
+                <Icon name={c.icon} className="h-6 w-6" />
+              </span>
+              <h3 className="mt-4 text-base font-semibold text-slate-900">{c.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">{c.description}</p>
+            </div>
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Process() {
   return (
     <section id="process" className="bg-slate-50 py-20 md:py-24">
@@ -363,7 +455,8 @@ function WhyUs() {
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">Why partners choose Fort Pharma</h2>
           <p className="mt-3 text-base text-slate-600">
             We combine global sourcing relationships with strict regulatory compliance and modern
-            inventory technology, so partners can trust every shipment.
+            inventory technology — so every customer, from a single pharmacy to a nationwide
+            distributor, can trust every order.
           </p>
           <ul className="mt-8 space-y-4">
             {WHY_US.map((point) => (
