@@ -264,18 +264,24 @@ users straight to `/dashboard`.
       Google Map + "Get directions" + mailto-based form), footer with a
       "Client Portal" link to `/login` — all major sections fade/slide in
       on scroll via a small `useReveal` IntersectionObserver hook
-- [x] `frontend/src/components/marketing/globe-map.tsx` — hand-built SVG
-      hero graphic: a wireframe globe with pulsing origin markers (China,
-      India, Germany, UAE) and animated dashed flight paths (with a moving
-      dot per path via native SVG `<animateMotion>`) arcing across to
-      Ethiopia's **real national outline** (extracted once from `world-atlas`
-      TopoJSON boundary data via a throwaway script, simplified to 90 points,
-      then hardcoded — no map library ships to the browser) with a pulsing
-      Addis Ababa pin at its real coordinates — CSS keyframes (`dash-flow`,
-      `pulse-ring` in `globals.css`)
+- [x] `frontend/src/components/marketing/globe-map.tsx` — a real
+      orthographic globe (not an abstract wireframe): `world-atlas` land
+      data + `topojson-simplify`, projected via `d3-geo`'s orthographic
+      projection centered so China, India, Germany, UAE and Ethiopia are
+      all on the visible hemisphere at once, clipped to a circle. Ethiopia
+      is drawn again on top in the accent color as the highlighted
+      destination. Pulsing origin markers, animated dashed flight paths
+      (native SVG `<animateMotion>`) and the Addis Ababa pin all use real
+      projected coordinates. Generated once via a throwaway script and
+      hardcoded — no map/geo library ships to the browser. Positioned to
+      the right of the hero text (`md:grid-cols-2`), not stacked below it.
 - [x] Real product categories in the services grid — Medication, Equipment,
       Cosmetics (replacing an earlier, invented six-category list) — each
       with a few example-product tags
+- [x] Creative pass on the remaining sections: icon+hover-lift stat cards,
+      numbered-corner service cards, icon badges on process steps, a
+      glow/dot-grid treatment on the dark Why-Us and CTA panels, smooth
+      anchor-link scrolling
 - [x] `frontend/src/components/marketing/hooks.ts` — `useReveal` (scroll
       reveal) and `useCountUp` (eased count-up, starts once the stat
       scrolls into view)

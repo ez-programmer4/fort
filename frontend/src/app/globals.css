@@ -14,6 +14,10 @@ body {
   color: var(--foreground);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 @keyframes dash-flow {
   to {
     stroke-dashoffset: -24;

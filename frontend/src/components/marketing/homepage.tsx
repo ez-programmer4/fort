@@ -25,11 +25,11 @@ const NAV_LINKS = [
 
 const COUNTRIES = ['India', 'China', 'Germany', 'Turkey', 'UAE', 'Switzerland', 'South Korea', 'Belgium', 'France', 'Egypt'];
 
-const STATS: { value: number; suffix: string; label: string }[] = [
-  { value: 15, suffix: '+', label: 'Sourcing countries' },
-  { value: 500, suffix: '+', label: 'Products imported' },
-  { value: 8, suffix: '', label: 'Years in operation' },
-  { value: 99, suffix: '%', label: 'On-time customs clearance' },
+const STATS: { icon: IconName; value: number; suffix: string; label: string }[] = [
+  { icon: 'globe', value: 15, suffix: '+', label: 'Sourcing countries' },
+  { icon: 'box', value: 500, suffix: '+', label: 'Products imported' },
+  { icon: 'clock', value: 8, suffix: '', label: 'Years in operation' },
+  { icon: 'check', value: 99, suffix: '%', label: 'On-time customs clearance' },
 ];
 
 const SERVICES: { icon: IconName; title: string; description: string; examples: string[] }[] = [
@@ -56,11 +56,11 @@ const SERVICES: { icon: IconName; title: string; description: string; examples: 
   },
 ];
 
-const PROCESS = [
-  { title: 'Sourcing & Verification', description: 'We vet manufacturers and suppliers against GMP and quality standards before onboarding.' },
-  { title: 'Regulatory Compliance', description: 'Every product is cleared through EFDA registration and import documentation.' },
-  { title: 'Import & Logistics', description: 'Cold-chain and standard freight, customs clearance, and quality checks on arrival.' },
-  { title: 'Nationwide Distribution', description: 'Delivered to pharmacies, hospitals and distributors across Ethiopia.' },
+const PROCESS: { icon: IconName; title: string; description: string }[] = [
+  { icon: 'globe', title: 'Sourcing & Verification', description: 'We vet manufacturers and suppliers against GMP and quality standards before onboarding.' },
+  { icon: 'shield', title: 'Regulatory Compliance', description: 'Every product is cleared through EFDA registration and import documentation.' },
+  { icon: 'truck', title: 'Import & Logistics', description: 'Cold-chain and standard freight, customs clearance, and quality checks on arrival.' },
+  { icon: 'mapPin', title: 'Nationwide Distribution', description: 'Delivered to pharmacies, hospitals and distributors across Ethiopia.' },
 ];
 
 const WHY_US = [
@@ -194,21 +194,21 @@ function Hero() {
           backgroundSize: '28px 28px',
         }}
       />
-      <div className="relative mx-auto max-w-4xl px-6 pb-4 pt-20 text-center md:pt-28">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-6 py-20 md:grid-cols-2 md:gap-8 md:py-28">
         <Reveal>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
             <Icon name="globe" className="h-3.5 w-3.5 text-blue-600" />
             Global Pharmaceutical Imports
           </span>
-          <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+          <h1 className="mt-5 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
             Quality medicines, sourced globally. Delivered across Ethiopia.
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-600">
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600">
             Fort Pharma PLC imports EFDA-registered pharmaceuticals, medical consumables and equipment
             from trusted manufacturers around the world, and distributes them reliably to pharmacies,
             hospitals and clinics nationwide.
           </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <a
               href="#contact"
               className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
@@ -227,11 +227,11 @@ function Hero() {
             GMP-compliant sourcing &nbsp;·&nbsp; Cold-chain logistics &nbsp;·&nbsp; EFDA-registered
           </p>
         </Reveal>
-      </div>
 
-      <Reveal delay={150} className="relative mx-auto max-w-6xl px-4 pb-10 pt-6 md:pb-16">
-        <GlobeToEthiopia />
-      </Reveal>
+        <Reveal delay={150}>
+          <GlobeToEthiopia />
+        </Reveal>
+      </div>
     </section>
   );
 }
@@ -252,16 +252,23 @@ function CountryTicker() {
   );
 }
 
-function StatCard({ stat }: { stat: (typeof STATS)[number] }) {
+function StatCard({ stat, delay }: { stat: (typeof STATS)[number]; delay: number }) {
   const { ref, visible } = useReveal<HTMLDivElement>();
   const count = useCountUp(stat.value, visible);
   return (
-    <div ref={ref} className="text-center">
+    <div
+      ref={ref}
+      className={`group flex h-full flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-7 text-center transition-all duration-700 ease-out hover:-translate-y-1 hover:border-blue-200 hover:shadow-md hover:shadow-slate-900/5 ${visible ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white">
+        <Icon name={stat.icon} className="h-5 w-5" />
+      </span>
       <p className="text-3xl font-bold tracking-tight text-slate-900">
         {count}
         {stat.suffix}
       </p>
-      <p className="mt-1 text-sm text-slate-500">{stat.label}</p>
+      <p className="text-sm text-slate-500">{stat.label}</p>
     </div>
   );
 }
@@ -269,9 +276,9 @@ function StatCard({ stat }: { stat: (typeof STATS)[number] }) {
 function Stats() {
   return (
     <section className="bg-white">
-      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-12 sm:grid-cols-4">
-        {STATS.map((s) => (
-          <StatCard key={s.label} stat={s} />
+      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-5 px-6 py-14 sm:grid-cols-4">
+        {STATS.map((s, i) => (
+          <StatCard key={s.label} stat={s} delay={i * 80} />
         ))}
       </div>
     </section>
@@ -291,7 +298,10 @@ function Services() {
       <div className="mt-14 grid gap-6 sm:grid-cols-3">
         {SERVICES.map((s, i) => (
           <Reveal key={s.title} delay={i * 100}>
-            <div className="group h-full rounded-xl border border-slate-200 p-7 transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/5">
+            <div className="group relative h-full overflow-hidden rounded-xl border border-slate-200 p-7 transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-md hover:shadow-slate-900/5">
+              <span className="pointer-events-none absolute -right-2 -top-3 -z-10 text-6xl font-bold text-slate-50 transition-colors group-hover:text-blue-50">
+                0{i + 1}
+              </span>
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-900 transition-colors group-hover:bg-blue-600">
                 <Icon name={s.icon} className="h-6 w-6 text-white" />
               </div>
@@ -322,14 +332,17 @@ function Process() {
         </Reveal>
         <div className="mt-14 grid gap-8 md:grid-cols-4">
           {PROCESS.map((step, i) => (
-            <Reveal key={step.title} delay={i * 100} className="relative">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-900 text-sm font-bold text-slate-900">
-                {i + 1}
+            <Reveal key={step.title} delay={i * 100} className="group relative">
+              <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white transition-colors group-hover:bg-blue-600">
+                <Icon name={step.icon} className="h-6 w-6" />
+                <span className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-slate-50 bg-white text-xs font-bold text-slate-900">
+                  {i + 1}
+                </span>
               </div>
               {i < PROCESS.length - 1 && (
                 <div
-                  className="absolute top-5 hidden h-px bg-slate-300 md:block"
-                  style={{ left: '2.5rem', right: '-1.5rem' }}
+                  className="absolute top-7 hidden h-px bg-slate-300 md:block"
+                  style={{ left: '3.5rem', right: '-1.5rem' }}
                 />
               )}
               <h3 className="mt-4 text-sm font-semibold text-slate-900">{step.title}</h3>
@@ -364,21 +377,31 @@ function WhyUs() {
           </ul>
         </Reveal>
 
-        <Reveal delay={150} className="rounded-2xl border border-slate-200 bg-slate-900 p-8">
-          <Icon name="chart" className="h-8 w-8 text-blue-400" />
-          <h3 className="mt-5 text-lg font-semibold text-white">Real-time inventory technology</h3>
-          <p className="mt-2 text-sm leading-relaxed text-slate-300">
-            Our internal FortInventory platform gives partners full traceability of stock — from
-            warehouse receipt to dispensing — with multi-location visibility and audit trails.
-          </p>
-          <div className="mt-6 grid grid-cols-2 gap-4">
-            <div className="rounded-lg bg-white/5 p-4">
-              <p className="text-xl font-bold text-white">24/7</p>
-              <p className="mt-1 text-xs text-slate-400">Stock visibility</p>
-            </div>
-            <div className="rounded-lg bg-white/5 p-4">
-              <p className="text-xl font-bold text-white">Multi-site</p>
-              <p className="mt-1 text-xs text-slate-400">Warehouse network</p>
+        <Reveal delay={150} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 p-8">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-blue-600/30 blur-3xl" />
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.07]"
+            style={{
+              backgroundImage: 'radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)',
+              backgroundSize: '20px 20px',
+            }}
+          />
+          <div className="relative">
+            <Icon name="chart" className="h-8 w-8 text-blue-400" />
+            <h3 className="mt-5 text-lg font-semibold text-white">Real-time inventory technology</h3>
+            <p className="mt-2 text-sm leading-relaxed text-slate-300">
+              Our internal FortInventory platform gives partners full traceability of stock — from
+              warehouse receipt to dispensing — with multi-location visibility and audit trails.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-4">
+              <div className="rounded-lg bg-white/5 p-4 backdrop-blur-sm">
+                <p className="text-xl font-bold text-white">24/7</p>
+                <p className="mt-1 text-xs text-slate-400">Stock visibility</p>
+              </div>
+              <div className="rounded-lg bg-white/5 p-4 backdrop-blur-sm">
+                <p className="text-xl font-bold text-white">Multi-site</p>
+                <p className="mt-1 text-xs text-slate-400">Warehouse network</p>
+              </div>
             </div>
           </div>
         </Reveal>
@@ -389,8 +412,16 @@ function WhyUs() {
 
 function CtaBanner() {
   return (
-    <section className="bg-slate-900">
-      <Reveal className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 py-16 text-center md:flex-row md:justify-between md:text-left">
+    <section className="relative overflow-hidden bg-slate-900">
+      <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-xl -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600/25 blur-3xl" />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.05]"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)',
+          backgroundSize: '24px 24px',
+        }}
+      />
+      <Reveal className="relative mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 py-16 text-center md:flex-row md:justify-between md:text-left">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Ready to partner with us?</h2>
           <p className="mt-2 text-sm text-slate-300">
@@ -399,7 +430,7 @@ function CtaBanner() {
         </div>
         <a
           href="#contact"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-100"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-100 hover:scale-105"
         >
           Contact our team
           <Icon name="arrowRight" className="h-4 w-4" />
@@ -446,8 +477,8 @@ function Contact() {
         <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {infoItems.map((item, i) => (
             <Reveal key={item.label} delay={i * 70}>
-              <div className="flex h-full items-start gap-4 rounded-xl border border-slate-200 bg-white p-5">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-900">
+              <div className="group flex h-full items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 transition-all hover:-translate-y-1 hover:border-blue-200 hover:shadow-md hover:shadow-slate-900/5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 transition-colors group-hover:bg-blue-600">
                   <Icon name={item.icon} className="h-5 w-5 text-white" />
                 </span>
                 <div>

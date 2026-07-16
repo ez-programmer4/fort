@@ -5,6 +5,25 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A7 polish: real orthographic globe, side-by-side hero, creative pass
+
+**Phase:** A7 follow-up — the user asked for the globe itself to use a real world map (not the abstract wireframe sphere from the previous pass), for the graphic to sit to the right of the hero text instead of stacked below it, and for more creativity across the rest of the page's sections.
+
+**Done:**
+- **Real orthographic globe**: `globe-map.tsx` was rebuilt around a proper 3D-looking globe generated the same way as the Ethiopia outline — `world-atlas` (`countries-110m`) land data + `topojson-simplify` (to keep the path light — full-detail land was ~46KB, simplified down to ~23KB) run through `d3-geo`'s orthographic projection (centered ~42°E, 17°N so China, India, Germany, UAE and Ethiopia are all simultaneously on the visible hemisphere — confirmed by computing each point's angular distance from the center), clipped to a circle. Ethiopia is drawn a second time on top of the generic land layer, filled in the accent blue, so it reads as the highlighted destination on an otherwise real, recognizable world map — not a separate cutout shape next to the globe like before. Origin markers and the Addis Ababa pin are now real projected coordinates through this same projection (so they land in their true positions on the map), with flight-path arcs curving between them exactly as before. As with the Ethiopia outline, `world-atlas`/`d3-geo`/`topojson-simplify` were only used to generate the static paths once; nothing ships to the browser but the resulting SVG.
+- **Hero layout**: restructured from a stacked (text-above, graphic-below) layout back to a side-by-side `md:grid-cols-2` layout — headline/copy/CTAs on the left, the globe on the right, matching the classic split-hero pattern the user asked for.
+- **Creative pass across the rest of the page**:
+  - Stats cards gained icons (globe/box/clock/check), borders, and a hover lift, instead of being bare numbers on a flat background.
+  - Services cards gained a large faint "01/02/03" numeral in the corner (editorial-style, sits behind the content via `-z-10`) for visual rhythm now that there are only three cards.
+  - Process steps gained per-step icons (globe/shield/truck/mapPin) in a circular badge with the step number overlaid, replacing the plain numbered circle.
+  - The dark "Real-time inventory technology" panel (Why Us) and the CTA banner both gained a soft blue glow (blurred, semi-transparent circle) plus a faint dot-grid texture, echoing the hero's background pattern instead of being flat slate-900.
+  - Contact info cards gained the same hover-lift + accent-on-hover treatment as the services/stats cards for consistency.
+  - Added `scroll-behavior: smooth` site-wide so the nav's anchor links (`#services`, `#process`, etc.) scroll smoothly instead of jumping.
+
+**Verified:** `tsc --noEmit` clean; `/` and `/login` both return HTTP 200; same SSR-bypass check as prior passes confirmed the new globe (including its `clipPath`/`globeClip` mask and the "Addis Ababa" label) and every section render with no runtime errors.
+
+---
+
 ## 2026-07-16 — Phase A7 correction: real Ethiopia outline + real product categories
 
 **Phase:** A7 follow-up — the user pointed out the hero's Ethiopia shape wasn't real ("i need the map real then current is not real" — the hand-plotted low-poly polygon from the previous pass didn't actually resemble the country), and that the invented six-category services list didn't match reality: the company imports exactly three types — **Medication, Equipment, Cosmetics**.
