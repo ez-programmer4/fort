@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../../utils/prisma');
 const { ApiError } = require('../../middleware/error');
+const { parseSort } = require('../../utils/sort');
 
 const userSelect = {
   id: true,
@@ -9,6 +10,13 @@ const userSelect = {
   isActive: true,
   createdAt: true,
   role: { select: { id: true, name: true } },
+};
+
+const SORT_FIELDS = {
+  fullName: 'fullName',
+  email: 'email',
+  createdAt: 'createdAt',
+  role: (dir) => ({ role: { name: dir } }),
 };
 
 async function list(req, res, next) {
@@ -22,10 +30,11 @@ async function list(req, res, next) {
           ],
         }
       : undefined;
+    const orderBy = parseSort(req.query, SORT_FIELDS, 'fullName');
 
     // Without ?page, return the full list (backward compatible).
     if (!req.query.page) {
-      const users = await prisma.user.findMany({ where, select: userSelect, orderBy: { id: 'asc' } });
+      const users = await prisma.user.findMany({ where, select: userSelect, orderBy });
       return res.json({ users, total: users.length });
     }
 
@@ -36,7 +45,7 @@ async function list(req, res, next) {
       prisma.user.findMany({
         where,
         select: userSelect,
-        orderBy: { id: 'asc' },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

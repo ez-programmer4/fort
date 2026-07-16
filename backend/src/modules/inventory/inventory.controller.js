@@ -2,6 +2,24 @@ const ExcelJS = require('exceljs');
 const prisma = require('../../utils/prisma');
 const { ApiError } = require('../../middleware/error');
 const { applyMovement } = require('../../utils/stock.service');
+const { parseSort } = require('../../utils/sort');
+
+const SORT_FIELDS = {
+  code: (dir) => ({ batch: { product: { code: dir } } }),
+  genericName: (dir) => ({ batch: { product: { genericName: dir } } }),
+  quantity: 'quantity',
+  expiryDate: (dir) => ({ batch: { expiryDate: dir } }),
+  location: (dir) => ({ location: { name: dir } }),
+};
+
+const MOVEMENT_SORT_FIELDS = {
+  createdAt: 'createdAt',
+  type: 'type',
+  quantity: 'quantity',
+  product: (dir) => ({ product: { genericName: dir } }),
+  location: (dir) => ({ location: { name: dir } }),
+  performedBy: (dir) => ({ performedBy: { fullName: dir } }),
+};
 
 function buildWhere(query) {
   const { locationId, q, includeZero } = query;
@@ -66,13 +84,16 @@ async function list(req, res, next) {
     const page = Math.max(1, Number(req.query.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
     const where = buildWhere(req.query);
+    const orderBy = req.query.sortBy
+      ? parseSort(req.query, SORT_FIELDS, 'code')
+      : [{ batch: { product: { code: 'asc' } } }, { batch: { expiryDate: 'asc' } }];
 
     const [total, stocks] = await Promise.all([
       prisma.stock.count({ where }),
       prisma.stock.findMany({
         where,
         include: stockInclude,
-        orderBy: [{ batch: { product: { code: 'asc' } } }, { batch: { expiryDate: 'asc' } }],
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -212,6 +233,7 @@ async function movements(req, res, next) {
     if ((from && isNaN(from)) || (to && isNaN(to))) throw new ApiError(400, 'Invalid date range');
     if (from || to) where.createdAt = { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) };
 
+    const orderBy = req.query.sortBy ? parseSort(req.query, MOVEMENT_SORT_FIELDS, 'createdAt') : { id: 'desc' };
     const [total, rows] = await Promise.all([
       prisma.stockMovement.count({ where }),
       prisma.stockMovement.findMany({
@@ -222,7 +244,7 @@ async function movements(req, res, next) {
           location: { select: { name: true } },
           performedBy: { select: { fullName: true } },
         },
-        orderBy: { id: 'desc' },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

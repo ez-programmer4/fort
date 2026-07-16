@@ -1,9 +1,19 @@
 const prisma = require('../../utils/prisma');
 const { ApiError } = require('../../middleware/error');
+const { parseSort } = require('../../utils/sort');
 
 const TYPES = ['Medication', 'Equipment', 'Cosmetics'];
 
 const productInclude = { supplier: { select: { id: true, name: true } } };
+
+const SORT_FIELDS = {
+  code: 'code',
+  genericName: 'genericName',
+  type: 'type',
+  unitPrice: 'unitPrice',
+  createdAt: 'createdAt',
+  supplier: (dir) => ({ supplier: { name: dir } }),
+};
 
 function buildWhere(query) {
   const { q, type, supplierId, active } = query;
@@ -29,13 +39,14 @@ async function list(req, res, next) {
     const page = Math.max(1, Number(req.query.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
     const where = buildWhere(req.query);
+    const orderBy = parseSort(req.query, SORT_FIELDS, 'code');
 
     const [total, products] = await Promise.all([
       prisma.product.count({ where }),
       prisma.product.findMany({
         where,
         include: productInclude,
-        orderBy: { code: 'asc' },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

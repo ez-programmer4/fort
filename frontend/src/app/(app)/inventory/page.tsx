@@ -9,6 +9,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
+import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 
 interface LocationOption {
   id: number;
@@ -62,11 +63,12 @@ export default function InventoryPage() {
   const [adjust, setAdjust] = useState<AdjustState | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { sortBy, sortDir, toggle } = useSort('code');
 
-  const load = useCallback(async (search: string, loc: string, pageNum: number, size: number) => {
+  const load = useCallback(async (search: string, loc: string, pageNum: number, size: number, sBy: string, sDir: string) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size) });
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size), sortBy: sBy, sortDir: sDir });
       if (search) params.set('q', search);
       if (loc) params.set('locationId', loc);
       const data = await api<{ items: InventoryRow[]; total: number }>(`/api/inventory?${params}`);
@@ -84,8 +86,8 @@ export default function InventoryPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    load(q, locationId, page, pageSize).catch((e) => toast.error(e.message));
-  }, [q, locationId, page, pageSize, load]); // eslint-disable-line react-hooks/exhaustive-deps
+    load(q, locationId, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
+  }, [q, locationId, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submitAdjust(e: React.FormEvent) {
     e.preventDefault();
@@ -106,7 +108,7 @@ export default function InventoryPage() {
         `Stock ${adjust.type === 'INCREASE' ? 'increased' : 'decreased'} — ${adjust.row.genericName} (batch ${adjust.row.batchNo}) is now ${result.quantityAfter}.`,
       );
       setAdjust(null);
-      await load(q, locationId, page, pageSize);
+      await load(q, locationId, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Adjustment failed');
     } finally {
@@ -172,16 +174,16 @@ export default function InventoryPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Code</th>
-              <th className="px-4 py-3">Generic Name</th>
+              <SortableHeader label="Code" sortKey="code" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Generic Name" sortKey="genericName" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3">Brand</th>
-              <th className="px-4 py-3 text-right">Qty</th>
+              <SortableHeader label="Qty" sortKey="quantity" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
               <th className="px-4 py-3">Unit</th>
               <th className="px-4 py-3 text-right">Unit Price</th>
               <th className="px-4 py-3">Supplier</th>
               <th className="px-4 py-3">Batch No.</th>
-              <th className="px-4 py-3">Expiry</th>
-              <th className="px-4 py-3">Location</th>
+              <SortableHeader label="Expiry" sortKey="expiryDate" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Location" sortKey="location" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               {hasPermission('inventory.adjust') && <th className="px-4 py-3 text-right">Actions</th>}
             </tr>
           </thead>

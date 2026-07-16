@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
+import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 
 const TYPES = ['Retail', 'Warehouse', 'Dispensary', 'Other'];
 
@@ -47,11 +48,12 @@ export default function LocationsPage() {
   const [saving, setSaving] = useState(false);
   const [confirmRow, setConfirmRow] = useState<LocationRow | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
+  const { sortBy, sortDir, toggle } = useSort('name');
 
-  const load = useCallback(async (search: string, pageNum: number, size: number) => {
+  const load = useCallback(async (search: string, pageNum: number, size: number, sBy: string, sDir: string) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size) });
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size), sortBy: sBy, sortDir: sDir });
       if (search) params.set('q', search);
       const d = await api<{ locations: LocationRow[]; total: number }>(`/api/locations?${params}`);
       setRows(d.locations);
@@ -62,8 +64,8 @@ export default function LocationsPage() {
   }, []);
 
   useEffect(() => {
-    load(q, page, pageSize).catch((e) => toast.error(e.message));
-  }, [q, page, pageSize, load]); // eslint-disable-line react-hooks/exhaustive-deps
+    load(q, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
+  }, [q, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -84,7 +86,7 @@ export default function LocationsPage() {
         toast.success(`Location "${form.name}" updated.`);
       }
       setForm(null);
-      await load(q, page, pageSize);
+      await load(q, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -99,7 +101,7 @@ export default function LocationsPage() {
         body: JSON.stringify({ isActive: !row.isActive }),
       });
       toast.success(`"${row.name}" ${row.isActive ? 'deactivated' : 'activated'}.`);
-      await load(q, page, pageSize);
+      await load(q, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Update failed');
     }
@@ -112,7 +114,7 @@ export default function LocationsPage() {
       await api(`/api/locations/${confirmRow.id}`, { method: 'DELETE' });
       toast.success(`Location "${confirmRow.name}" deleted.`);
       setConfirmRow(null);
-      await load(q, page, pageSize);
+      await load(q, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Delete failed');
       setConfirmRow(null);
@@ -150,9 +152,9 @@ export default function LocationsPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Address</th>
+              <SortableHeader label="Name" sortKey="name" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Type" sortKey="type" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Address" sortKey="address" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3">Contact Person</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-right">Actions</th>

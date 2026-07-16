@@ -24,6 +24,19 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A6 complete: Post-launch Punch List
+
+**Phase:** A6 — sidebar, popover rendering, and table sorting, reported after using the finished app.
+
+**Done:**
+- **Sidebar rebuild** (`(app)/layout.tsx`): the collapse toggle moved out of the top navbar into the sidebar itself — a "Collapse" row at the bottom of the rail with a double-chevron that flips 180° when collapsed. The sidebar is now `sticky top-0 h-screen`, so it and the header stay in place while only `<main>` scrolls (previously the whole page — sidebar included — scrolled with the body). Collapsed mode now shows a hover tooltip with the full label next to each icon (no more relying on the native `title` attribute alone). The user's name/role/sign-out moved into a sidebar footer above the collapse control, matching common professional dashboard layouts (Linear, Vercel, Notion) and freeing up the header to just show the current page title.
+- **Popover clipping fix** — the real bug behind "date picker not properly rendered on procurement expiry date": `DatePicker`/`DateRangePicker` and `Combobox` positioned their dropdown with `absolute`, nested inside whatever container rendered them. Inside a Drawer's `overflow-y-auto` body or a table wrapped in `overflow-x-auto` (procurement's PO/GRV line-item tables), that ancestor clips the popover the moment it would overflow the scroll box — exactly what was happening with the expiry-date picker inside the receive-goods table. New shared `components/ui/popover.tsx` (`usePopoverPosition` + `PopoverPortal`) tracks the trigger's `getBoundingClientRect()` and portals the dropdown straight to `document.body` with `position: fixed` coordinates, escaping every ancestor's overflow/clipping context; it also flips upward automatically when there's no room below. Outside-click handling was updated to check both the trigger and the portaled panel. Both components were fully re-verified with `tsc`.
+- **Column sorting, everywhere** — every paginated table now has clickable sortable headers: Locations, Suppliers, Users, Products, Inventory, all 3 Procurement tabs (Purchase Orders, GRV History, Other Purchases), Sales History, both Wallet tabs (Outstanding Credits, Payment History), and Audit Trail. New shared `useSort`/`SortableHeader` (`components/ui/sortable-header.tsx`) tracks the active column + direction and renders a neutral/up/down chevron; clicking a new column starts ascending, clicking the active one flips direction. This is server-side sorting (`?sortBy&sortDir`), not client-side, so it stays correct together with pagination — a new backend helper `utils/sort.js` (`parseSort`) turns those query params into a Prisma `orderBy` against a **per-endpoint whitelist**, so an unrecognized or malicious `sortBy` value can never reach the database (it silently falls back to the endpoint's default order). Relation sorts (e.g. product by supplier name, sale by customer name) are supported via a function form in the whitelist. Tabs with a different default table (Procurement, Wallet) reset to a sensible default sort key on switch.
+
+**Verified:** `tsc --noEmit` clean throughout; all 15 pages HTTP 200; smoke-tested sorting directly against the API — products by unit price asc/desc (order correctly reversed), suppliers by name, inventory by quantity (396 → 250 → 45 → 10 → 2, correctly descending), and confirmed an invalid/malicious `sortBy` value doesn't error or affect the query, it just falls back safely.
+
+---
+
 ## 2026-07-16 — Phase A4 complete: Dashboard Enhancements
 
 **Phase:** A4 — Dashboard Enhancements (§2.2)

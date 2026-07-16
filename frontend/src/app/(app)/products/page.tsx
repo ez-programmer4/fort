@@ -9,6 +9,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
+import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 
 const TYPES = ['Medication', 'Equipment', 'Cosmetics'];
 
@@ -111,8 +112,9 @@ export default function ProductsPage() {
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { sortBy, sortDir, toggle } = useSort('code');
 
-  const load = useCallback(async (search: string, type: string, pageNum: number, size: number) => {
+  const load = useCallback(async (search: string, type: string, pageNum: number, size: number, sBy: string, sDir: string) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -120,6 +122,8 @@ export default function ProductsPage() {
       if (type) params.set('type', type);
       params.set('page', String(pageNum));
       params.set('pageSize', String(size));
+      params.set('sortBy', sBy);
+      params.set('sortDir', sDir);
       const data = await api<{ products: ProductRow[]; total: number }>(`/api/products?${params}`);
       setRows(data.products);
       setTotal(data.total);
@@ -141,8 +145,8 @@ export default function ProductsPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    load(q, typeFilter, page, pageSize).catch((e) => toast.error(e.message));
-  }, [q, typeFilter, page, pageSize, load]); // eslint-disable-line react-hooks/exhaustive-deps
+    load(q, typeFilter, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
+  }, [q, typeFilter, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -178,7 +182,7 @@ export default function ProductsPage() {
         toast.success(`Product "${form.genericName}" updated.`);
       }
       setForm(null);
-      await load(q, typeFilter, page, pageSize);
+      await load(q, typeFilter, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -193,7 +197,7 @@ export default function ProductsPage() {
         body: JSON.stringify({ isActive: !row.isActive }),
       });
       toast.success(`"${row.genericName}" ${row.isActive ? 'deactivated' : 'activated'}.`);
-      await load(q, typeFilter, page, pageSize);
+      await load(q, typeFilter, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Update failed');
     }
@@ -221,7 +225,7 @@ export default function ProductsPage() {
         );
       }
       setPage(1);
-      await load(q, typeFilter, 1, pageSize);
+      await load(q, typeFilter, 1, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Import failed');
     } finally {
@@ -341,15 +345,15 @@ export default function ProductsPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Code</th>
-              <th className="px-4 py-3">Generic Name</th>
+              <SortableHeader label="Code" sortKey="code" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Generic Name" sortKey="genericName" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3">Brand</th>
-              <th className="px-4 py-3">Type</th>
+              <SortableHeader label="Type" sortKey="type" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3">Class</th>
               <th className="px-4 py-3">Form</th>
               <th className="px-4 py-3">Strength</th>
-              <th className="px-4 py-3 text-right">Unit Price</th>
-              <th className="px-4 py-3">Supplier</th>
+              <SortableHeader label="Unit Price" sortKey="unitPrice" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
+              <SortableHeader label="Supplier" sortKey="supplier" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>

@@ -4,8 +4,18 @@ const prisma = require('../../utils/prisma');
 const { ApiError } = require('../../middleware/error');
 const { applyMovement } = require('../../utils/stock.service');
 const { computeWithholding } = require('../procurement/orders.controller');
+const { parseSort } = require('../../utils/sort');
 
 const UPLOAD_DIR = path.join(__dirname, '..', '..', '..', 'uploads');
+
+const SORT_FIELDS = {
+  dspNumber: 'dspNumber',
+  createdAt: 'createdAt',
+  total: 'total',
+  paymentType: 'paymentType',
+  location: (dir) => ({ location: { name: dir } }),
+  customer: (dir) => ({ customer: { name: dir } }),
+};
 
 const orderInclude = {
   location: { select: { id: true, name: true } },
@@ -41,12 +51,13 @@ async function list(req, res, next) {
     if ((from && isNaN(from)) || (to && isNaN(to))) throw new ApiError(400, 'Invalid date range');
     if (from || to) where.createdAt = { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) };
 
+    const orderBy = req.query.sortBy ? parseSort(req.query, SORT_FIELDS, 'createdAt') : { id: 'desc' };
     const [total, orders] = await Promise.all([
       prisma.dispenseOrder.count({ where }),
       prisma.dispenseOrder.findMany({
         where,
         include: orderInclude,
-        orderBy: { id: 'desc' },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

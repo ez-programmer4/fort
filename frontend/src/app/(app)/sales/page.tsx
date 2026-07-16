@@ -11,6 +11,7 @@ import { Combobox, ComboOption } from '@/components/ui/combobox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
+import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 
 const input =
   'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -644,11 +645,12 @@ export default function SalesPage() {
   const [printReport, setPrintReport] = useState(false);
   const [printOrders, setPrintOrders] = useState<OrderDetail[]>([]);
   const [printBusy, setPrintBusy] = useState(false);
+  const { sortBy, sortDir, toggle } = useSort('createdAt', 'desc');
 
-  const loadOrders = useCallback(async (search: string, pageNum: number, size: number, f: string, t: string) => {
+  const loadOrders = useCallback(async (search: string, pageNum: number, size: number, f: string, t: string, sBy: string, sDir: string) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size) });
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size), sortBy: sBy, sortDir: sDir });
       if (search) params.set('q', search);
       if (f) params.set('from', f);
       if (t) params.set('to', t);
@@ -684,8 +686,8 @@ export default function SalesPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (tab === 'history') loadOrders(q, page, pageSize, from, to).catch((e) => toast.error(e.message));
-  }, [tab, q, page, pageSize, from, to, loadOrders]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (tab === 'history') loadOrders(q, page, pageSize, from, to, sortBy, sortDir).catch((e) => toast.error(e.message));
+  }, [tab, q, page, pageSize, from, to, sortBy, sortDir, loadOrders]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onDispensed(order: OrderDetail) {
     setSlipOrder(order);
@@ -701,7 +703,7 @@ export default function SalesPage() {
       fd.append('file', file);
       await api(`/api/sales/${uploadTarget}/attachments`, { method: 'POST', body: fd });
       toast.success(`"${file.name}" attached.`);
-      await loadOrders(q, page, pageSize, from, to);
+      await loadOrders(q, page, pageSize, from, to, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -814,13 +816,13 @@ export default function SalesPage() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">DSP No.</th>
-                  <th className="px-4 py-3">Location</th>
-                  <th className="px-4 py-3">Customer</th>
+                  <SortableHeader label="DSP No." sortKey="dspNumber" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                  <SortableHeader label="Location" sortKey="location" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                  <SortableHeader label="Customer" sortKey="customer" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                   <th className="px-4 py-3">Items</th>
-                  <th className="px-4 py-3">Payment</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3">Date · By</th>
+                  <SortableHeader label="Payment" sortKey="paymentType" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                  <SortableHeader label="Total" sortKey="total" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
+                  <SortableHeader label="Date · By" sortKey="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>

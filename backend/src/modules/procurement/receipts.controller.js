@@ -1,6 +1,22 @@
 const prisma = require('../../utils/prisma');
 const { ApiError } = require('../../middleware/error');
 const { computeWithholding } = require('./orders.controller');
+const { parseSort } = require('../../utils/sort');
+
+const RECEIPT_SORT_FIELDS = {
+  grvNumber: 'grvNumber',
+  createdAt: 'createdAt',
+  netPayable: 'netPayable',
+  supplier: (dir) => ({ supplier: { name: dir } }),
+};
+
+const EXPENSE_SORT_FIELDS = {
+  description: 'description',
+  category: 'category',
+  amount: 'amount',
+  purchasedAt: 'purchasedAt',
+  supplier: (dir) => ({ supplier: { name: dir } }),
+};
 
 async function listReceipts(req, res, next) {
   try {
@@ -14,6 +30,7 @@ async function listReceipts(req, res, next) {
         { supplier: { name: { contains: req.query.q, mode: 'insensitive' } } },
       ];
     }
+    const orderBy = req.query.sortBy ? parseSort(req.query, RECEIPT_SORT_FIELDS, 'createdAt') : { id: 'desc' };
     const [total, receipts] = await Promise.all([
       prisma.goodsReceipt.count({ where }),
       prisma.goodsReceipt.findMany({
@@ -30,7 +47,7 @@ async function listReceipts(req, res, next) {
             },
           },
         },
-        orderBy: { id: 'desc' },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -53,6 +70,7 @@ async function listExpenses(req, res, next) {
         { supplier: { name: { contains: req.query.q, mode: 'insensitive' } } },
       ];
     }
+    const orderBy = req.query.sortBy ? parseSort(req.query, EXPENSE_SORT_FIELDS, 'purchasedAt') : { id: 'desc' };
     const [total, expenses] = await Promise.all([
       prisma.expensePurchase.count({ where }),
       prisma.expensePurchase.findMany({
@@ -61,7 +79,7 @@ async function listExpenses(req, res, next) {
           supplier: { select: { name: true } },
           createdBy: { select: { fullName: true } },
         },
-        orderBy: { id: 'desc' },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

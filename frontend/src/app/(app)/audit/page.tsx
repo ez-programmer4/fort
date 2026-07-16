@@ -8,6 +8,7 @@ import { DateRangePicker } from '@/components/ui/date-picker';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
+import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 
 const input =
   'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -52,12 +53,13 @@ export default function AuditPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [loading, setLoading] = useState(true);
+  const { sortBy, sortDir, toggle } = useSort('createdAt', 'desc');
 
   const load = useCallback(
-    async (query: string, t: string, loc: string, f: string, dt: string, pageNum: number, size: number) => {
+    async (query: string, t: string, loc: string, f: string, dt: string, pageNum: number, size: number, sBy: string, sDir: string) => {
       setLoading(true);
       try {
-        const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size) });
+        const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size), sortBy: sBy, sortDir: sDir });
         if (query) params.set('q', query);
         if (t) params.set('type', t);
         if (loc) params.set('locationId', loc);
@@ -80,8 +82,8 @@ export default function AuditPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    load(q, type, locationId, from, to, page, pageSize).catch((e) => toast.error(e.message));
-  }, [q, type, locationId, from, to, page, pageSize, load]); // eslint-disable-line react-hooks/exhaustive-deps
+    load(q, type, locationId, from, to, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
+  }, [q, type, locationId, from, to, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>
@@ -130,15 +132,15 @@ export default function AuditPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Date & Time</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Product</th>
+              <SortableHeader label="Date & Time" sortKey="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Type" sortKey="type" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Product" sortKey="product" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3">Batch</th>
-              <th className="px-4 py-3">Location</th>
-              <th className="px-4 py-3 text-right">In</th>
+              <SortableHeader label="Location" sortKey="location" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="In" sortKey="quantity" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
               <th className="px-4 py-3 text-right">Out</th>
               <th className="px-4 py-3">Reason / Remark</th>
-              <th className="px-4 py-3">By</th>
+              <SortableHeader label="By" sortKey="performedBy" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
             </tr>
           </thead>
           <tbody>

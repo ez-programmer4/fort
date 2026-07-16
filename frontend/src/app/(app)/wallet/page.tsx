@@ -10,6 +10,7 @@ import { DateRangePicker } from '@/components/ui/date-picker';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
+import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 
 const input =
   'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -87,6 +88,7 @@ export default function WalletPage() {
   const [payForm, setPayForm] = useState<PayForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { sortBy, sortDir, toggle, reset: resetSort } = useSort('createdAt', 'desc');
 
   const loadSummary = useCallback(async (f: string, t: string) => {
     const params = new URLSearchParams();
@@ -95,10 +97,10 @@ export default function WalletPage() {
     setSummary(await api<Summary>(`/api/wallet/summary?${params}`));
   }, []);
 
-  const loadCredits = useCallback(async (settled: boolean, search: string, pageNum: number, size: number) => {
+  const loadCredits = useCallback(async (settled: boolean, search: string, pageNum: number, size: number, sBy: string, sDir: string) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size) });
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size), sortBy: sBy, sortDir: sDir });
       if (settled) params.set('settled', 'true');
       if (search) params.set('q', search);
       const d = await api<{ credits: CreditRow[]; total: number }>(`/api/wallet/credits?${params}`);
@@ -109,10 +111,10 @@ export default function WalletPage() {
     }
   }, []);
 
-  const loadPayments = useCallback(async (search: string, pageNum: number, size: number) => {
+  const loadPayments = useCallback(async (search: string, pageNum: number, size: number, sBy: string, sDir: string) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size) });
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size), sortBy: sBy, sortDir: sDir });
       if (search) params.set('q', search);
       const d = await api<{ payments: PaymentRow[]; total: number }>(`/api/wallet/payments?${params}`);
       setPayments(d.payments);
@@ -127,9 +129,9 @@ export default function WalletPage() {
   }, [from, to, loadSummary]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (tab === 'credits') loadCredits(showSettled, q, page, pageSize).catch((e) => toast.error(e.message));
-    else loadPayments(q, page, pageSize).catch((e) => toast.error(e.message));
-  }, [tab, showSettled, q, page, pageSize, loadCredits, loadPayments]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (tab === 'credits') loadCredits(showSettled, q, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
+    else loadPayments(q, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
+  }, [tab, showSettled, q, page, pageSize, sortBy, sortDir, loadCredits, loadPayments]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submitPayment(e: React.FormEvent) {
     e.preventDefault();
@@ -150,7 +152,7 @@ export default function WalletPage() {
         `Payment recorded for ${payForm.row.dspNumber} — outstanding is now ${money(result.outstandingAfter)}.`,
       );
       setPayForm(null);
-      await Promise.all([loadCredits(showSettled, q, page, pageSize), loadSummary(from, to)]);
+      await Promise.all([loadCredits(showSettled, q, page, pageSize, sortBy, sortDir), loadSummary(from, to)]);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Payment failed');
     } finally {
@@ -162,6 +164,7 @@ export default function WalletPage() {
     setTab(t);
     setQ('');
     setPage(1);
+    resetSort('createdAt', 'desc');
   }
 
   const cards = summary
@@ -258,10 +261,10 @@ export default function WalletPage() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">DSP No.</th>
-                  <th className="px-4 py-3">Location</th>
-                  <th className="px-4 py-3">Date · By</th>
-                  <th className="px-4 py-3 text-right">Total</th>
+                  <SortableHeader label="DSP No." sortKey="dspNumber" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                  <SortableHeader label="Location" sortKey="location" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                  <SortableHeader label="Date · By" sortKey="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                  <SortableHeader label="Total" sortKey="total" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
                   <th className="px-4 py-3 text-right">Paid</th>
                   <th className="px-4 py-3 text-right">Outstanding</th>
                   {hasPermission('finance.manage') && <th className="px-4 py-3 text-right">Actions</th>}
@@ -324,11 +327,11 @@ export default function WalletPage() {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Sale</th>
-                <th className="px-4 py-3 text-right">Amount</th>
-                <th className="px-4 py-3">Method</th>
-                <th className="px-4 py-3">Reference</th>
+                <SortableHeader label="Date" sortKey="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                <SortableHeader label="Sale" sortKey="dspNumber" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                <SortableHeader label="Amount" sortKey="amount" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
+                <SortableHeader label="Method" sortKey="method" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                <SortableHeader label="Reference" sortKey="reference" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <th className="px-4 py-3">Received By</th>
                 <th className="px-4 py-3">Notes</th>
               </tr>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { PopoverPortal, usePopoverPosition } from './popover';
 
 // Dates travel as 'YYYY-MM-DD' strings (matches API query params).
 
@@ -38,12 +39,15 @@ function monthGrid(year: number, month: number): (Date | null)[][] {
   return weeks;
 }
 
-function useOutsideClose(open: boolean, onClose: () => void) {
+function useOutsideClose(open: boolean, onClose: () => void, popoverRef: React.RefObject<HTMLElement | null>) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      const target = e.target as Node;
+      if (ref.current?.contains(target)) return;
+      if (popoverRef.current?.contains(target)) return;
+      onClose();
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -54,7 +58,7 @@ function useOutsideClose(open: boolean, onClose: () => void) {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open, onClose]);
+  }, [open, onClose, popoverRef]);
   return ref;
 }
 
@@ -186,7 +190,9 @@ export function DatePicker({
   const [open, setOpen] = useState(false);
   const now = parseISO(value) || new Date();
   const [view, setView] = useState({ y: now.getFullYear(), m: now.getMonth() });
-  const ref = useOutsideClose(open, () => setOpen(false));
+  const panelRef = useRef<HTMLDivElement>(null);
+  const ref = useOutsideClose(open, () => setOpen(false), panelRef);
+  const rect = usePopoverPosition(ref, open);
 
   return (
     <div ref={ref} className={`relative ${className || ''}`}>
@@ -200,30 +206,36 @@ export function DatePicker({
         }}
         onClear={() => onChange('')}
       />
-      {open && (
-        <div className="absolute z-40 mt-1">
-          <CalendarPanel
-            view={view}
-            setView={setView}
-            isSelected={(iso) => iso === value}
-            onPick={(iso) => {
-              onChange(iso);
-              setOpen(false);
-            }}
-            footer={
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(toISO(new Date()));
-                  setOpen(false);
-                }}
-                className="text-xs font-medium text-slate-900 underline underline-offset-2"
-              >
-                Today
-              </button>
-            }
-          />
-        </div>
+      {open && rect && (
+        <PopoverPortal>
+          <div
+            ref={panelRef}
+            className="fixed z-70"
+            style={{ top: rect.top, left: rect.left, transform: rect.openUpward ? 'translateY(-100%)' : undefined }}
+          >
+            <CalendarPanel
+              view={view}
+              setView={setView}
+              isSelected={(iso) => iso === value}
+              onPick={(iso) => {
+                onChange(iso);
+                setOpen(false);
+              }}
+              footer={
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange(toISO(new Date()));
+                    setOpen(false);
+                  }}
+                  className="text-xs font-medium text-slate-900 underline underline-offset-2"
+                >
+                  Today
+                </button>
+              }
+            />
+          </div>
+        </PopoverPortal>
       )}
     </div>
   );
@@ -246,7 +258,9 @@ export function DateRangePicker({
   const [open, setOpen] = useState(false);
   const anchor = parseISO(from) || new Date();
   const [view, setView] = useState({ y: anchor.getFullYear(), m: anchor.getMonth() });
-  const ref = useOutsideClose(open, () => setOpen(false));
+  const panelRef = useRef<HTMLDivElement>(null);
+  const ref = useOutsideClose(open, () => setOpen(false), panelRef);
+  const rect = usePopoverPosition(ref, open);
 
   const text = from && to ? `${fmt(from)} — ${fmt(to)}` : from ? `${fmt(from)} — …` : '';
 
@@ -272,21 +286,27 @@ export function DateRangePicker({
         }}
         onClear={() => onChange({ from: '', to: '' })}
       />
-      {open && (
-        <div className="absolute z-40 mt-1">
-          <CalendarPanel
-            view={view}
-            setView={setView}
-            isSelected={(iso) => iso === from || iso === to}
-            isInRange={(iso) => !!(from && to && iso > from && iso < to)}
-            onPick={pick}
-            footer={
-              <span className="text-[11px] text-slate-400">
-                {!from || (from && to) ? 'Pick a start date' : 'Now pick the end date'}
-              </span>
-            }
-          />
-        </div>
+      {open && rect && (
+        <PopoverPortal>
+          <div
+            ref={panelRef}
+            className="fixed z-70"
+            style={{ top: rect.top, left: rect.left, transform: rect.openUpward ? 'translateY(-100%)' : undefined }}
+          >
+            <CalendarPanel
+              view={view}
+              setView={setView}
+              isSelected={(iso) => iso === from || iso === to}
+              isInRange={(iso) => !!(from && to && iso > from && iso < to)}
+              onPick={pick}
+              footer={
+                <span className="text-[11px] text-slate-400">
+                  {!from || (from && to) ? 'Pick a start date' : 'Now pick the end date'}
+                </span>
+              }
+            />
+          </div>
+        </PopoverPortal>
       )}
     </div>
   );

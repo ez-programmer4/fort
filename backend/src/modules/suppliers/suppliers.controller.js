@@ -1,5 +1,8 @@
 const prisma = require('../../utils/prisma');
 const { ApiError } = require('../../middleware/error');
+const { parseSort } = require('../../utils/sort');
+
+const SORT_FIELDS = { name: 'name', tin: 'tin', phone: 'phone', createdAt: 'createdAt' };
 
 async function list(req, res, next) {
   try {
@@ -14,10 +17,11 @@ async function list(req, res, next) {
           ],
         }
       : undefined;
+    const orderBy = parseSort(req.query, SORT_FIELDS, 'name');
 
     // Without ?page, return the full list (dropdown/filter consumers).
     if (!req.query.page) {
-      const suppliers = await prisma.supplier.findMany({ where, orderBy: { name: 'asc' } });
+      const suppliers = await prisma.supplier.findMany({ where, orderBy });
       return res.json({ suppliers, total: suppliers.length });
     }
 
@@ -27,7 +31,7 @@ async function list(req, res, next) {
       prisma.supplier.count({ where }),
       prisma.supplier.findMany({
         where,
-        orderBy: { name: 'asc' },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

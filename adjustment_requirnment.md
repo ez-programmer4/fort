@@ -81,3 +81,13 @@ Product selection (especially in Procurement & Sales)
 Add Printable Sales History
 Include Day Picker (Date Range) for filtering history
 Print view should be well-formatted and professional
+
+after adjustment there are remaining non adjusted functionality
+
+- make the toogle of open/close side bar in side bar not on the navbar
+
+- enhancement of side bar - i need proffesional sidebar also make fixed when it scrol the main content
+
+- the date picker for some page and drwable are not properly rendered like on procurement-exiry date selection
+
+- sorting for columns in the pages

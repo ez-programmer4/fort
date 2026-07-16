@@ -50,6 +50,14 @@ const PATHS: Record<string, string[]> = {
   logout: [
     'M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9',
   ],
+  chevronsLeft: [
+    'M18.75 19.5L12 12.75 18.75 6M11.25 19.5L4.5 12.75 11.25 6',
+  ],
+  chevronUpDown: [
+    'M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9',
+  ],
+  chevronUp: ['M4.5 15.75l7.5-7.5 7.5 7.5'],
+  chevronDown: ['M19.5 8.25l-7.5 7.5-7.5-7.5'],
 };
 
 export type IconName = keyof typeof PATHS;

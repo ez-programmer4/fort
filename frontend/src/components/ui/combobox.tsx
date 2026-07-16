@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { PopoverPortal, usePopoverPosition } from './popover';
 
 export interface ComboOption {
   value: string;
@@ -68,11 +69,16 @@ export function Combobox({
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (listRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
+
+  const rect = usePopoverPosition(rootRef, open);
 
   const trimmedTerm = term.trim();
   const exactMatch = filtered.some((o) => o.label.toLowerCase() === trimmedTerm.toLowerCase());
@@ -161,50 +167,58 @@ export function Combobox({
         </div>
       </div>
 
-      {open && (
-        <ul
-          ref={listRef}
-          role="listbox"
-          className="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-xl"
-        >
-          {filtered.length === 0 && !showCreate && (
-            <li className="px-3 py-2.5 text-sm text-slate-400">{emptyText}</li>
-          )}
-          {filtered.map((o, i) => (
-            <li
-              key={o.value}
-              role="option"
-              aria-selected={o.value === value}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pick(o);
-              }}
-              onMouseEnter={() => setHighlight(i)}
-              className={`cursor-pointer px-3 py-2 text-sm ${
-                i === highlight ? 'bg-slate-100' : ''
-              } ${o.value === value ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
-            >
-              <p className="truncate">{o.label}</p>
-              {o.sublabel && <p className="truncate text-xs text-slate-400">{o.sublabel}</p>}
-            </li>
-          ))}
-          {showCreate && (
-            <li
-              role="option"
-              aria-selected={false}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleCreate();
-              }}
-              onMouseEnter={() => setHighlight(filtered.length)}
-              className={`cursor-pointer border-t border-slate-100 px-3 py-2 text-sm font-medium text-slate-900 ${
-                highlight === filtered.length ? 'bg-slate-100' : ''
-              }`}
-            >
-              + Create &ldquo;{trimmedTerm}&rdquo;
-            </li>
-          )}
-        </ul>
+      {open && rect && (
+        <PopoverPortal>
+          <ul
+            ref={listRef}
+            role="listbox"
+            className="fixed z-70 max-h-64 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-xl"
+            style={{
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              transform: rect.openUpward ? 'translateY(-100%)' : undefined,
+            }}
+          >
+            {filtered.length === 0 && !showCreate && (
+              <li className="px-3 py-2.5 text-sm text-slate-400">{emptyText}</li>
+            )}
+            {filtered.map((o, i) => (
+              <li
+                key={o.value}
+                role="option"
+                aria-selected={o.value === value}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(o);
+                }}
+                onMouseEnter={() => setHighlight(i)}
+                className={`cursor-pointer px-3 py-2 text-sm ${
+                  i === highlight ? 'bg-slate-100' : ''
+                } ${o.value === value ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
+              >
+                <p className="truncate">{o.label}</p>
+                {o.sublabel && <p className="truncate text-xs text-slate-400">{o.sublabel}</p>}
+              </li>
+            ))}
+            {showCreate && (
+              <li
+                role="option"
+                aria-selected={false}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleCreate();
+                }}
+                onMouseEnter={() => setHighlight(filtered.length)}
+                className={`cursor-pointer border-t border-slate-100 px-3 py-2 text-sm font-medium text-slate-900 ${
+                  highlight === filtered.length ? 'bg-slate-100' : ''
+                }`}
+              >
+                + Create &ldquo;{trimmedTerm}&rdquo;
+              </li>
+            )}
+          </ul>
+        </PopoverPortal>
       )}
     </div>
   );

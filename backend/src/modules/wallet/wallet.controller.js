@@ -1,7 +1,26 @@
 const prisma = require('../../utils/prisma');
 const { ApiError } = require('../../middleware/error');
+const { parseSort } = require('../../utils/sort');
 
 const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'CHEQUE', 'MOBILE'];
+
+// paid/outstanding are computed post-query (summed from payments), so only
+// DB-backed columns are sortable here.
+const CREDIT_SORT_FIELDS = {
+  dspNumber: 'dspNumber',
+  createdAt: 'createdAt',
+  total: 'total',
+  location: (dir) => ({ location: { name: dir } }),
+  dispensedBy: (dir) => ({ dispensedBy: { fullName: dir } }),
+};
+
+const PAYMENT_SORT_FIELDS = {
+  createdAt: 'createdAt',
+  amount: 'amount',
+  method: 'method',
+  reference: 'reference',
+  dspNumber: (dir) => ({ dispenseOrder: { dspNumber: dir } }),
+};
 
 function dateRange(query) {
   const from = query.from ? new Date(`${query.from}T00:00:00`) : null;
@@ -68,6 +87,7 @@ async function credits(req, res, next) {
     if (req.query.q) where.dspNumber = { contains: req.query.q, mode: 'insensitive' };
     if (req.query.locationId) where.locationId = Number(req.query.locationId);
 
+    const orderBy = req.query.sortBy ? parseSort(req.query, CREDIT_SORT_FIELDS, 'createdAt') : { id: 'desc' };
     const [total, orders] = await Promise.all([
       prisma.dispenseOrder.count({ where }),
       prisma.dispenseOrder.findMany({
@@ -77,7 +97,7 @@ async function credits(req, res, next) {
           dispensedBy: { select: { fullName: true } },
           payments: { select: { amount: true } },
         },
-        orderBy: { id: 'desc' },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -158,6 +178,7 @@ async function listPayments(req, res, next) {
         { dispenseOrder: { dspNumber: { contains: req.query.q, mode: 'insensitive' } } },
       ];
     }
+    const orderBy = req.query.sortBy ? parseSort(req.query, PAYMENT_SORT_FIELDS, 'createdAt') : { id: 'desc' };
     const [total, payments] = await Promise.all([
       prisma.payment.count({ where }),
       prisma.payment.findMany({
@@ -166,7 +187,7 @@ async function listPayments(req, res, next) {
           dispenseOrder: { select: { dspNumber: true, total: true } },
           receivedBy: { select: { fullName: true } },
         },
-        orderBy: { id: 'desc' },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

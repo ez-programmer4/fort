@@ -221,6 +221,31 @@ Build once, reuse everywhere (all monochrome, keyboard-accessible):
 
 ---
 
+## Phase A6 — Post-launch Punch List
+
+Follow-up items reported after using the finished app.
+
+- [x] Sidebar collapse toggle moved from the top navbar into the sidebar itself
+      (bottom of the rail, with a chevron that flips on collapse)
+- [x] Sidebar made `sticky` + full viewport height so it (and the header) stay in
+      place while only the main content scrolls; collapsed state now shows
+      hover tooltips for each nav icon; user profile + sign-out moved into a
+      sidebar footer
+- [x] Fixed DatePicker/Combobox popovers rendering clipped or mispositioned
+      inside Drawers and horizontally-scrolled tables (e.g. procurement's
+      expiry-date picker) — both now portal to `document.body` and position
+      with `fixed` coordinates computed from the trigger's bounding rect, so
+      no ancestor `overflow` can clip them; flips upward automatically when
+      there's no room below
+- [x] Column sorting added to every paginated table (Locations, Suppliers,
+      Users, Products, Inventory, Procurement's 3 tabs, Sales History,
+      Wallet's 2 tabs, Audit Trail) — click a column header to sort, click
+      again to reverse; server-side via `?sortBy&sortDir` so it works
+      correctly together with pagination, with a whitelist per endpoint so
+      an invalid `sortBy` can never reach the database
+
+---
+
 ## Build Order Rationale
 
 Auth first because every other module needs users/permissions. Locations,

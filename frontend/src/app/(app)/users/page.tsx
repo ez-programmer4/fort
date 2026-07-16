@@ -8,6 +8,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
+import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 
 const input =
   'mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -48,6 +49,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
+  const { sortBy, sortDir, toggle } = useSort('fullName');
 
   useEffect(() => {
     api<{ roles: RoleOption[] }>('/api/roles')
@@ -55,10 +57,10 @@ export default function UsersPage() {
       .catch((e) => toast.error(e.message));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const load = useCallback(async (search: string, pageNum: number, size: number) => {
+  const load = useCallback(async (search: string, pageNum: number, size: number, sBy: string, sDir: string) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size) });
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size), sortBy: sBy, sortDir: sDir });
       if (search) params.set('q', search);
       const d = await api<{ users: UserRow[]; total: number }>(`/api/users?${params}`);
       setUsers(d.users);
@@ -69,8 +71,8 @@ export default function UsersPage() {
   }, []);
 
   useEffect(() => {
-    load(q, page, pageSize).catch((e) => toast.error(e.message));
-  }, [q, page, pageSize, load]); // eslint-disable-line react-hooks/exhaustive-deps
+    load(q, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
+  }, [q, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -101,7 +103,7 @@ export default function UsersPage() {
         toast.success(`User "${form.fullName}" updated.`);
       }
       setForm(null);
-      await load(q, page, pageSize);
+      await load(q, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -116,7 +118,7 @@ export default function UsersPage() {
         body: JSON.stringify({ isActive: !u.isActive }),
       });
       toast.success(`"${u.fullName}" ${u.isActive ? 'deactivated' : 'activated'}.`);
-      await load(q, page, pageSize);
+      await load(q, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Update failed');
     }
@@ -151,11 +153,11 @@ export default function UsersPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Role</th>
+              <SortableHeader label="Name" sortKey="fullName" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Email" sortKey="email" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Role" sortKey="role" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Created</th>
+              <SortableHeader label="Created" sortKey="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>

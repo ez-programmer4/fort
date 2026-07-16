@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
+import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 
 // ── shared bits ──────────────────────────────────────────────
 
@@ -533,15 +534,16 @@ export default function ProcurementPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const { sortBy, sortDir, toggle, reset: resetSort } = useSort('createdAt', 'desc');
 
   // expense form state
   const [exp, setExp] = useState(emptyExpense);
   const [expSaving, setExpSaving] = useState(false);
 
-  const load = useCallback(async (which: Tab, search: string, pageNum: number, size: number) => {
+  const load = useCallback(async (which: Tab, search: string, pageNum: number, size: number, sBy: string, sDir: string) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size) });
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size), sortBy: sBy, sortDir: sDir });
       if (search) params.set('q', search);
       if (which === 'orders') {
         const d = await api<{ orders: PO[]; total: number }>(`/api/procurement/orders?${params}`);
@@ -574,8 +576,8 @@ export default function ProcurementPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    load(tab, q, page, pageSize).catch((e) => toast.error(e.message));
-  }, [tab, q, page, pageSize, load]); // eslint-disable-line react-hooks/exhaustive-deps
+    load(tab, q, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
+  }, [tab, q, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function switchTab(t: Tab) {
     setTab(t);
@@ -585,6 +587,7 @@ export default function ProcurementPage() {
     setShowNew(false);
     setReceiving(null);
     setShowNewExpense(false);
+    resetSort(t === 'expenses' ? 'purchasedAt' : 'createdAt', 'desc');
   }
 
   async function confirmCancelOrder() {
@@ -594,7 +597,7 @@ export default function ProcurementPage() {
       await api(`/api/procurement/orders/${cancelPo.id}/cancel`, { method: 'POST' });
       toast.success(`${cancelPo.poNumber} cancelled.`);
       setCancelPo(null);
-      await load('orders', q, page, pageSize);
+      await load('orders', q, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Cancel failed');
       setCancelPo(null);
@@ -622,7 +625,7 @@ export default function ProcurementPage() {
       toast.success('Purchase recorded.');
       setShowNewExpense(false);
       setExp(emptyExpense);
-      await load('expenses', q, page, pageSize);
+      await load('expenses', q, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -687,13 +690,13 @@ export default function ProcurementPage() {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">PO No.</th>
-                <th className="px-4 py-3">Supplier</th>
+                <SortableHeader label="PO No." sortKey="poNumber" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                <SortableHeader label="Supplier" sortKey="supplier" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <th className="px-4 py-3">Location</th>
                 <th className="px-4 py-3">Items</th>
                 <th className="px-4 py-3 text-right">Subtotal</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Created</th>
+                <SortableHeader label="Status" sortKey="status" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                <SortableHeader label="Created" sortKey="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -756,14 +759,14 @@ export default function ProcurementPage() {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">GRV No.</th>
+                <SortableHeader label="GRV No." sortKey="grvNumber" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <th className="px-4 py-3">PO</th>
-                <th className="px-4 py-3">Supplier</th>
+                <SortableHeader label="Supplier" sortKey="supplier" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <th className="px-4 py-3">Location</th>
                 <th className="px-4 py-3 text-right">Subtotal</th>
                 <th className="px-4 py-3 text-right">Withholding</th>
-                <th className="px-4 py-3 text-right">Net Payable</th>
-                <th className="px-4 py-3">Received</th>
+                <SortableHeader label="Net Payable" sortKey="netPayable" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
+                <SortableHeader label="Received" sortKey="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <th className="px-4 py-3 text-right"></th>
               </tr>
             </thead>
@@ -848,13 +851,13 @@ export default function ProcurementPage() {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3">Supplier</th>
-                <th className="px-4 py-3 text-right">Amount</th>
+                <SortableHeader label="Description" sortKey="description" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                <SortableHeader label="Category" sortKey="category" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                <SortableHeader label="Supplier" sortKey="supplier" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                <SortableHeader label="Amount" sortKey="amount" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
                 <th className="px-4 py-3 text-right">Withholding</th>
                 <th className="px-4 py-3 text-right">Net Payable</th>
-                <th className="px-4 py-3">Date</th>
+                <SortableHeader label="Date" sortKey="purchasedAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <th className="px-4 py-3">By</th>
               </tr>
             </thead>
@@ -918,7 +921,7 @@ export default function ProcurementPage() {
             onDone={() => {
               setShowNew(false);
               toast.success('Purchase order created.');
-              load('orders', q, page, pageSize).catch(() => {});
+              load('orders', q, page, pageSize, sortBy, sortDir).catch(() => {});
             }}
             onCancel={() => setShowNew(false)}
           />
@@ -942,7 +945,7 @@ export default function ProcurementPage() {
             onDone={() => {
               setReceiving(null);
               toast.success('Goods received — stock updated.');
-              load('orders', q, page, pageSize).catch(() => {});
+              load('orders', q, page, pageSize, sortBy, sortDir).catch(() => {});
             }}
             onCancel={() => setReceiving(null)}
           />

@@ -1,8 +1,16 @@
 const prisma = require('../../utils/prisma');
 const { ApiError } = require('../../middleware/error');
 const { applyMovement } = require('../../utils/stock.service');
+const { parseSort } = require('../../utils/sort');
 
 const WHT_TYPES = ['NONE', 'GOODS', 'SERVICES'];
+
+const SORT_FIELDS = {
+  poNumber: 'poNumber',
+  status: 'status',
+  createdAt: 'createdAt',
+  supplier: (dir) => ({ supplier: { name: dir } }),
+};
 
 const orderInclude = {
   supplier: { select: { id: true, name: true } },
@@ -57,12 +65,13 @@ async function list(req, res, next) {
         { supplier: { name: { contains: req.query.q, mode: 'insensitive' } } },
       ];
     }
+    const orderBy = req.query.sortBy ? parseSort(req.query, SORT_FIELDS, 'createdAt') : { id: 'desc' };
     const [total, orders] = await Promise.all([
       prisma.purchaseOrder.count({ where }),
       prisma.purchaseOrder.findMany({
         where,
         include: orderInclude,
-        orderBy: { id: 'desc' },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
