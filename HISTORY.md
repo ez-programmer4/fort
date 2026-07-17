@@ -5,6 +5,22 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Sales page UI/UX pass, especially mobile
+
+**Phase:** user asked for more UI/UX polish on the Sales & Dispensing page, specifically the stock-search/"adding" flow and the Dispense Summary, especially on mobile.
+
+**Done (all inside `NewDispense`, the "New Dispense" tab):**
+- **Stock search results** — the 6-column table was unusable on a phone (cramped cells, a "+ Add" text link too small to reliably tap). Below `sm` it's now a card list instead: product name/code, batch + expiry (with the same red "Expired"/amber "Nd left" badge already used on the Inventory page — new local `expiryBadge()` helper), available quantity, and a full solid "Add" button with a cart/check icon that switches state visibly once added. The dense table is kept at `sm:` and up, and also gained the expiry badge for consistency.
+- **Dispense Summary (cart review)** — the 8-column edit table had the same mobile problem, made worse by being the step right before submitting money. Below `sm` it's now a card per line: product + batch/available as a subtitle, a remove (×) button, a proper quantity **stepper** (−/number/+, each button a 36px tap target) instead of a bare number input, a sale-price input, and the line total pinned to the bottom of the card. New `stepQty(i, delta)` helper clamps to `[1, available]`, reusing the same `setLine` state update the typed-input path already used.
+- **Customer/Payment/Withholding/Notes fields** — were a single `flex flex-wrap` row with mismatched fixed widths (`w-56`, `w-32`, `w-44`, `w-24`) that wrapped messily on narrow screens. Now a `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` — every field full-width and evenly stacked on mobile, tablet gets 2 up, desktop gets all 4 (or 3 + notes spanning full width) in one row.
+- **Totals** — pulled out of that same flex row into its own `bg-slate-50` summary card (Subtotal / Withholding / Total), so it reads as a distinct total rather than one more item wrapping into the field row.
+- **Sticky mobile action bar** — the single biggest change: below `sm`, a `fixed bottom-0` bar (Total + item count on the left, Clear + Confirm Dispense on the right, `env(safe-area-inset-bottom)`-aware padding for iOS home-indicator devices) stays on screen regardless of cart length, so a cashier with 8 items in the cart doesn't have to scroll past the whole card list and every field to find the confirm button. The desktop inline action row is hidden below `sm` (`hidden sm:flex`) so the two don't double up; the page gains `pb-28` on mobile while a cart exists so the sticky bar never overlaps the last card.
+- Also disabled the "Clear" button while `saving` (both the desktop row and the new sticky bar), closing a small pre-existing gap where a mid-submit tap could clear the cart out from under an in-flight request.
+
+**Verified:** `tsc --noEmit` clean. Full page sweep still HTTP 200. No backend changes — this was a frontend-only structural/responsive rework of `NewDispense`'s JSX; the state model, validation (`confirm()`), and API payload are untouched.
+
+---
+
 ## 2026-07-17 — Real Fort Pharma logo on login, PDFs and print
 
 **Phase:** user supplied the actual Fort Pharma PLC logo artwork (dropped as `photo_2026-07-17_20-53-44.jpg` in the repo root) and asked for it to replace the placeholder text/initials branding on the login page, PDF reports and printable documents.

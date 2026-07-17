@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
+import { Icon } from '@/components/icons';
 
 const input =
   'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -24,6 +25,16 @@ const btnGhost =
 
 function money(v: string | number) {
   return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function expiryBadge(expiry: string | null) {
+  if (!expiry) return null;
+  const days = Math.floor((new Date(expiry).getTime() - Date.now()) / 86400000);
+  if (days < 0)
+    return <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">Expired</span>;
+  if (days <= 90)
+    return <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">{days}d left</span>;
+  return null;
 }
 
 const WHT_OPTIONS = [
@@ -370,6 +381,13 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
     setCart(cart.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
   }
 
+  function stepQty(i: number, delta: number) {
+    const c = cart[i];
+    const current = Number(c.quantity) || 0;
+    const next = Math.min(c.stock.quantity, Math.max(1, current + delta));
+    setLine(i, { quantity: String(next) });
+  }
+
   const subtotal = useMemo(
     () => cart.reduce((s, c) => s + (Number(c.quantity) || 0) * (Number(c.unitPrice) || 0), 0),
     [cart],
@@ -421,9 +439,9 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
   }
 
   return (
-    <div className="mt-4">
-      <div className="rounded-lg border border-slate-200 bg-white p-5">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div className={`mt-4 ${cart.length > 0 ? 'pb-28 sm:pb-4' : ''}`}>
+      <div className="rounded-lg border border-slate-200 bg-white p-4 sm:p-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label className={label}>Dispense from location *</label>
             <Select
@@ -438,7 +456,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
             />
           </div>
           {locationId && (
-            <div className="md:col-span-2">
+            <div className="sm:col-span-2">
               <label className={label}>Search stock (product, batch…)</label>
               <SearchInput
                 onSearch={setStockQuery}
@@ -450,64 +468,200 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
         </div>
 
         {locationId && (
-          <div className="mt-4 max-h-56 overflow-y-auto rounded-md border border-slate-200">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-3 py-2">Product</th>
-                  <th className="px-3 py-2">Batch</th>
-                  <th className="px-3 py-2">Expiry</th>
-                  <th className="px-3 py-2 text-right">Available</th>
-                  <th className="px-3 py-2 text-right">Price</th>
-                  <th className="px-3 py-2 text-right"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {stockLoading && <SkeletonRows rows={3} cols={6} />}
-                {!stockLoading && stockOptions.length === 0 && (
-                  <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400">No stock at this location.</td></tr>
-                )}
-                {!stockLoading &&
-                  stockOptions.map((s) => {
-                    const inCart = cart.some((c) => c.stock.batchId === s.batchId);
-                    return (
-                      <tr key={s.batchId} className="border-t border-slate-100">
-                        <td className="px-3 py-2">
-                          <span className="font-medium text-slate-900">{s.genericName}</span>
-                          {s.brandName && <span className="text-slate-500"> ({s.brandName})</span>}
-                          <span className="ml-1 font-mono text-xs text-slate-400">{s.code}</span>
-                        </td>
-                        <td className="px-3 py-2 text-slate-600">{s.batchNo}</td>
-                        <td className="px-3 py-2 text-slate-600">
-                          {s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : '—'}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums">{s.quantity}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{money(s.unitPrice)}</td>
-                        <td className="px-3 py-2 text-right">
-                          <button
-                            onClick={() => addToCart(s)}
-                            disabled={inCart}
-                            className="text-xs font-medium text-slate-900 underline underline-offset-2 disabled:text-slate-300 disabled:no-underline"
-                          >
-                            {inCart ? 'Added' : '+ Add'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Mobile: card list — a 6-column table is unusable on a phone */}
+            <div className="mt-4 space-y-2 sm:hidden">
+              {stockLoading &&
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-24 animate-pulse rounded-lg bg-slate-100" />
+                ))}
+              {!stockLoading && stockOptions.length === 0 && (
+                <p className="rounded-md border border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">
+                  No stock at this location.
+                </p>
+              )}
+              {!stockLoading &&
+                stockOptions.map((s) => {
+                  const inCart = cart.some((c) => c.stock.batchId === s.batchId);
+                  return (
+                    <div key={s.batchId} className="rounded-lg border border-slate-200 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-900">
+                            {s.genericName}
+                            {s.brandName && <span className="font-normal text-slate-500"> ({s.brandName})</span>}
+                          </p>
+                          <p className="font-mono text-xs text-slate-400">{s.code}</p>
+                        </div>
+                        <p className="shrink-0 text-right text-sm font-semibold tabular-nums text-slate-900">
+                          {money(s.unitPrice)}
+                        </p>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                        <span>Batch {s.batchNo}</span>
+                        <span className="text-slate-300">·</span>
+                        <span>{s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : 'No expiry'}</span>
+                        {expiryBadge(s.expiryDate)}
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <p className="text-xs text-slate-500">
+                          Available <span className="font-semibold tabular-nums text-slate-900">{s.quantity}</span>{' '}
+                          {s.dispenseUnit || ''}
+                        </p>
+                        <button
+                          onClick={() => addToCart(s)}
+                          disabled={inCart}
+                          className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            inCart
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-slate-900 text-white hover:bg-slate-700'
+                          }`}
+                        >
+                          <Icon name={inCart ? 'check' : 'cart'} className="h-3.5 w-3.5" />
+                          {inCart ? 'Added' : 'Add'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Tablet/desktop: dense table */}
+            <div className="mt-4 hidden max-h-56 overflow-y-auto rounded-md border border-slate-200 sm:block">
+              <table className="w-full text-left text-sm">
+                <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2">Product</th>
+                    <th className="px-3 py-2">Batch</th>
+                    <th className="px-3 py-2">Expiry</th>
+                    <th className="px-3 py-2 text-right">Available</th>
+                    <th className="px-3 py-2 text-right">Price</th>
+                    <th className="px-3 py-2 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockLoading && <SkeletonRows rows={3} cols={6} />}
+                  {!stockLoading && stockOptions.length === 0 && (
+                    <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400">No stock at this location.</td></tr>
+                  )}
+                  {!stockLoading &&
+                    stockOptions.map((s) => {
+                      const inCart = cart.some((c) => c.stock.batchId === s.batchId);
+                      return (
+                        <tr key={s.batchId} className="border-t border-slate-100">
+                          <td className="px-3 py-2">
+                            <span className="font-medium text-slate-900">{s.genericName}</span>
+                            {s.brandName && <span className="text-slate-500"> ({s.brandName})</span>}
+                            <span className="ml-1 font-mono text-xs text-slate-400">{s.code}</span>
+                          </td>
+                          <td className="px-3 py-2 text-slate-600">{s.batchNo}</td>
+                          <td className="px-3 py-2 text-slate-600">
+                            {s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : '—'}
+                            {' '}{expiryBadge(s.expiryDate)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">{s.quantity}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{money(s.unitPrice)}</td>
+                          <td className="px-3 py-2 text-right">
+                            <button
+                              onClick={() => addToCart(s)}
+                              disabled={inCart}
+                              className="text-xs font-medium text-slate-900 underline underline-offset-2 disabled:text-slate-300 disabled:no-underline"
+                            >
+                              {inCart ? 'Added' : '+ Add'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
       {cart.length > 0 && (
-        <div className="mt-4 rounded-lg border border-slate-900 bg-white p-5">
-          <h2 className="text-sm font-semibold text-slate-900">
-            Dispense Summary — review and adjust before confirming
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="mt-3 w-full text-left text-sm">
+        <div className="mt-4 rounded-lg border border-slate-900 bg-white p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">Dispense Summary</h2>
+              <p className="text-xs text-slate-500">Review quantities and prices before confirming.</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold tabular-nums text-slate-700">
+              {cart.length} item{cart.length === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          {/* Mobile: card list with a quantity stepper and larger tap targets */}
+          <div className="mt-4 space-y-3 sm:hidden">
+            {cart.map((c, i) => (
+              <div key={c.stock.batchId} className="rounded-lg border border-slate-200 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">{c.stock.genericName}</p>
+                    <p className="text-xs text-slate-400">
+                      {c.stock.code} · batch {c.stock.batchNo} · {c.stock.quantity} available
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setCart(cart.filter((_, idx) => idx !== i))}
+                    aria-label={`Remove ${c.stock.genericName}`}
+                    className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Icon name="x" className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-medium text-slate-500">Quantity</label>
+                    <div className="mt-1 flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => stepQty(i, -1)}
+                        aria-label="Decrease quantity"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-300 text-base text-slate-600 hover:bg-slate-50"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number" min="1" max={c.stock.quantity} step="1"
+                        value={c.quantity}
+                        onChange={(e) => setLine(i, { quantity: e.target.value })}
+                        className="w-full min-w-0 rounded-md border border-slate-300 px-1 py-2 text-center text-sm focus:border-slate-900 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => stepQty(i, 1)}
+                        aria-label="Increase quantity"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-300 text-base text-slate-600 hover:bg-slate-50"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-slate-500">Sale Price</label>
+                    <input
+                      type="number" min="0.01" step="0.01"
+                      value={c.unitPrice}
+                      onChange={(e) => setLine(i, { unitPrice: e.target.value })}
+                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-sm">
+                  <span className="text-slate-500">List price {money(c.stock.unitPrice)}</span>
+                  <span className="font-semibold tabular-nums text-slate-900">
+                    {money((Number(c.quantity) || 0) * (Number(c.unitPrice) || 0))}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tablet/desktop: dense table */}
+          <div className="mt-4 hidden overflow-x-auto sm:block">
+            <table className="w-full text-left text-sm">
               <thead className="text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="py-2 pr-3">Product</th>
@@ -563,8 +717,8 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
             </table>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-end gap-4 border-t border-slate-200 pt-4">
-            <div className="w-56">
+          <div className="mt-4 grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
               <label className={label}>Customer (optional)</label>
               <Combobox
                 options={customerOptions}
@@ -585,7 +739,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
                   { value: 'CASH', label: 'Cash' },
                   { value: 'CREDIT', label: 'Credit' },
                 ]}
-                className="mt-1 w-32"
+                className="mt-1"
               />
             </div>
             <div>
@@ -602,34 +756,77 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
                   setWhtRate(String(rate));
                 }}
                 options={WHT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-                className="mt-1 w-44"
+                className="mt-1"
               />
             </div>
             {whtType !== 'NONE' && (
               <div>
                 <label className={label}>Rate %</label>
                 <input type="number" min="0" max="100" step="0.01" value={whtRate}
-                  onChange={(e) => setWhtRate(e.target.value)} className={`mt-1 w-24 ${input}`} />
+                  onChange={(e) => setWhtRate(e.target.value)} className={`mt-1 w-full ${input}`} />
               </div>
             )}
-            <div className="flex-1">
+            <div className="sm:col-span-2 lg:col-span-4">
               <label className={label}>Notes</label>
               <input value={notes} onChange={(e) => setNotes(e.target.value)} className={`mt-1 w-full ${input}`} />
             </div>
-            <div className="text-right text-sm">
-              <p className="text-slate-500">Subtotal: <span className="tabular-nums font-medium text-slate-900">{money(subtotal)}</span></p>
-              {whtType !== 'NONE' && (
-                <p className="text-slate-500">Withholding: <span className="tabular-nums font-medium text-slate-900">−{money(whtAmount)}</span></p>
-              )}
-              <p className="mt-1 font-semibold text-slate-900">Total: <span className="tabular-nums">{money(subtotal - whtAmount)}</span></p>
+          </div>
+
+          <div className="mt-4 rounded-md bg-slate-50 p-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500">Subtotal</span>
+              <span className="tabular-nums text-slate-900">{money(subtotal)}</span>
+            </div>
+            {whtType !== 'NONE' && (
+              <div className="mt-1 flex items-center justify-between text-sm">
+                <span className="text-slate-500">Withholding ({Number(whtRate)}%)</span>
+                <span className="tabular-nums text-slate-900">−{money(whtAmount)}</span>
+              </div>
+            )}
+            <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-2">
+              <span className="text-sm font-semibold text-slate-900">Total</span>
+              <span className="text-lg font-bold tabular-nums text-slate-900">{money(subtotal - whtAmount)}</span>
             </div>
           </div>
 
-          <div className="mt-5 flex gap-2">
+          <div className="mt-5 hidden gap-2 sm:flex">
             <button onClick={confirm} disabled={saving} className={btnPrimary}>
               {saving ? 'Dispensing…' : 'Confirm Dispense'}
             </button>
-            <button onClick={() => setCart([])} className={btnGhost}>Clear</button>
+            <button onClick={() => setCart([])} disabled={saving} className={`${btnGhost} disabled:opacity-50`}>Clear</button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile: sticky action bar so Confirm is always reachable without scrolling past the whole cart */}
+      {cart.length > 0 && (
+        <div
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white p-3 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] sm:hidden print:hidden"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] text-slate-500">
+                {cart.length} item{cart.length === 1 ? '' : 's'} · Total
+              </p>
+              <p className="truncate text-base font-bold tabular-nums text-slate-900">
+                {money(subtotal - whtAmount)}
+              </p>
+            </div>
+            <button
+              onClick={() => setCart([])}
+              disabled={saving}
+              className="shrink-0 rounded-md border border-slate-300 px-3 py-2.5 text-sm font-medium text-slate-600 disabled:opacity-50"
+            >
+              Clear
+            </button>
+            <button
+              onClick={confirm}
+              disabled={saving}
+              className="shrink-0 rounded-md bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {saving ? 'Dispensing…' : 'Confirm'}
+            </button>
           </div>
         </div>
       )}
