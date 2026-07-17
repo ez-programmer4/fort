@@ -104,7 +104,7 @@ async function create(req, res, next) {
       const unitPrice = Number(it.unitPrice);
       if (!Number.isInteger(batchId) || batchId <= 0) throw new ApiError(400, `Item ${i + 1}: a valid batchId is required`);
       if (!Number.isInteger(quantity) || quantity <= 0) throw new ApiError(400, `Item ${i + 1}: quantity must be a positive whole number`);
-      if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new ApiError(400, `Item ${i + 1}: unit price must be zero or more`);
+      if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw new ApiError(400, `Item ${i + 1}: unit price must be greater than zero`);
 
       const batch = await prisma.batch.findUnique({
         where: { id: batchId },

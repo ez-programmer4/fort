@@ -6,16 +6,19 @@ import { Drawer } from '@/components/ui/drawer';
 import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
 import { Combobox } from '@/components/ui/combobox';
+import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
+import { COUNTRIES } from '@/lib/countries';
 
 const TYPES = ['Medication', 'Equipment', 'Cosmetics'];
 
 interface SupplierOption {
   id: number;
   name: string;
+  isActive: boolean;
 }
 
 interface ProductRow {
@@ -90,7 +93,7 @@ const emptyForm: FormState = {
   countryOfOrigin: '',
   manufacturer: '',
   supplierId: '',
-  unitPrice: '0',
+  unitPrice: '',
   minStock: '',
   maxStock: '',
   expiryAlertDays: '',
@@ -107,7 +110,7 @@ export default function ProductsPage() {
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
   const [lookups, setLookups] = useState<Lookups>({});
   const [form, setForm] = useState<FormState | null>(null);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState<{ row: number; message: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -206,7 +209,7 @@ export default function ProductsPage() {
   async function onImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setNotice('');
+    setNotice([]);
     setImporting(true);
     try {
       const fd = new FormData();
@@ -215,14 +218,10 @@ export default function ProductsPage() {
         '/api/products/import',
         { method: 'POST', body: fd },
       );
-      toast.success(`Imported ${result.created} product(s).`);
+      if (result.created > 0) toast.success(`Imported ${result.created} product(s).`);
       if (result.errors.length) {
-        setNotice(
-          `${result.errors.length} row(s) skipped: ${result.errors
-            .slice(0, 5)
-            .map((er) => `row ${er.row} — ${er.message}`)
-            .join('; ')}${result.errors.length > 5 ? '…' : ''}`,
-        );
+        setNotice(result.errors);
+        if (result.created === 0) toast.error(`${result.errors.length} row(s) failed — see details below.`);
       }
       setPage(1);
       await load(q, typeFilter, 1, pageSize, sortBy, sortDir);
@@ -311,10 +310,17 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {notice && (
-        <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-          {notice}
-        </p>
+      {notice.length > 0 && (
+        <div className="mt-4 max-h-40 overflow-y-auto rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <p className="font-medium">{notice.length} row(s) skipped:</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            {notice.map((n, i) => (
+              <li key={i}>
+                Row {n.row} — {n.message}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -326,19 +332,16 @@ export default function ProductsPage() {
           placeholder="Search code, name, brand, class…"
           className="w-72"
         />
-        <select
+        <Select
           value={typeFilter}
-          onChange={(e) => {
-            setTypeFilter(e.target.value);
+          onChange={(v) => {
+            setTypeFilter(v);
             setPage(1);
           }}
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
-        >
-          <option value="">All types</option>
-          {TYPES.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
+          placeholder="All types"
+          options={[{ value: '', label: 'All types' }, ...TYPES.map((t) => ({ value: t, label: t }))]}
+          className="w-40"
+        />
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
@@ -447,19 +450,16 @@ export default function ProductsPage() {
         width="xl"
       >
         {form && (
-          <form onSubmit={save}>
+          <form onSubmit={save} noValidate>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>Type *</label>
-                <select
+                <Select
                   value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  className={input}
-                >
-                  {TYPES.map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setForm({ ...form, type: v })}
+                  options={TYPES.map((t) => ({ value: t, label: t }))}
+                  className="mt-1"
+                />
               </div>
               <div>
                 <label className={label}>Pharmacotherapeutic Class *</label>
@@ -505,68 +505,53 @@ export default function ProductsPage() {
               </div>
               <div>
                 <label className={label}>Dose Unit</label>
-                <select
+                <Select
                   value={form.doseUnit}
-                  onChange={(e) => setForm({ ...form, doseUnit: e.target.value })}
-                  className={input}
-                >
-                  <option value="">—</option>
-                  {(lookups.doseUnit || []).map((v) => (
-                    <option key={v}>{v}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setForm({ ...form, doseUnit: v })}
+                  placeholder="—"
+                  options={[{ value: '', label: '—' }, ...(lookups.doseUnit || []).map((v) => ({ value: v, label: v }))]}
+                  className="mt-1"
+                />
               </div>
               <div>
                 <label className={label}>Route</label>
-                <select
+                <Select
                   value={form.route}
-                  onChange={(e) => setForm({ ...form, route: e.target.value })}
-                  className={input}
-                >
-                  <option value="">—</option>
-                  {(lookups.route || []).map((v) => (
-                    <option key={v}>{v}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setForm({ ...form, route: v })}
+                  placeholder="—"
+                  options={[{ value: '', label: '—' }, ...(lookups.route || []).map((v) => ({ value: v, label: v }))]}
+                  className="mt-1"
+                />
               </div>
               <div>
                 <label className={label}>Dose Form</label>
-                <select
+                <Select
                   value={form.doseForm}
-                  onChange={(e) => setForm({ ...form, doseForm: e.target.value })}
-                  className={input}
-                >
-                  <option value="">—</option>
-                  {(lookups.doseForm || []).map((v) => (
-                    <option key={v}>{v}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setForm({ ...form, doseForm: v })}
+                  placeholder="—"
+                  options={[{ value: '', label: '—' }, ...(lookups.doseForm || []).map((v) => ({ value: v, label: v }))]}
+                  className="mt-1"
+                />
               </div>
               <div>
                 <label className={label}>Order Unit</label>
-                <select
+                <Select
                   value={form.orderUnit}
-                  onChange={(e) => setForm({ ...form, orderUnit: e.target.value })}
-                  className={input}
-                >
-                  <option value="">—</option>
-                  {(lookups.unit || []).map((v) => (
-                    <option key={v}>{v}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setForm({ ...form, orderUnit: v })}
+                  placeholder="—"
+                  options={[{ value: '', label: '—' }, ...(lookups.unit || []).map((v) => ({ value: v, label: v }))]}
+                  className="mt-1"
+                />
               </div>
               <div>
                 <label className={label}>Dispense Unit</label>
-                <select
+                <Select
                   value={form.dispenseUnit}
-                  onChange={(e) => setForm({ ...form, dispenseUnit: e.target.value })}
-                  className={input}
-                >
-                  <option value="">—</option>
-                  {(lookups.unit || []).map((v) => (
-                    <option key={v}>{v}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setForm({ ...form, dispenseUnit: v })}
+                  placeholder="—"
+                  options={[{ value: '', label: '—' }, ...(lookups.unit || []).map((v) => ({ value: v, label: v }))]}
+                  className="mt-1"
+                />
               </div>
               <div>
                 <label className={label}>Conversion Factor</label>
@@ -582,10 +567,12 @@ export default function ProductsPage() {
               </div>
               <div>
                 <label className={label}>Country of Origin</label>
-                <input
+                <Combobox
+                  options={COUNTRIES.map((c) => ({ value: c, label: c }))}
                   value={form.countryOfOrigin}
-                  onChange={(e) => setForm({ ...form, countryOfOrigin: e.target.value })}
-                  className={input}
+                  onChange={(v) => setForm({ ...form, countryOfOrigin: v })}
+                  placeholder="Search country…"
+                  className="mt-1"
                 />
               </div>
               <div>
@@ -599,7 +586,9 @@ export default function ProductsPage() {
               <div>
                 <label className={label}>Supplier</label>
                 <Combobox
-                  options={suppliers.map((s) => ({ value: String(s.id), label: s.name }))}
+                  options={suppliers
+                    .filter((s) => s.isActive || String(s.id) === form.supplierId)
+                    .map((s) => ({ value: String(s.id), label: s.isActive ? s.name : `${s.name} (inactive)` }))}
                   value={form.supplierId}
                   onChange={(v) => setForm({ ...form, supplierId: v })}
                   placeholder="Search supplier…"
@@ -611,7 +600,7 @@ export default function ProductsPage() {
                 <input
                   required
                   type="number"
-                  min="0"
+                  min="0.01"
                   step="0.01"
                   value={form.unitPrice}
                   onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}

@@ -470,6 +470,35 @@ purchase order is a natural next increment if wanted.
 
 ---
 
+## Phase A12 — Manual-Testing Bugfix Pass
+
+Eight issues reported from a full manual test pass over the internal
+system, all fixed in one pass. Full detail in `HISTORY.md`; summary here:
+
+- [x] All internal-app forms use toast for validation errors instead of
+      the browser's native popup (`noValidate` on every `<form>`, so the
+      existing backend-error → `toast.error` wiring actually runs).
+- [x] Deactivated suppliers/products/locations excluded from every
+      *creation* dropdown (PO/product/sale forms) while still visible in
+      *filter* dropdowns and management tables, where hiding them would
+      hide history.
+- [x] Country of Origin is a searchable list of real countries
+      (`lib/countries.ts` + `Combobox`), not free text.
+- [x] New `components/ui/select.tsx` — a house-built dropdown matching
+      `Combobox`'s look/keyboard behavior — replaces every native
+      `<select>` in the app (~25 instances).
+- [x] Procurement/sales line items must have `unitCost`/`unitPrice`
+      `> 0`, not `>= 0` (backend + matching frontend `min` attributes).
+- [x] Bulk product import errors now include the actual offending cell
+      value, and the frontend shows every failed row (not just 5).
+- [x] Sorting added everywhere structurally sensible (procurement's 3
+      tables, Alerts client-side). Left off Bin Card and the Reports
+      daily table on purpose — both are ordered narratives (a running
+      balance ledger, a dated report with a total footer), not browsable
+      lists.
+
+---
+
 ## Backlog — Remaining Work
 
 Found via a full pass over every module in `requirnment.md` against the

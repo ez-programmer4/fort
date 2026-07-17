@@ -114,7 +114,7 @@ export default function LoginPage() {
           <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Welcome back</h1>
           <p className="mt-1 text-sm text-slate-500">Sign in to manage inventory, orders and sales.</p>
 
-          <form onSubmit={onSubmit} className="mt-8 space-y-4">
+          <form onSubmit={onSubmit} className="mt-8 space-y-4" noValidate>
             <div>
               <label className="block text-sm font-medium text-slate-700">Email</label>
               <div className="relative mt-1">

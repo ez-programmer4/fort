@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
+import { Select } from '@/components/ui/select';
 
 const TYPES = ['Retail', 'Warehouse', 'Dispensary', 'Other'];
 
@@ -252,7 +253,7 @@ export default function LocationsPage() {
         width="md"
       >
         {form && (
-          <form onSubmit={save} className="space-y-4">
+          <form onSubmit={save} className="space-y-4" noValidate>
             <div>
               <label className={label}>Location name *</label>
               <input required value={form.name}
@@ -260,12 +261,12 @@ export default function LocationsPage() {
             </div>
             <div>
               <label className={label}>Type *</label>
-              <select value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value })} className={input}>
-                {TYPES.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
+              <Select
+                value={form.type}
+                onChange={(v) => setForm({ ...form, type: v })}
+                options={TYPES.map((t) => ({ value: t, label: t }))}
+                className="mt-1"
+              />
             </div>
             <div>
               <label className={label}>Full address *</label>

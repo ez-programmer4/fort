@@ -6,9 +6,8 @@ import { DateRangePicker } from '@/components/ui/date-picker';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
+import { Select } from '@/components/ui/select';
 
-const input =
-  'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
 const label = 'block text-xs font-medium text-slate-600';
 const btnPrimary =
   'rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50';
@@ -133,12 +132,13 @@ export default function ReportsPage() {
         </div>
         <div>
           <label className={label}>Location</label>
-          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className={`mt-1 ${input}`}>
-            <option value="">All locations</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
-            ))}
-          </select>
+          <Select
+            value={locationId}
+            onChange={setLocationId}
+            placeholder="All locations"
+            options={[{ value: '', label: 'All locations' }, ...locations.map((l) => ({ value: String(l.id), label: l.name }))]}
+            className="mt-1 w-48"
+          />
         </div>
       </div>
 

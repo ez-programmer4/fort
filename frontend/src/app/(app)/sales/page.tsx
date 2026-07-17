@@ -8,6 +8,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
 import { DateRangePicker } from '@/components/ui/date-picker';
 import { Combobox, ComboOption } from '@/components/ui/combobox';
+import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
@@ -34,6 +35,7 @@ const WHT_OPTIONS = [
 interface Option {
   id: number;
   name: string;
+  isActive?: boolean;
 }
 
 interface StockRow {
@@ -313,7 +315,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
       return;
     }
     setStockLoading(true);
-    const params = new URLSearchParams({ locationId, pageSize: '20' });
+    const params = new URLSearchParams({ locationId, pageSize: '20', active: 'true' });
     if (stockQuery) params.set('q', stockQuery);
     api<{ items: StockRow[] }>(`/api/inventory?${params}`)
       .then((d) => setStockOptions(d.items))
@@ -377,6 +379,10 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
         toast.error(`Only ${c.stock.quantity} of ${c.stock.genericName} (batch ${c.stock.batchNo}) available`);
         return;
       }
+      if (!(Number(c.unitPrice) > 0)) {
+        toast.error(`Enter a sale price greater than zero for ${c.stock.genericName}`);
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -412,19 +418,16 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
             <label className={label}>Dispense from location *</label>
-            <select
+            <Select
               value={locationId}
-              onChange={(e) => {
-                setLocationId(e.target.value);
+              onChange={(v) => {
+                setLocationId(v);
                 setCart([]);
               }}
-              className={`mt-1 w-full ${input}`}
-            >
-              <option value="">Select…</option>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>{l.name}</option>
-              ))}
-            </select>
+              placeholder="Select…"
+              options={locations.filter((l) => l.isActive).map((l) => ({ value: String(l.id), label: l.name }))}
+              className="mt-1"
+            />
           </div>
           {locationId && (
             <div className="md:col-span-2">
@@ -529,7 +532,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
                     <td className="py-2 pr-3 text-right tabular-nums text-slate-500">{money(c.stock.unitPrice)}</td>
                     <td className="py-2 pr-3">
                       <input
-                        type="number" min="0" step="0.01"
+                        type="number" min="0.01" step="0.01"
                         value={c.unitPrice}
                         onChange={(e) => setLine(i, { unitPrice: e.target.value })}
                         className={`w-28 ${input}`}
@@ -567,17 +570,22 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
             </div>
             <div>
               <label className={label}>Payment</label>
-              <select value={paymentType} onChange={(e) => setPaymentType(e.target.value)} className={`mt-1 ${input}`}>
-                <option value="CASH">Cash</option>
-                <option value="CREDIT">Credit</option>
-              </select>
+              <Select
+                value={paymentType}
+                onChange={setPaymentType}
+                options={[
+                  { value: 'CASH', label: 'Cash' },
+                  { value: 'CREDIT', label: 'Credit' },
+                ]}
+                className="mt-1 w-32"
+              />
             </div>
             <div>
               <label className={label}>Withholding tax</label>
-              <select
+              <Select
                 value={whtType}
-                onChange={(e) => {
-                  const opt = WHT_OPTIONS.find((o) => o.value === e.target.value)!;
+                onChange={(v) => {
+                  const opt = WHT_OPTIONS.find((o) => o.value === v)!;
                   setWhtType(opt.value);
                   const rate =
                     opt.value === 'GOODS' ? settings?.whtGoodsRate ?? opt.defaultRate
@@ -585,12 +593,9 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
                     : 0;
                   setWhtRate(String(rate));
                 }}
-                className={`mt-1 ${input}`}
-              >
-                {WHT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+                options={WHT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                className="mt-1 w-44"
+              />
             </div>
             {whtType !== 'NONE' && (
               <div>

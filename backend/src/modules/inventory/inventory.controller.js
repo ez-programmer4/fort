@@ -29,12 +29,13 @@ const TRANSFER_SORT_FIELDS = {
 };
 
 function buildWhere(query) {
-  const { locationId, q, includeZero } = query;
+  const { locationId, q, includeZero, active } = query;
   const where = {};
   if (includeZero !== 'true') where.quantity = { gt: 0 };
   if (locationId) where.locationId = Number(locationId);
+  const batchAnd = [];
   if (q) {
-    where.batch = {
+    batchAnd.push({
       OR: [
         { batchNo: { contains: q, mode: 'insensitive' } },
         {
@@ -47,8 +48,10 @@ function buildWhere(query) {
           },
         },
       ],
-    };
+    });
   }
+  if (active === 'true') batchAnd.push({ product: { isActive: true } });
+  if (batchAnd.length) where.batch = { AND: batchAnd };
   return where;
 }
 
@@ -181,7 +184,7 @@ async function transfer(req, res, next) {
     const { fromLocationId, toLocationId, notes, items } = req.body || {};
     const fromId = Number(fromLocationId);
     const toId = Number(toLocationId);
-    if (!Number.isInteger(fromId) || !Number.isInteger(toId)) {
+    if (!Number.isInteger(fromId) || fromId <= 0 || !Number.isInteger(toId) || toId <= 0) {
       throw new ApiError(400, 'fromLocationId and toLocationId are required');
     }
     if (fromId === toId) throw new ApiError(400, 'Source and destination locations must be different');
@@ -193,6 +196,7 @@ async function transfer(req, res, next) {
     ]);
     if (!fromLocation) throw new ApiError(404, 'Source location not found');
     if (!toLocation) throw new ApiError(404, 'Destination location not found');
+    if (!toLocation.isActive) throw new ApiError(400, 'Destination location is inactive');
 
     const parsed = items.map((it, i) => {
       const batchId = Number(it.batchId);

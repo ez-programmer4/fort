@@ -86,7 +86,7 @@ function validate(body, partial = false) {
   }
   if (b.unitPrice !== undefined) {
     const up = Number(b.unitPrice);
-    if (!Number.isFinite(up) || up < 0) throw new ApiError(400, 'Unit price must be zero or more');
+    if (!Number.isFinite(up) || up <= 0) throw new ApiError(400, 'Unit price must be greater than zero');
     data.unitPrice = up;
   }
   if (b.supplierId !== undefined) data.supplierId = b.supplierId ? Number(b.supplierId) : null;

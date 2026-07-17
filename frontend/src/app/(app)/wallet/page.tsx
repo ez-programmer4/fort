@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
+import { Select } from '@/components/ui/select';
 
 const input =
   'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -388,7 +389,7 @@ export default function WalletPage() {
         width="md"
       >
         {payForm && (
-          <form onSubmit={submitPayment} className="space-y-4">
+          <form onSubmit={submitPayment} className="space-y-4" noValidate>
             <div>
               <label className={label}>Amount *</label>
               <input required type="number" min="0.01" max={payForm.row.outstanding} step="0.01"
@@ -398,13 +399,12 @@ export default function WalletPage() {
             </div>
             <div>
               <label className={label}>Method</label>
-              <select value={payForm.method}
-                onChange={(e) => setPayForm({ ...payForm, method: e.target.value })}
-                className={`mt-1 w-full ${input}`}>
-                {METHODS.map((m) => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
+              <Select
+                value={payForm.method}
+                onChange={(v) => setPayForm({ ...payForm, method: v })}
+                options={METHODS}
+                className="mt-1"
+              />
             </div>
             <div>
               <label className={label}>Reference</label>

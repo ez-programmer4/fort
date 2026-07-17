@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Combobox, ComboOption } from '@/components/ui/combobox';
+import { Select } from '@/components/ui/select';
 import { DateRangePicker } from '@/components/ui/date-picker';
+import { useToast } from '@/components/ui/toast';
 
 interface ProductOption {
   id: number;
@@ -45,6 +47,7 @@ interface BinCard {
 }
 
 export default function BinCardPage() {
+  const toast = useToast();
   const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
   const [productId, setProductId] = useState('');
   const [locations, setLocations] = useState<LocationOption[]>([]);
@@ -52,22 +55,21 @@ export default function BinCardPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [card, setCard] = useState<BinCard | null>(null);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     api<{ locations: LocationOption[] }>('/api/locations')
       .then((d) => setLocations(d.locations))
-      .catch((e) => setError(e.message));
-  }, []);
+      .catch((e) => toast.error(e.message));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const searchProducts = useCallback((term: string) => {
     api<{ products: ProductOption[] }>(
       `/api/products?pageSize=20${term ? `&q=${encodeURIComponent(term)}` : ''}`,
     )
       .then((d) => setProductOptions(d.products))
-      .catch((e) => setError(e.message));
-  }, []);
+      .catch((e) => toast.error(e.message));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     searchProducts('');
@@ -81,10 +83,9 @@ export default function BinCardPage() {
 
   async function run() {
     if (!productId || !locationId) {
-      setError('Select a product and a location first');
+      toast.error('Select a product and a location first');
       return;
     }
-    setError('');
     setLoading(true);
     try {
       const params = new URLSearchParams({ productId, locationId });
@@ -92,15 +93,12 @@ export default function BinCardPage() {
       if (to) params.set('to', to);
       setCard(await api<BinCard>(`/api/reports/bincard?${params}`));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load bin card');
+      toast.error(err instanceof Error ? err.message : 'Failed to load bin card');
       setCard(null);
     } finally {
       setLoading(false);
     }
   }
-
-  const input =
-    'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
 
   return (
     <div>
@@ -121,12 +119,6 @@ export default function BinCardPage() {
         )}
       </div>
 
-      {error && (
-        <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 print:hidden">
-          {error}
-        </p>
-      )}
-
       <div className="mt-6 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-4 print:hidden">
         <div>
           <label className="block text-xs font-medium text-slate-600">Product</label>
@@ -141,18 +133,13 @@ export default function BinCardPage() {
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-600">Store / Location</label>
-          <select
+          <Select
             value={locationId}
-            onChange={(e) => setLocationId(e.target.value)}
-            className={`mt-1 w-full ${input}`}
-          >
-            <option value="">Select…</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+            onChange={setLocationId}
+            placeholder="Select…"
+            options={locations.map((l) => ({ value: String(l.id), label: l.name }))}
+            className="mt-1"
+          />
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-600">Date range</label>

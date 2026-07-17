@@ -3,42 +3,41 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { AppSettings, fetchSettings, invalidateSettings } from '@/lib/settings';
+import { useToast } from '@/components/ui/toast';
 
 const input =
   'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
 const label = 'block text-xs font-medium text-slate-600';
 
 export default function SettingsPage() {
+  const toast = useToast();
   const [form, setForm] = useState<AppSettings | null>(null);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchSettings(true)
       .then(setForm)
-      .catch((e) => setError(e.message));
+      .catch((e) => setLoadError(e.message));
   }, []);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form) return;
-    setError('');
-    setNotice('');
     setSaving(true);
     try {
       await api('/api/settings', { method: 'PUT', body: JSON.stringify(form) });
       invalidateSettings();
-      setNotice('Settings saved. New PDFs, slips and alerts will use them immediately.');
+      toast.success('Settings saved. New PDFs, slips and alerts will use them immediately.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setSaving(false);
     }
   }
 
   if (!form) {
-    return <p className="text-sm text-slate-400">{error || 'Loading…'}</p>;
+    return <p className="text-sm text-slate-400">{loadError || 'Loading…'}</p>;
   }
 
   return (
@@ -48,12 +47,7 @@ export default function SettingsPage() {
         Pharmacy identity (used on reports and dispense slips) and system defaults.
       </p>
 
-      {error && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {notice && (
-        <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">{notice}</p>
-      )}
-
-      <form onSubmit={save} className="mt-6 space-y-6">
+      <form onSubmit={save} className="mt-6 space-y-6" noValidate>
         <div className="rounded-lg border border-slate-200 bg-white p-5">
           <h2 className="text-sm font-semibold text-slate-900">Pharmacy Identity</h2>
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">

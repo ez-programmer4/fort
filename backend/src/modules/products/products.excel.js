@@ -176,11 +176,17 @@ async function importProducts(req, res, next) {
       if (!record.type && !record.genericName && !record.pharmClass) continue; // blank row
 
       const problems = [];
-      if (!TYPES.includes(record.type)) problems.push(`Type must be one of ${TYPES.join(', ')}`);
-      if (!record.pharmClass) problems.push('Pharmacotherapeutic class is required');
-      if (!record.genericName) problems.push('Generic name is required');
-      if (!Number.isFinite(record.conversionFactor) || record.conversionFactor <= 0) problems.push('Conversion factor must be positive');
-      if (!Number.isFinite(record.unitPrice) || record.unitPrice < 0) problems.push('Unit price must be zero or more');
+      if (!TYPES.includes(record.type)) {
+        problems.push(`Type must be one of ${TYPES.join(', ')} (got "${record.type || 'blank'}")`);
+      }
+      if (!record.pharmClass) problems.push('Pharmacotherapeutic class is required (column "Pharmacotherapeutic Class *" is blank)');
+      if (!record.genericName) problems.push('Generic name is required (column "Generic Name *" is blank)');
+      if (!Number.isFinite(record.conversionFactor) || record.conversionFactor <= 0) {
+        problems.push(`Conversion factor must be positive (got "${get(12) || 'blank'}")`);
+      }
+      if (!Number.isFinite(record.unitPrice) || record.unitPrice <= 0) {
+        problems.push(`Unit price must be greater than zero (got "${get(16) || 'blank'}")`);
+      }
 
       let supplierId = null;
       if (record.supplierName) {

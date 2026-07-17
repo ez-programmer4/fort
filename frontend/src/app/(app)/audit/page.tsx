@@ -9,9 +9,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
-
-const input =
-  'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
+import { Select } from '@/components/ui/select';
 
 interface Option {
   id: number;
@@ -105,18 +103,20 @@ export default function AuditPage() {
             placeholder="Search product…"
             className="w-56"
           />
-          <select value={type} onChange={(e) => { setType(e.target.value); setPage(1); }} className={input}>
-            <option value="">All types</option>
-            {Object.entries(TYPE_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-          <select value={locationId} onChange={(e) => { setLocationId(e.target.value); setPage(1); }} className={input}>
-            <option value="">All locations</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
-            ))}
-          </select>
+          <Select
+            value={type}
+            onChange={(v) => { setType(v); setPage(1); }}
+            placeholder="All types"
+            options={[{ value: '', label: 'All types' }, ...Object.entries(TYPE_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
+            className="w-44"
+          />
+          <Select
+            value={locationId}
+            onChange={(v) => { setLocationId(v); setPage(1); }}
+            placeholder="All locations"
+            options={[{ value: '', label: 'All locations' }, ...locations.map((l) => ({ value: String(l.id), label: l.name }))]}
+            className="w-48"
+          />
           <DateRangePicker
             from={from}
             to={to}

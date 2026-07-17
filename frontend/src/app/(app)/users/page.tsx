@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
+import { Select } from '@/components/ui/select';
 
 const input =
   'mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -245,7 +246,7 @@ export default function UsersPage() {
         width="md"
       >
         {form && (
-          <form onSubmit={save} className="space-y-4">
+          <form onSubmit={save} className="space-y-4" noValidate>
             <div>
               <label className={label}>Full name *</label>
               <input required value={form.fullName}
@@ -262,24 +263,21 @@ export default function UsersPage() {
               </label>
               <input
                 type="password"
-                required={form.id === null}
-                minLength={6}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 className={input}
               />
+              <p className="mt-0.5 text-[11px] text-slate-400">At least 6 characters.</p>
             </div>
             <div>
               <label className={label}>Role *</label>
-              <select required value={form.roleId}
-                onChange={(e) => setForm({ ...form, roleId: e.target.value })} className={input}>
-                <option value="">Select role…</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
+              <Select
+                value={form.roleId}
+                onChange={(v) => setForm({ ...form, roleId: v })}
+                placeholder="Select role…"
+                options={roles.map((r) => ({ value: String(r.id), label: r.name }))}
+                className="mt-1"
+              />
             </div>
             <div className="flex gap-2 pt-2">
               <button

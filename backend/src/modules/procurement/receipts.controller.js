@@ -7,7 +7,10 @@ const RECEIPT_SORT_FIELDS = {
   grvNumber: 'grvNumber',
   createdAt: 'createdAt',
   netPayable: 'netPayable',
+  subtotal: 'subtotal',
+  withholdingAmount: 'withholdingAmount',
   supplier: (dir) => ({ supplier: { name: dir } }),
+  location: (dir) => ({ location: { name: dir } }),
 };
 
 const EXPENSE_SORT_FIELDS = {
@@ -15,7 +18,10 @@ const EXPENSE_SORT_FIELDS = {
   category: 'category',
   amount: 'amount',
   purchasedAt: 'purchasedAt',
+  withholdingAmount: 'withholdingAmount',
+  netPayable: 'netPayable',
   supplier: (dir) => ({ supplier: { name: dir } }),
+  createdBy: (dir) => ({ createdBy: { fullName: dir } }),
 };
 
 async function listReceipts(req, res, next) {

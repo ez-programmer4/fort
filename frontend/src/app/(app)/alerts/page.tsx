@@ -9,9 +9,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows, Spinner } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
-
-const input =
-  'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
+import { Select } from '@/components/ui/select';
+import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 
 interface Option {
   id: number;
@@ -348,6 +347,32 @@ export default function AlertsPage() {
 
   const totalAll = alerts.length;
 
+  // Empty sortBy keeps the server's urgency-first ordering; clicking a column
+  // overrides it with a plain client-side sort (JS sort is spec-stable).
+  const { sortBy, sortDir, toggle } = useSort('');
+  const sorted = useMemo(() => {
+    if (!sortBy) return visible;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const val = (a: Alert): string | number => {
+      switch (sortBy) {
+        case 'type': return TYPE_META[a.type].label;
+        case 'product': return a.product.genericName.toLowerCase();
+        case 'location': return a.location.name.toLowerCase();
+        case 'batch': return a.batchNo || '';
+        case 'expiry': return a.expiryDate ? new Date(a.expiryDate).getTime() : Infinity;
+        case 'quantity': return a.quantity;
+        default: return 0;
+      }
+    };
+    return [...visible].sort((a, b) => {
+      const av = val(a);
+      const bv = val(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+  }, [visible, sortBy, sortDir]);
+
   function openDispose(a: Alert) {
     setDisposeTarget(a);
     setDisposeQty(String(a.quantity));
@@ -414,12 +439,13 @@ export default function AlertsPage() {
             )}
             Refresh
           </button>
-          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className={input}>
-            <option value="">All locations</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
-            ))}
-          </select>
+          <Select
+            value={locationId}
+            onChange={setLocationId}
+            placeholder="All locations"
+            options={[{ value: '', label: 'All locations' }, ...locations.map((l) => ({ value: String(l.id), label: l.name }))]}
+            className="w-48"
+          />
         </div>
       </div>
 
@@ -481,12 +507,12 @@ export default function AlertsPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Product</th>
-              <th className="px-4 py-3">Location</th>
-              <th className="px-4 py-3">Batch</th>
-              <th className="px-4 py-3">Expiry</th>
-              <th className="px-4 py-3 text-right">Qty</th>
+              <SortableHeader label="Type" sortKey="type" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Product" sortKey="product" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Location" sortKey="location" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Batch" sortKey="batch" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Expiry" sortKey="expiry" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Qty" sortKey="quantity" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
               <th className="px-4 py-3">Detail</th>
               <th className="px-4 py-3">By / Date</th>
               {canDispose && <th className="px-4 py-3 text-right">Actions</th>}
@@ -509,7 +535,7 @@ export default function AlertsPage() {
               </tr>
             )}
             {!loading &&
-              visible.map((a, i) => {
+              sorted.map((a, i) => {
                 const meta = TYPE_META[a.type];
                 const showDispose =
                   canDispose && (a.type === 'EXPIRED' || a.type === 'EXPIRING') && a.batchId != null;

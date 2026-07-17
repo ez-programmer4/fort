@@ -10,6 +10,7 @@ const SORT_FIELDS = {
   status: 'status',
   createdAt: 'createdAt',
   supplier: (dir) => ({ supplier: { name: dir } }),
+  location: (dir) => ({ location: { name: dir } }),
 };
 
 const orderInclude = {
@@ -42,7 +43,7 @@ function parseItems(items) {
       throw new ApiError(400, `Item ${i + 1}: a valid productId is required`);
     }
     if (!Number.isInteger(quantity) || quantity <= 0) throw new ApiError(400, `Item ${i + 1}: quantity must be a positive whole number`);
-    if (!Number.isFinite(unitCost) || unitCost < 0) throw new ApiError(400, `Item ${i + 1}: unit cost must be zero or more`);
+    if (!Number.isFinite(unitCost) || unitCost <= 0) throw new ApiError(400, `Item ${i + 1}: unit cost must be greater than zero`);
     return {
       productId,
       quantity,
@@ -141,7 +142,7 @@ async function receive(req, res, next) {
       const expiryDate = l.expiryDate ? new Date(l.expiryDate) : poItem.expiryDate;
       if (!batchNo) throw new ApiError(400, `Line ${i + 1}: batch number is required`);
       if (!Number.isInteger(quantity) || quantity <= 0) throw new ApiError(400, `Line ${i + 1}: quantity must be a positive whole number`);
-      if (!Number.isFinite(unitCost) || unitCost < 0) throw new ApiError(400, `Line ${i + 1}: unit cost must be zero or more`);
+      if (!Number.isFinite(unitCost) || unitCost <= 0) throw new ApiError(400, `Line ${i + 1}: unit cost must be greater than zero`);
       return { productId: poItem.productId, quantity, unitCost, batchNo, expiryDate };
     });
 

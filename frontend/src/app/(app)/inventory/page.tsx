@@ -10,10 +10,12 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
+import { Select } from '@/components/ui/select';
 
 interface LocationOption {
   id: number;
   name: string;
+  isActive: boolean;
 }
 
 interface InventoryRow {
@@ -190,21 +192,16 @@ export default function InventoryPage() {
           placeholder="Search code, name, brand, batch…"
           className="w-72"
         />
-        <select
+        <Select
           value={locationId}
-          onChange={(e) => {
-            setLocationId(e.target.value);
+          onChange={(v) => {
+            setLocationId(v);
             setPage(1);
           }}
-          className={input}
-        >
-          <option value="">All locations</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
+          placeholder="All locations"
+          options={[{ value: '', label: 'All locations' }, ...locations.map((l) => ({ value: String(l.id), label: l.name }))]}
+          className="w-48"
+        />
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
@@ -315,7 +312,7 @@ export default function InventoryPage() {
         width="md"
       >
         {adjust && (
-          <form onSubmit={submitAdjust} className="space-y-4">
+          <form onSubmit={submitAdjust} className="space-y-4" noValidate>
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
               Current quantity:{' '}
               <span className="font-semibold tabular-nums text-slate-900">{adjust.row.quantity}</span>
@@ -323,16 +320,15 @@ export default function InventoryPage() {
             </div>
             <div>
               <label className={label}>Type</label>
-              <select
+              <Select
                 value={adjust.type}
-                onChange={(e) =>
-                  setAdjust({ ...adjust, type: e.target.value as 'INCREASE' | 'DECREASE' })
-                }
-                className={`mt-1 w-full ${input}`}
-              >
-                <option value="INCREASE">Increase</option>
-                <option value="DECREASE">Decrease</option>
-              </select>
+                onChange={(v) => setAdjust({ ...adjust, type: v as 'INCREASE' | 'DECREASE' })}
+                options={[
+                  { value: 'INCREASE', label: 'Increase' },
+                  { value: 'DECREASE', label: 'Decrease' },
+                ]}
+                className="mt-1"
+              />
             </div>
             <div>
               <label className={label}>Quantity *</label>
@@ -388,7 +384,7 @@ export default function InventoryPage() {
         width="md"
       >
         {transfer && (
-          <form onSubmit={submitTransfer} className="space-y-4">
+          <form onSubmit={submitTransfer} className="space-y-4" noValidate>
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
               Available at {transfer.row.location.name}:{' '}
               <span className="font-semibold tabular-nums text-slate-900">{transfer.row.quantity}</span>
@@ -396,19 +392,15 @@ export default function InventoryPage() {
             </div>
             <div>
               <label className={label}>To location *</label>
-              <select
-                required
+              <Select
                 value={transfer.toLocationId}
-                onChange={(e) => setTransfer({ ...transfer, toLocationId: e.target.value })}
-                className={`mt-1 w-full ${input}`}
-              >
-                <option value="" disabled>Select a location…</option>
-                {locations
-                  .filter((l) => l.id !== transfer.row.location.id)
-                  .map((l) => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
-                  ))}
-              </select>
+                onChange={(v) => setTransfer({ ...transfer, toLocationId: v })}
+                placeholder="Select a location…"
+                options={locations
+                  .filter((l) => l.isActive && l.id !== transfer.row.location.id)
+                  .map((l) => ({ value: String(l.id), label: l.name }))}
+                className="mt-1"
+              />
             </div>
             <div>
               <label className={label}>Quantity *</label>

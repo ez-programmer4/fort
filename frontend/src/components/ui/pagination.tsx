@@ -1,5 +1,7 @@
 'use client';
 
+import { Select } from './select';
+
 interface PaginationProps {
   page: number;
   pageSize: number;
@@ -26,15 +28,12 @@ export function Pagination({
     <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
       <div className="flex items-center gap-2">
         <span className="text-xs text-slate-500">Rows per page</span>
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-slate-900 focus:outline-none"
-        >
-          {sizes.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+        <Select
+          value={String(pageSize)}
+          onChange={(v) => onPageSizeChange(Number(v))}
+          options={sizes.map((s) => ({ value: String(s), label: String(s) }))}
+          className="w-20 py-1"
+        />
       </div>
       <div className="flex items-center gap-3">
         <span className="tabular-nums text-xs text-slate-500">

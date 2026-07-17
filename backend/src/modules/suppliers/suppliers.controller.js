@@ -7,16 +7,18 @@ const SORT_FIELDS = { name: 'name', tin: 'tin', phone: 'phone', createdAt: 'crea
 async function list(req, res, next) {
   try {
     const q = String(req.query.q || '').trim();
-    const where = q
-      ? {
-          OR: [
-            { name: { contains: q, mode: 'insensitive' } },
-            { tin: { contains: q, mode: 'insensitive' } },
-            { phone: { contains: q, mode: 'insensitive' } },
-            { email: { contains: q, mode: 'insensitive' } },
-          ],
-        }
-      : undefined;
+    const { active } = req.query;
+    const where = {};
+    if (q) {
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { tin: { contains: q, mode: 'insensitive' } },
+        { phone: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    if (active === 'true') where.isActive = true;
+    if (active === 'false') where.isActive = false;
     const orderBy = parseSort(req.query, SORT_FIELDS, 'name');
 
     // Without ?page, return the full list (dropdown/filter consumers).

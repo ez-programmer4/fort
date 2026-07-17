@@ -7,6 +7,7 @@ import { Drawer } from '@/components/ui/drawer';
 import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
 import { Combobox, ComboOption } from '@/components/ui/combobox';
+import { Select } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -56,6 +57,7 @@ function StatusBadge({ status }: { status: string }) {
 interface Option {
   id: number;
   name: string;
+  isActive: boolean;
 }
 
 interface ProductOption {
@@ -65,6 +67,7 @@ interface ProductOption {
   brandName: string | null;
   dispenseUnit: string | null;
   unitPrice: string;
+  isActive?: boolean;
 }
 
 interface POItem {
@@ -121,7 +124,7 @@ function NewOrderForm({
 
   const searchProducts = useCallback((term: string) => {
     api<{ products: ProductOption[] }>(
-      `/api/products?pageSize=20${term ? `&q=${encodeURIComponent(term)}` : ''}`,
+      `/api/products?pageSize=20&active=true${term ? `&q=${encodeURIComponent(term)}` : ''}`,
     )
       .then((d) => setProductOptions(d.products))
       .catch(() => {});
@@ -196,12 +199,12 @@ function NewOrderForm({
   }
 
   return (
-    <form onSubmit={save}>
+    <form onSubmit={save} noValidate>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <label className={label}>Supplier</label>
           <Combobox
-            options={suppliers.map((s) => ({ value: String(s.id), label: s.name }))}
+            options={suppliers.filter((s) => s.isActive).map((s) => ({ value: String(s.id), label: s.name }))}
             value={supplierId}
             onChange={setSupplierId}
             placeholder="Search supplier…"
@@ -210,12 +213,13 @@ function NewOrderForm({
         </div>
         <div>
           <label className={label}>Receiving location *</label>
-          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className={`mt-1 w-full ${input}`}>
-            <option value="">Select…</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
-            ))}
-          </select>
+          <Select
+            value={locationId}
+            onChange={setLocationId}
+            placeholder="Select…"
+            options={locations.filter((l) => l.isActive).map((l) => ({ value: String(l.id), label: l.name }))}
+            className="mt-1"
+          />
         </div>
         <div>
           <label className={label}>Notes</label>
@@ -260,7 +264,7 @@ function NewOrderForm({
                         onChange={(e) => setLine(i, { quantity: e.target.value })} className={`w-20 ${input}`} />
                     </td>
                     <td className="py-2 pr-3">
-                      <input type="number" min="0" step="0.01" required value={l.unitCost}
+                      <input type="number" min="0.01" step="0.01" required value={l.unitCost}
                         onChange={(e) => setLine(i, { unitCost: e.target.value })} className={`w-28 ${input}`} />
                     </td>
                     <td className="py-2 pr-3">
@@ -377,7 +381,7 @@ function ReceiveForm({ order, onDone, onCancel }: { order: PO; onDone: () => voi
   }
 
   return (
-    <form onSubmit={save}>
+    <form onSubmit={save} noValidate>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="text-xs uppercase tracking-wide text-slate-500">
@@ -402,7 +406,7 @@ function ReceiveForm({ order, onDone, onCancel }: { order: PO; onDone: () => voi
                     onChange={(e) => setLine(i, { quantity: e.target.value })} className={`w-24 ${input}`} />
                 </td>
                 <td className="py-2 pr-3">
-                  <input type="number" min="0" step="0.01" required value={l.unitCost}
+                  <input type="number" min="0.01" step="0.01" required value={l.unitCost}
                     onChange={(e) => setLine(i, { unitCost: e.target.value })} className={`w-28 ${input}`} />
                 </td>
                 <td className="py-2 pr-3">
@@ -429,19 +433,16 @@ function ReceiveForm({ order, onDone, onCancel }: { order: PO; onDone: () => voi
       <div className="mt-4 flex flex-wrap items-end gap-4 border-t border-slate-200 pt-4">
         <div>
           <label className={label}>Withholding tax</label>
-          <select
+          <Select
             value={whtType}
-            onChange={(e) => {
-              const opt = WHT_OPTIONS.find((o) => o.value === e.target.value)!;
+            onChange={(v) => {
+              const opt = WHT_OPTIONS.find((o) => o.value === v)!;
               setWhtType(opt.value);
               setWhtRate(String(whtRateFor(opt.value, settings)));
             }}
-            className={`mt-1 ${input}`}
-          >
-            {WHT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+            options={WHT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            className="mt-1 w-44"
+          />
         </div>
         {whtType !== 'NONE' && (
           <div>
@@ -692,7 +693,7 @@ export default function ProcurementPage() {
               <tr>
                 <SortableHeader label="PO No." sortKey="poNumber" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <SortableHeader label="Supplier" sortKey="supplier" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
-                <th className="px-4 py-3">Location</th>
+                <SortableHeader label="Location" sortKey="location" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <th className="px-4 py-3">Items</th>
                 <th className="px-4 py-3 text-right">Subtotal</th>
                 <SortableHeader label="Status" sortKey="status" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
@@ -762,9 +763,9 @@ export default function ProcurementPage() {
                 <SortableHeader label="GRV No." sortKey="grvNumber" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <th className="px-4 py-3">PO</th>
                 <SortableHeader label="Supplier" sortKey="supplier" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3 text-right">Subtotal</th>
-                <th className="px-4 py-3 text-right">Withholding</th>
+                <SortableHeader label="Location" sortKey="location" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+                <SortableHeader label="Subtotal" sortKey="subtotal" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
+                <SortableHeader label="Withholding" sortKey="withholdingAmount" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
                 <SortableHeader label="Net Payable" sortKey="netPayable" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
                 <SortableHeader label="Received" sortKey="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <th className="px-4 py-3 text-right"></th>
@@ -855,10 +856,10 @@ export default function ProcurementPage() {
                 <SortableHeader label="Category" sortKey="category" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <SortableHeader label="Supplier" sortKey="supplier" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
                 <SortableHeader label="Amount" sortKey="amount" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
-                <th className="px-4 py-3 text-right">Withholding</th>
-                <th className="px-4 py-3 text-right">Net Payable</th>
+                <SortableHeader label="Withholding" sortKey="withholdingAmount" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
+                <SortableHeader label="Net Payable" sortKey="netPayable" sortBy={sortBy} sortDir={sortDir} onSort={toggle} align="right" />
                 <SortableHeader label="Date" sortKey="purchasedAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
-                <th className="px-4 py-3">By</th>
+                <SortableHeader label="By" sortKey="createdBy" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               </tr>
             </thead>
             <tbody>
@@ -960,7 +961,7 @@ export default function ProcurementPage() {
         width="md"
       >
         {showNewExpense && (
-          <form onSubmit={saveExpense} className="space-y-4">
+          <form onSubmit={saveExpense} className="space-y-4" noValidate>
             <div>
               <label className={label}>Description *</label>
               <input required value={exp.description}
@@ -977,7 +978,7 @@ export default function ProcurementPage() {
             <div>
               <label className={label}>Supplier</label>
               <Combobox
-                options={suppliers.map((s) => ({ value: String(s.id), label: s.name }))}
+                options={suppliers.filter((s) => s.isActive).map((s) => ({ value: String(s.id), label: s.name }))}
                 value={exp.supplierId}
                 onChange={(v) => setExp({ ...exp, supplierId: v })}
                 placeholder="Search supplier…"
@@ -992,18 +993,15 @@ export default function ProcurementPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={label}>Withholding</label>
-                <select
+                <Select
                   value={exp.whtType}
-                  onChange={(e) => {
-                    const opt = WHT_OPTIONS.find((o) => o.value === e.target.value)!;
+                  onChange={(v) => {
+                    const opt = WHT_OPTIONS.find((o) => o.value === v)!;
                     setExp({ ...exp, whtType: opt.value, whtRate: String(whtRateFor(opt.value, settings)) });
                   }}
-                  className={`mt-1 w-full ${input}`}
-                >
-                  {WHT_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+                  options={WHT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                  className="mt-1"
+                />
               </div>
               {exp.whtType !== 'NONE' && (
                 <div>

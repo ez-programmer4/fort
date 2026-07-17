@@ -281,7 +281,7 @@ export default function SuppliersPage() {
         width="lg"
       >
         {form && (
-          <form onSubmit={save} className="space-y-4">
+          <form onSubmit={save} className="space-y-4" noValidate>
             <div>
               <label className={label}>Name *</label>
               <input required value={form.name}
