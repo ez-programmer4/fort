@@ -6,6 +6,7 @@ import { Combobox, ComboOption } from '@/components/ui/combobox';
 import { Select } from '@/components/ui/select';
 import { DateRangePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/components/ui/toast';
+import { useSettings } from '@/lib/settings';
 
 interface ProductOption {
   id: number;
@@ -48,6 +49,7 @@ interface BinCard {
 
 export default function BinCardPage() {
   const toast = useToast();
+  const settings = useSettings();
   const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
   const [productId, setProductId] = useState('');
   const [locations, setLocations] = useState<LocationOption[]>([]);
@@ -168,7 +170,16 @@ export default function BinCardPage() {
       {card && (
         <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6 print:border-0 print:p-0">
           <div className="border-b border-slate-200 pb-4">
-            <h2 className="text-lg font-bold text-slate-900">Bin Card</h2>
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.jpg" alt="" className="h-10 w-10 shrink-0 object-contain" />
+              <div>
+                <p className="text-sm font-bold tracking-tight text-slate-900">
+                  {settings?.pharmacyName || 'FortInventory'}
+                </p>
+                <h2 className="text-lg font-bold text-slate-900">Bin Card</h2>
+              </div>
+            </div>
             <div className="mt-2 grid grid-cols-2 gap-x-8 gap-y-1 text-sm md:grid-cols-4">
               <p>
                 <span className="text-slate-500">Product:</span>{' '}

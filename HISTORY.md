@@ -5,6 +5,21 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Real Fort Pharma logo on login, PDFs and print
+
+**Phase:** user supplied the actual Fort Pharma PLC logo artwork (dropped as `photo_2026-07-17_20-53-44.jpg` in the repo root) and asked for it to replace the placeholder text/initials branding on the login page, PDF reports and printable documents.
+
+**Done:**
+- Copied the logo to `frontend/public/logo.jpg` (served at `/logo.jpg` for every client-rendered surface) and `backend/src/assets/logo.jpg` (embedded directly into PDFs via `pdfkit`'s `doc.image()`).
+- **Login page**: both the desktop dark-panel mark and the mobile-only mark now show the real logo instead of a "FP" initials square + separate "Fort Pharma PLC" text label (redundant now — the artwork already contains that wordmark). The dark panel wraps it in a small white rounded card since the source JPG has a white background that wouldn't read against navy.
+- **`backend/src/utils/pdf.js`** (shared by the Finance and Sales PDF reports): the header's solid-color initials block is replaced by the real logo image, with the pharmacy name/tagline text shifted right to make room. Kept a fallback to the old initials-block rendering if the logo file is ever missing, so a deployment without the asset doesn't crash.
+- **Print surfaces**: the dispense slip and sales-history report (`sales/page.tsx`) and the bin card (`bincard/page.tsx`) all gained the logo next to the pharmacy name in their printed headers — previously plain text only, no logo existed on any print output.
+- Settings' `logoInitial` field (used as the fallback-only initials block) was left as-is — still functional as a safety net, just no longer the primary branding.
+
+**Verified:** `tsc --noEmit` clean; `node --check` on `pdf.js`. Fetched `/logo.jpg` directly (200, 23.5KB) and confirmed the login/sales/bincard pages still return HTTP 200. Downloaded the live Finance PDF via the API — valid `%PDF-` header, file size grew from the old text-only version to ~26KB, consistent with the image now being embedded. The original source photo was left at the repo root, untouched and uncommitted, since it wasn't asked to be removed.
+
+---
+
 ## 2026-07-17 — Remove the public marketing homepage
 
 **Phase:** user request — the system no longer needs a public marketing site; the root URL should go straight into the app.

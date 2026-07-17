@@ -60,9 +60,11 @@ export default function LoginPage() {
         <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-blue-600/25 blur-3xl" />
         <FloatingPharmaIcons variant="dark" />
 
-        <div className="relative flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-white text-sm font-bold text-slate-900">FP</span>
-          <span className="text-lg font-bold tracking-tight text-white">Fort Pharma PLC</span>
+        <div className="relative flex items-center gap-3">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-white p-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.jpg" alt="Fort Pharma PLC" className="h-full w-full object-contain" />
+          </span>
         </div>
 
         <div className="relative">
@@ -95,8 +97,8 @@ export default function LoginPage() {
       <div className="flex items-center justify-center bg-white p-6">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-2 md:hidden">
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">FP</span>
-            <span className="text-base font-bold tracking-tight text-slate-900">Fort Pharma PLC</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.jpg" alt="Fort Pharma PLC" className="h-10 w-auto object-contain" />
           </div>
 
           <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">

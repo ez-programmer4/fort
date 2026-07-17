@@ -1,8 +1,11 @@
 const PDFDocument = require('pdfkit');
+const path = require('path');
+const fs = require('fs');
 
 const SLATE_900 = '#0f172a';
 const SLATE_500 = '#64748b';
 const SLATE_200 = '#e2e8f0';
+const LOGO_PATH = path.join(__dirname, '../assets/logo.jpg');
 
 function money(v) {
   return Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -23,11 +26,18 @@ function startReport(res, { filename, title, subtitle, filters, branding = {} })
   const tagline = [branding.pharmacyAddress, branding.pharmacyPhone].filter(Boolean).join('  ·  ')
     || 'Pharmacy Inventory Management System';
 
-  // Header: monochrome logo block + title
-  doc.rect(50, 50, 26, 26).fill(SLATE_900);
-  doc.fill('#ffffff').font('Helvetica-Bold').fontSize(14).text(initial, 50, 57, { width: 26, align: 'center' });
-  doc.fill(SLATE_900).font('Helvetica-Bold').fontSize(18).text(name, 86, 50);
-  doc.font('Helvetica').fontSize(9).fillColor(SLATE_500).text(tagline, 86, 71);
+  // Header: logo + title. Falls back to a monochrome initials block if the
+  // logo asset is missing, so a deployment without it doesn't crash.
+  const hasLogo = fs.existsSync(LOGO_PATH);
+  if (hasLogo) {
+    doc.image(LOGO_PATH, 50, 46, { height: 40 });
+  } else {
+    doc.rect(50, 50, 26, 26).fill(SLATE_900);
+    doc.fill('#ffffff').font('Helvetica-Bold').fontSize(14).text(initial, 50, 57, { width: 26, align: 'center' });
+  }
+  const textX = hasLogo ? 98 : 86;
+  doc.fill(SLATE_900).font('Helvetica-Bold').fontSize(18).text(name, textX, 50);
+  doc.font('Helvetica').fontSize(9).fillColor(SLATE_500).text(tagline, textX, 71);
 
   doc.font('Helvetica-Bold').fontSize(14).fillColor(SLATE_900).text(title, 50, 105);
   if (subtitle) doc.font('Helvetica').fontSize(10).fillColor(SLATE_500).text(subtitle, 50, 123);

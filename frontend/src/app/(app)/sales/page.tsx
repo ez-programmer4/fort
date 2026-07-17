@@ -91,11 +91,15 @@ function Slip({ order }: { order: OrderDetail }) {
   return (
     <div id="dispense-slip" className="rounded-lg border border-slate-200 bg-white p-6 print:border-0 print:p-0">
       <div className="flex items-start justify-between border-b border-slate-300 pb-4">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900">
-            {settings?.pharmacyName || 'FortInventory'}
-          </h2>
-          <p className="text-sm text-slate-500">{tagline ? `${tagline} — ` : ''}Dispense Slip</p>
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.jpg" alt="" className="h-12 w-12 shrink-0 object-contain" />
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">
+              {settings?.pharmacyName || 'FortInventory'}
+            </h2>
+            <p className="text-sm text-slate-500">{tagline ? `${tagline} — ` : ''}Dispense Slip</p>
+          </div>
         </div>
         <div className="text-right text-sm">
           <p className="font-mono font-semibold text-slate-900">{order.dspNumber}</p>
@@ -217,11 +221,15 @@ function SalesHistoryReport({
   return (
     <div id="sales-history-report" className="rounded-lg border border-slate-200 bg-white p-6 print:border-0 print:p-0">
       <div className="flex items-start justify-between border-b border-slate-300 pb-4">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900">
-            {settings?.pharmacyName || 'FortInventory'}
-          </h2>
-          <p className="text-sm text-slate-500">{tagline ? `${tagline} — ` : ''}Sales History Report</p>
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.jpg" alt="" className="h-12 w-12 shrink-0 object-contain" />
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">
+              {settings?.pharmacyName || 'FortInventory'}
+            </h2>
+            <p className="text-sm text-slate-500">{tagline ? `${tagline} — ` : ''}Sales History Report</p>
+          </div>
         </div>
         <div className="text-right text-sm">
           <p className="font-medium text-slate-900">
