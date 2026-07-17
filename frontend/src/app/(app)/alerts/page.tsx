@@ -31,6 +31,8 @@ interface Alert {
   unit: string | null;
   severity?: number;
   detail: string;
+  suggestedReorderQty?: number;
+  recentDailyUsage?: number;
   movementType?: string;
   reason?: string | null;
   performedBy?: string;
@@ -544,6 +546,14 @@ export default function AlertsPage() {
                         <span className={`ml-2 text-xs font-medium ${MOVE_META[a.movementType]?.cls || ''}`}>
                           {MOVE_META[a.movementType]?.label}
                         </span>
+                      )}
+                      {a.type === 'LOW_STOCK' && !!a.suggestedReorderQty && (
+                        <p className="mt-1 text-xs font-medium text-blue-700">
+                          Suggested reorder: {a.suggestedReorderQty} {a.unit || 'unit(s)'}
+                          {!!a.recentDailyUsage && (
+                            <span className="font-normal text-slate-400"> · ~{a.recentDailyUsage}/day recent usage</span>
+                          )}
+                        </p>
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-500">

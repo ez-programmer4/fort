@@ -3,6 +3,20 @@ const { ApiError } = require('../../middleware/error');
 const { getSettings } = require('../../utils/settings.service');
 
 const ADJUSTMENT_LOOKBACK_DAYS = 30;
+const USAGE_LOOKBACK_DAYS = 30;
+
+/**
+ * Suggested reorder quantity for a low-stock product at a location: enough
+ * to cover what was actually dispensed there over the last 30 days (real
+ * demand, when there's dispensing history), or a 2×minStock / maxStock
+ * fallback target when there isn't — minus what's already on hand.
+ */
+function suggestReorder(product, currentQty, dispensedRecent) {
+  const demandTarget = dispensedRecent; // 30 days of usage = 30 days of cover
+  const staticTarget = product.maxStock ?? product.minStock * 2;
+  const targetStock = Math.max(demandTarget, staticTarget);
+  return Math.max(0, Math.round(targetStock - currentQty));
+}
 
 // Alerts are computed live from stock + movements, using each product's own
 // thresholds (minStock / maxStock in its dispense unit, expiryAlertDays).
@@ -77,9 +91,22 @@ async function buildAlerts(locationId) {
     if (cur) cur.qty += s.quantity;
     else totals.set(key, { product: s.batch.product, location: s.location, qty: s.quantity });
   }
+
+  // Recent dispensing per product × location, to base reorder suggestions on
+  // actual demand rather than thresholds alone.
+  const usageSince = new Date(now.getTime() - USAGE_LOOKBACK_DAYS * 86400000);
+  const usageAgg = await prisma.stockMovement.groupBy({
+    by: ['productId', 'locationId'],
+    where: { type: 'DISPENSE', createdAt: { gte: usageSince }, ...(locationId ? { locationId } : {}) },
+    _sum: { quantity: true },
+  });
+  const dispensedByKey = new Map(usageAgg.map((u) => [`${u.productId}:${u.locationId}`, u._sum.quantity || 0]));
+
   for (const { product, location, qty } of totals.values()) {
     const unit = product.dispenseUnit || 'unit(s)';
     if (product.minStock != null && qty < product.minStock) {
+      const dispensedRecent = dispensedByKey.get(`${product.id}:${location.id}`) || 0;
+      const suggestedReorderQty = suggestReorder(product, qty, dispensedRecent);
       alerts.push({
         type: 'LOW_STOCK',
         product, location,
@@ -87,6 +114,8 @@ async function buildAlerts(locationId) {
         quantity: qty,
         unit: product.dispenseUnit,
         severity: product.minStock - qty,
+        suggestedReorderQty,
+        recentDailyUsage: Math.round((dispensedRecent / USAGE_LOOKBACK_DAYS) * 10) / 10,
         detail: `${qty} ${unit} on hand — below this product's minimum of ${product.minStock} ${unit}`,
       });
     }
@@ -116,6 +145,7 @@ async function buildAlerts(locationId) {
     for (const location of locations) {
       const key = `${product.id}:${location.id}`;
       if (!totals.has(key) && product.minStock > 0) {
+        const dispensedRecent = dispensedByKey.get(key) || 0;
         alerts.push({
           type: 'LOW_STOCK',
           product, location,
@@ -123,6 +153,8 @@ async function buildAlerts(locationId) {
           quantity: 0,
           unit: product.dispenseUnit,
           severity: product.minStock,
+          suggestedReorderQty: suggestReorder(product, 0, dispensedRecent),
+          recentDailyUsage: Math.round((dispensedRecent / USAGE_LOOKBACK_DAYS) * 10) / 10,
           detail: `Out of stock — this product's minimum is ${product.minStock} ${product.dispenseUnit || 'unit(s)'}`,
         });
       }

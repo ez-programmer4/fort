@@ -5,6 +5,22 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Phase A11: automated restocking recommendations
+
+**Phase:** A11 — second (and, for now, last) backlog item picked, immediately following Phase A10.
+
+**Done:**
+- **`alerts.controller.js`**: added `suggestReorder(product, currentQty, dispensedRecent)`. Target stock = `max(what was actually dispensed at that product+location over the last 30 days, product.maxStock ?? minStock × 2)`; suggested reorder = target minus current stock, floored at 0. The 30-day dispensed figures for every product×location come from a single `stockMovement.groupBy(['productId','locationId'])` call reused across every alert being built in that request — not a query per product. Wired into **both** places `LOW_STOCK` alerts get generated: the normal case (some stock, below minimum) and the zero-stock case (no `Stock` row at all, since a product that's completely out never appears in the stock query that seeds the first loop) — missing the second one would have meant the most urgent products (literally zero on hand) silently got no suggestion while merely-low ones did.
+- **`alerts/page.tsx`**: `LOW_STOCK` rows now show a line under the existing detail text — "Suggested reorder: 1950 Strip · ~10.5/day recent usage" — surfacing both the number and why, not just a bare figure. No new page or nav item; this enriches the alert list that was already there.
+
+**Verified:** `tsc --noEmit` clean. Checked the arithmetic by hand against the two real `LOW_STOCK` alerts already in the dev database from Phase A10's testing — one location with real dispense history (Main Warehouse: 358 on hand, ~10.5/day recent usage → 30-day demand 315, below the 2×minStock fallback of 2000, so target stayed at 2000 → suggested 1642) and one without (Bole Retail Branch: 50 on hand, 0 usage → target 2000 → suggested 1950) — both matched by hand. Confirmed the unfiltered `/api/alerts` endpoint's counts are unchanged for every other alert type, since nothing outside the `LOW_STOCK` branches was touched. All 16 pages HTTP 200.
+
+**Deliberately not built:** a "generate a PO from this suggestion" button linking Alerts to Procurement — the recommendation itself now exists and is visible; wiring it directly into PO creation is a reasonable next step if wanted, kept out of this increment to stay scoped.
+
+**Backlog status:** both items picked from the 2026-07-17 review are now done. Remaining: self-service account management, partial PO receiving (higher priority); forgot-password/email flow, dedicated Customer management page (lower priority) — see `BUILD_PLAN.md`'s Backlog section.
+
+---
+
 ## 2026-07-17 — Phase A10: inter-location stock transfer
 
 **Phase:** A10 — first item off the backlog compiled during a full requirements-vs-code review (2026-07-17). User selected "no inter-location stock transfer" and "no automated restocking recommendations" to implement, step by step, starting with transfer.

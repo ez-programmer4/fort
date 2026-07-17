@@ -432,6 +432,44 @@ decrease-here/increase-there workaround.
 
 ---
 
+## Phase A11 — Automated Restocking Recommendations
+
+Second (and last, for now) backlog item. Turns the existing reactive
+low-stock *alert* into an actual *recommendation* — a suggested reorder
+quantity, grounded in real demand where there's history for it.
+
+- [x] **`alerts.controller.js`**: new `suggestReorder(product, currentQty,
+      dispensedRecent)` — target stock is `max(last-30-days-dispensed,
+      product.maxStock ?? minStock × 2)`, suggested qty is that target
+      minus what's on hand (floored at 0). The 30-day dispensed figure
+      comes from one `stockMovement.groupBy(['productId','locationId'])`
+      query (not N+1 per-product queries), reused for every LOW_STOCK
+      alert in the same request. Every `LOW_STOCK` alert object now
+      carries `suggestedReorderQty` and `recentDailyUsage` — both of the
+      existing code paths that produce `LOW_STOCK` (products with some
+      stock below minimum, and products at zero stock with no `Stock` row
+      at all) were updated, since only enriching one would have made
+      out-of-stock products — the most urgent case — silently miss a
+      recommendation.
+- [x] **Frontend** (`alerts/page.tsx`): under a `LOW_STOCK` alert's detail
+      text, a line reading e.g. "Suggested reorder: 1950 Strip · ~10.5/day
+      recent usage" — shows the number **and** the reasoning behind it,
+      not just a magic figure. No new page, no new nav item — reuses the
+      alert list that was already there.
+- [x] Verified: `tsc --noEmit` clean; live-data check against the two
+      LOW_STOCK alerts already present (one with real dispense history,
+      one without) confirmed the arithmetic by hand for both branches of
+      the `max()`; confirmed the unfiltered `/api/alerts` endpoint's
+      counts are unaffected (`EXPIRED`/`EXPIRING`/`OVER_STOCK`/
+      `ADJUSTMENT` logic wasn't touched); all 16 pages HTTP 200.
+
+**Not built (deliberately, to keep this step scoped):** a "generate a PO
+from this suggestion" shortcut linking Alerts → Procurement. The
+recommendation now exists and is visible; turning it directly into a
+purchase order is a natural next increment if wanted.
+
+---
+
 ## Backlog — Remaining Work
 
 Found via a full pass over every module in `requirnment.md` against the
@@ -457,7 +495,7 @@ is started; this is a list to pick from, not a plan.
    a company importing from multiple countries with staggered shipments.
 
 ~~No inter-location stock transfer~~ — done, see Phase A10.
-~~No automated restocking recommendations~~ — in progress, see Phase A10.
+~~No automated restocking recommendations~~ — done, see Phase A11.
 
 ### Lower priority
 
