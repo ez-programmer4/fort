@@ -11,7 +11,7 @@ import { SkeletonRows, Spinner } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { Select } from '@/components/ui/select';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
-import { Icon } from '@/components/icons';
+import { Tabs } from '@/components/ui/tabs';
 
 interface Option {
   id: number;
@@ -471,17 +471,19 @@ export default function AlertsPage() {
         })}
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center gap-2">
+      <Tabs
+        className="mt-5"
+        value={tab}
+        onChange={(v) => setTab(v as Tab)}
+        tabs={TABS.map((t) => ({
+          key: t.key,
+          label: t.label,
+          count: t.key === 'ALL' ? alerts.length : counts[t.key] || 0,
+        }))}
+      />
+
+      <div className="mt-4">
         <SearchInput onSearch={setQ} placeholder="Search product or batch…" className="w-full sm:w-64" />
-        {tab !== 'ALL' && (
-          <button
-            onClick={() => setTab('ALL')}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-slate-100 py-1.5 pl-3 pr-2 text-xs font-medium text-slate-700 hover:bg-slate-200"
-          >
-            Filtering: {TYPE_META[tab as Alert['type']].label}
-            <Icon name="x" className="h-3.5 w-3.5" />
-          </button>
-        )}
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">

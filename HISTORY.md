@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Alerts gets the same Tabs bar as Sales/Wallet/Procurement/Reports
+
+**Phase:** follow-up correction — the previous change replaced Alerts' redundant pill-tab row with a small "Filtering: X ✕" chip instead of the shared `Tabs` component; user wants the same tab bar the other four pages have.
+
+**Done:**
+- Alerts now renders the shared `Tabs` component (scrollable underline strip, counts baked into each tab) right below the page header, built from the existing `TABS` array with each tab's count (`alerts.length` for "All", `counts[type]` for the rest) — visually and behaviorally identical to the tab bar on Sales/Reports/Procurement/Wallet.
+- Removed the one-off "Filtering: X ✕" chip that stood in for it — the `Tabs` bar itself now shows and controls the active filter.
+- The color-coded stat-card grid above it stays (still clickable, still toggles the same `tab` state) — it's a richer at-a-glance dashboard than a tab label, not a redundant control now that it and the tab bar are just two views onto the same selection rather than the tab bar being a second near-identical copy of the cards.
+- Dropped the now-unused `Icon` import that only the removed chip needed.
+
+**Verified:** `tsc --noEmit` clean. Full 17-page HTTP-200 sweep.
+
+---
+
 ## 2026-07-17 — Tabs: reverted the mobile dropdown, kept them as scrollable tabs
 
 **Phase:** user feedback on the previous change — preferred the actual tab strip over the dropdown-on-mobile swap, but still wanted the mobile overflow problem fixed.
