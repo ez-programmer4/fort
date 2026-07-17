@@ -5,6 +5,22 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Phase A10: inter-location stock transfer
+
+**Phase:** A10 — first item off the backlog compiled during a full requirements-vs-code review (2026-07-17). User selected "no inter-location stock transfer" and "no automated restocking recommendations" to implement, step by step, starting with transfer.
+
+**Done:**
+- **Schema**: new `StockTransfer` + `StockTransferItem` models (migration `stock_transfers`), directly mirroring the existing `GoodsReceipt`/`GRVItem` shape — a transfer has a unique `TRF-00001`-style number, a from/to location pair, an optional note, and one-or-more line items (product, batch, quantity).
+- **`backend/src/modules/inventory/inventory.controller.js`**: new `transfer()` — validates the two locations are different and exist, validates every item, then inside one `prisma.$transaction` creates the `StockTransfer` + its items and, per item, calls the existing `applyMovement()` utility **twice** (`TRANSFER_OUT` at the source, `TRANSFER_IN` at the destination), both remarked with the shared transfer number so the pair reads as one event in the bin card/audit trail. Reused `applyMovement` rather than writing new stock-mutation logic, so the insufficient-stock guard, the Stock upsert, and the movement record all behave identically to every other stock-moving endpoint (GRV, dispense, adjust, dispose) — and a transaction rollback on failure is therefore already correct for free. New `listTransfers()` for history, using the same `parseSort` whitelist pattern as everywhere else. Both reuse the existing `inventory.view`/`inventory.adjust` permissions — no new permission, no role-seed change.
+- **Routes**: `POST /api/inventory/transfer`, `GET /api/inventory/transfers`.
+- **Frontend** (`inventory/page.tsx`): a "Transfer" action next to each row's existing "Adjust" action (hidden unless a second location exists — transferring to nowhere isn't meaningful), opening a Drawer built to match the Adjust drawer's exact look: destination location select, quantity (HTML `max` set to what's on hand at the source), optional notes. `audit/page.tsx`'s `TYPE_LABELS` gained `TRANSFER_IN`/`TRANSFER_OUT` → "Transfer in"/"Transfer out" (the existing IN/OUT-direction badge coloring already handles them correctly with no further change, since it keys off the movement's `direction` field, not its `type`).
+
+**Verified:** `tsc --noEmit` clean. Full API smoke test against the running dev stack (had to restart Docker Desktop, Postgres and the backend — all three had stopped since the prior session): created a second location ("Bole Retail Branch"), transferred 50 units of Paracetamol from Main Warehouse, confirmed the source dropped 396→346 and the destination showed exactly 50, confirmed both `StockMovement` rows exist with the expected `TRF-00001 → …`/`TRF-00001 ← …` remarks, confirmed a same-location transfer is rejected (400) and an over-quantity transfer is rejected (400) **with the source location's stock left completely unchanged**, confirming the transaction rolls back cleanly. All 16 pages (public + internal) return HTTP 200.
+
+**Next:** automated restocking recommendations (same backlog session) — not started yet.
+
+---
+
 ## 2026-07-16 — Phase A9: responsiveness pass across the whole system
 
 **Phase:** A9 — user asked to "dive into ensuring responsiveness of the system." Confirmed scope up front: whole system (public site + internal app), all breakpoints (mobile ~375px, tablet ~768px, desktop 1024px+).

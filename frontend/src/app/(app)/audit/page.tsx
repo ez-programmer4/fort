@@ -38,6 +38,8 @@ const TYPE_LABELS: Record<string, string> = {
   ADJUST_INCREASE: 'Adjustment +',
   ADJUST_DECREASE: 'Adjustment −',
   DISPOSE: 'Disposed',
+  TRANSFER_IN: 'Transfer in',
+  TRANSFER_OUT: 'Transfer out',
 };
 
 export default function AuditPage() {

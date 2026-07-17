@@ -357,8 +357,8 @@ real gap was the internal app, which had no mobile navigation at all.
       (`md:hidden`) to open it; it auto-closes on route change. At `md`+ it
       reverts to exactly its previous sticky, collapsible-to-icon-rail
       behavior — desktop/tablet users see no change. A new `railCollapsed
-      = isDesktop && collapsed` (tracked via a `matchMedia('(min-width:
-      768px)')` listener) replaces the old bare `collapsed` check so the
+    = isDesktop && collapsed` (tracked via a `matchMedia('(min-width:
+    768px)')` listener) replaces the old bare `collapsed` check so the
       icon-only rail treatment can never leak onto the mobile overlay.
 - [x] **Dashboard's 3 unwrapped tables** (Top Moving Products, Recent
       Sales, Top Customers) — found via a repo-wide sweep for `<table>`
@@ -373,7 +373,7 @@ real gap was the internal app, which had no mobile navigation at all.
       screen a trigger sitting anywhere in a filter bar with less than
       288px of space to its right would push the panel off-screen. Now
       clamped: `left` is kept within `[8px, viewportWidth - panelWidth -
-      8px]`. Both date pickers pass `panelWidth={288}`.
+    8px]`. Both date pickers pass `panelWidth={288}`.
 - [x] Repo-wide sweep for other common mobile pitfalls (unqualified
       `grid-cols-3+`, fixed pixel widths, `flex` header rows without
       `flex-wrap`) — none found beyond the two issues above; the app's
@@ -393,6 +393,82 @@ tooltip (`components/ui/charts.tsx`) — it's mouse-hover-only, a pre-existing
 gap from Phase A4, not something introduced or fixed in this pass. No
 browser was available to visually confirm at each breakpoint; this pass was
 verified by code/class review plus the checks above, not screenshots.
+
+---
+
+## Phase A10 — Inter-location Stock Transfer
+
+First item picked off the backlog above. Lets stock move from one location
+to another as a single traceable transaction, instead of a manual
+decrease-here/increase-there workaround.
+
+- [x] **Schema**: `StockTransfer` (transferNumber, fromLocation,
+      toLocation, notes, performedBy) + `StockTransferItem`
+      (product/batch/quantity), mirroring the existing
+      `GoodsReceipt`/`GRVItem` pattern. Migration `stock_transfers`.
+- [x] **`POST /api/inventory/transfer`** — atomic: for each item, calls
+      the existing `applyMovement` twice inside one `$transaction` (a
+      `TRANSFER_OUT` at the source, a `TRANSFER_IN` at the destination,
+      both tagged with the same `TRF-00001`-style number in their
+      `remark`), so a batch's stock and the bin card/audit trail stay
+      consistent using the same primitive every other stock-moving
+      endpoint already uses. Rejects same-location transfers; insufficient
+      stock at the source rolls the whole transaction back (verified — a
+      failed transfer leaves quantities untouched).
+      `GET /api/inventory/transfers` lists transfer history, sortable.
+      Reused the existing `inventory.view`/`inventory.adjust` permissions
+      — no new permission or role-seed changes needed.
+- [x] **Frontend**: a "Transfer" row action next to "Adjust" on the
+      Inventory page (only shown once a second location exists) opens a
+      Drawer — destination location, quantity (capped at what's on hand),
+      optional notes — mirroring the existing Adjust drawer's UX exactly.
+      Audit Trail's type filter/labels gained "Transfer in"/"Transfer
+      out".
+- [x] Verified: `tsc --noEmit` clean; full API smoke test (create a
+      second location, transfer 50 units, confirm both locations' stock,
+      confirm both movement rows with correct remarks, confirm
+      same-location and insufficient-stock are rejected with no partial
+      effect, confirm the list endpoint); all 16 pages HTTP 200.
+
+---
+
+## Backlog — Remaining Work
+
+Found via a full pass over every module in `requirnment.md` against the
+actual backend/frontend code (2026-07-17), not just re-checking the
+adjustment punch lists. The system is otherwise remarkably complete — PDF
+reports, Excel import/export, withholding tax, attachments, and the full
+audit trail are all genuinely wired end-to-end, not stubbed. Nothing below
+is started; this is a list to pick from, not a plan.
+
+### High-value gaps
+
+1. **No self-service account management.** A logged-in user of any role
+   can't change their own password or view/edit their own profile — only
+   an Admin can reset someone else's password, via Users management. No
+   `/profile` page; no backend endpoint for it (`auth.routes.js` only has
+   `login` / `refresh` / `me`).
+2. **No partial PO receiving.** `orders.controller.js`'s `receive()`
+   rejects any purchase order whose status isn't `OPEN`, and a successful
+   receive immediately flips it to `RECEIVED` — permanently. The schema
+   (a PO can have many `GoodsReceipt`s) and the per-line quantity override
+   already look designed for partial receipts, but there's no way to
+   receive a second shipment against the same PO. Realistic friction for
+   a company importing from multiple countries with staggered shipments.
+
+~~No inter-location stock transfer~~ — done, see Phase A10.
+~~No automated restocking recommendations~~ — in progress, see Phase A10.
+
+### Lower priority
+
+3. **No forgot-password / email reset flow.** Known since the login
+   redesign — the system has no email-sending capability at all, so this
+   would mean adding SMTP integration from scratch, not just a form.
+4. **No dedicated Customer management page.** Customers are quick-created
+   inline during dispensing (Phase A4) and are only otherwise visible via
+   "Top Customers" on the dashboard and the customer name on a sales
+   order. No edit/merge/deduplicate UI. Not in the original written spec
+   — an organic addition, so lower priority than items 1–2.
 
 ---
 

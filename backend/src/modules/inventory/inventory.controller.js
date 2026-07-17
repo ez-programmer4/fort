@@ -21,6 +21,13 @@ const MOVEMENT_SORT_FIELDS = {
   performedBy: (dir) => ({ performedBy: { fullName: dir } }),
 };
 
+const TRANSFER_SORT_FIELDS = {
+  transferNumber: 'transferNumber',
+  createdAt: 'createdAt',
+  fromLocation: (dir) => ({ fromLocation: { name: dir } }),
+  toLocation: (dir) => ({ toLocation: { name: dir } }),
+};
+
 function buildWhere(query) {
   const { locationId, q, includeZero } = query;
   const where = {};
@@ -166,6 +173,139 @@ async function dispose(req, res, next) {
   }
 }
 
+// Move one or more batches from one location to another as a single,
+// atomic, traceable transaction — a paired TRANSFER_OUT/TRANSFER_IN
+// movement per item, sharing one transfer number.
+async function transfer(req, res, next) {
+  try {
+    const { fromLocationId, toLocationId, notes, items } = req.body || {};
+    const fromId = Number(fromLocationId);
+    const toId = Number(toLocationId);
+    if (!Number.isInteger(fromId) || !Number.isInteger(toId)) {
+      throw new ApiError(400, 'fromLocationId and toLocationId are required');
+    }
+    if (fromId === toId) throw new ApiError(400, 'Source and destination locations must be different');
+    if (!Array.isArray(items) || items.length === 0) throw new ApiError(400, 'At least one item is required');
+
+    const [fromLocation, toLocation] = await Promise.all([
+      prisma.location.findUnique({ where: { id: fromId } }),
+      prisma.location.findUnique({ where: { id: toId } }),
+    ]);
+    if (!fromLocation) throw new ApiError(404, 'Source location not found');
+    if (!toLocation) throw new ApiError(404, 'Destination location not found');
+
+    const parsed = items.map((it, i) => {
+      const batchId = Number(it.batchId);
+      const quantity = Number(it.quantity);
+      if (!Number.isInteger(batchId) || batchId <= 0) throw new ApiError(400, `Item ${i + 1}: a valid batchId is required`);
+      if (!Number.isInteger(quantity) || quantity <= 0) throw new ApiError(400, `Item ${i + 1}: quantity must be a positive whole number`);
+      return { batchId, quantity };
+    });
+
+    const batches = await prisma.batch.findMany({
+      where: { id: { in: parsed.map((p) => p.batchId) } },
+      select: { id: true, productId: true },
+    });
+    const batchById = new Map(batches.map((b) => [b.id, b]));
+    parsed.forEach((p, i) => {
+      if (!batchById.has(p.batchId)) throw new ApiError(400, `Item ${i + 1}: batch not found`);
+    });
+
+    const transferRecord = await prisma.$transaction(async (tx) => {
+      const last = await tx.stockTransfer.findFirst({ orderBy: { id: 'desc' }, select: { id: true } });
+      const transferNumber = `TRF-${String((last?.id || 0) + 1).padStart(5, '0')}`;
+
+      const created = await tx.stockTransfer.create({
+        data: {
+          transferNumber,
+          fromLocationId: fromId,
+          toLocationId: toId,
+          notes: notes ? String(notes).trim() : null,
+          performedById: req.user.id,
+        },
+      });
+
+      for (const item of parsed) {
+        const batch = batchById.get(item.batchId);
+        await tx.stockTransferItem.create({
+          data: {
+            stockTransferId: created.id,
+            productId: batch.productId,
+            batchId: batch.id,
+            quantity: item.quantity,
+          },
+        });
+
+        await applyMovement(tx, {
+          productId: batch.productId,
+          batchId: batch.id,
+          locationId: fromId,
+          type: 'TRANSFER_OUT',
+          direction: 'OUT',
+          quantity: item.quantity,
+          remark: `${transferNumber} → ${toLocation.name}`,
+          performedById: req.user.id,
+        });
+        await applyMovement(tx, {
+          productId: batch.productId,
+          batchId: batch.id,
+          locationId: toId,
+          type: 'TRANSFER_IN',
+          direction: 'IN',
+          quantity: item.quantity,
+          remark: `${transferNumber} ← ${fromLocation.name}`,
+          performedById: req.user.id,
+        });
+      }
+
+      return created;
+    });
+
+    res.status(201).json({ transfer: transferRecord });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function listTransfers(req, res, next) {
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
+    const where = {};
+    if (req.query.locationId) {
+      const locId = Number(req.query.locationId);
+      where.OR = [{ fromLocationId: locId }, { toLocationId: locId }];
+    }
+    if (req.query.q) where.transferNumber = { contains: String(req.query.q), mode: 'insensitive' };
+
+    const orderBy = req.query.sortBy ? parseSort(req.query, TRANSFER_SORT_FIELDS, 'createdAt') : { id: 'desc' };
+
+    const [total, rows] = await Promise.all([
+      prisma.stockTransfer.count({ where }),
+      prisma.stockTransfer.findMany({
+        where,
+        include: {
+          fromLocation: { select: { name: true } },
+          toLocation: { select: { name: true } },
+          performedBy: { select: { fullName: true } },
+          items: {
+            include: {
+              product: { select: { code: true, genericName: true, dispenseUnit: true } },
+              batch: { select: { batchNo: true } },
+            },
+          },
+        },
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    res.json({ transfers: rows, total, page, pageSize });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function exportInventory(req, res, next) {
   try {
     const where = buildWhere(req.query);
@@ -255,4 +395,4 @@ async function movements(req, res, next) {
   }
 }
 
-module.exports = { list, adjust, dispose, exportInventory, movements };
+module.exports = { list, adjust, dispose, transfer, listTransfers, exportInventory, movements };

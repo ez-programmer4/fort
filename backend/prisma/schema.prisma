@@ -26,6 +26,7 @@ model User {
   expensePurchases ExpensePurchase[]
   dispenseOrders   DispenseOrder[]
   payments         Payment[]
+  stockTransfers   StockTransfer[]
 }
 
 model Role {
@@ -71,6 +72,8 @@ model Location {
   purchaseOrders PurchaseOrder[]
   goodsReceipts  GoodsReceipt[]
   dispenseOrders DispenseOrder[]
+  transfersOut   StockTransfer[] @relation("TransferFrom")
+  transfersIn    StockTransfer[] @relation("TransferTo")
 }
 
 model Supplier {
@@ -133,6 +136,7 @@ model Product {
   poItems          PurchaseOrderItem[]
   grvItems         GRVItem[]
   dispenseItems    DispenseItem[]
+  transferItems    StockTransferItem[]
 }
 
 model Batch {
@@ -149,6 +153,7 @@ model Batch {
   stocks        Stock[]
   grvItems      GRVItem[]
   dispenseItems DispenseItem[]
+  transferItems StockTransferItem[]
 
   @@unique([productId, batchNo])
 }
@@ -348,4 +353,31 @@ model StockMovement {
   createdAt     DateTime @default(now())
 
   @@index([productId, locationId, createdAt])
+}
+
+// ── Phase A10: inter-location stock transfers ────────────────
+
+model StockTransfer {
+  id             Int                 @id @default(autoincrement())
+  transferNumber String              @unique
+  fromLocationId Int
+  fromLocation   Location            @relation("TransferFrom", fields: [fromLocationId], references: [id])
+  toLocationId   Int
+  toLocation     Location            @relation("TransferTo", fields: [toLocationId], references: [id])
+  notes          String?
+  performedById  Int
+  performedBy    User                @relation(fields: [performedById], references: [id])
+  createdAt      DateTime            @default(now())
+  items          StockTransferItem[]
+}
+
+model StockTransferItem {
+  id              Int           @id @default(autoincrement())
+  stockTransferId Int
+  stockTransfer   StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
+  productId       Int
+  product         Product       @relation(fields: [productId], references: [id])
+  batchId         Int
+  batch           Batch         @relation(fields: [batchId], references: [id])
+  quantity        Int
 }

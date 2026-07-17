@@ -40,6 +40,13 @@ interface AdjustState {
   reason: string;
 }
 
+interface TransferState {
+  row: InventoryRow;
+  toLocationId: string;
+  quantity: string;
+  notes: string;
+}
+
 function expiryBadge(expiry: string | null) {
   if (!expiry) return null;
   const days = Math.floor((new Date(expiry).getTime() - Date.now()) / 86400000);
@@ -61,8 +68,10 @@ export default function InventoryPage() {
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [locationId, setLocationId] = useState('');
   const [adjust, setAdjust] = useState<AdjustState | null>(null);
+  const [transfer, setTransfer] = useState<TransferState | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [transferring, setTransferring] = useState(false);
   const { sortBy, sortDir, toggle } = useSort('code');
 
   const load = useCallback(async (search: string, loc: string, pageNum: number, size: number, sBy: string, sDir: string) => {
@@ -113,6 +122,34 @@ export default function InventoryPage() {
       toast.error(err instanceof Error ? err.message : 'Adjustment failed');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function submitTransfer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!transfer) return;
+    setTransferring(true);
+    try {
+      const result = await api<{ transfer: { transferNumber: string } }>('/api/inventory/transfer', {
+        method: 'POST',
+        body: JSON.stringify({
+          fromLocationId: transfer.row.location.id,
+          toLocationId: Number(transfer.toLocationId),
+          notes: transfer.notes || undefined,
+          items: [{ batchId: transfer.row.batchId, quantity: Number(transfer.quantity) }],
+        }),
+      });
+      toast.success(
+        `${result.transfer.transferNumber} — moved ${transfer.quantity} ${transfer.row.dispenseUnit || ''} of ${transfer.row.genericName} to ${
+          locations.find((l) => String(l.id) === transfer.toLocationId)?.name || 'the destination'
+        }.`,
+      );
+      setTransfer(null);
+      await load(q, locationId, page, pageSize, sortBy, sortDir);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Transfer failed');
+    } finally {
+      setTransferring(false);
     }
   }
 
@@ -225,14 +262,26 @@ export default function InventoryPage() {
                   <td className="px-4 py-3 text-slate-600">{row.location.name}</td>
                   {hasPermission('inventory.adjust') && (
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() =>
-                          setAdjust({ row, type: 'INCREASE', quantity: '', reason: '' })
-                        }
-                        className="text-xs font-medium text-slate-900 underline underline-offset-2"
-                      >
-                        Adjust
-                      </button>
+                      <div className="flex justify-end gap-3">
+                        {locations.length > 1 && (
+                          <button
+                            onClick={() =>
+                              setTransfer({ row, toLocationId: '', quantity: '', notes: '' })
+                            }
+                            className="text-xs font-medium text-slate-900 underline underline-offset-2"
+                          >
+                            Transfer
+                          </button>
+                        )}
+                        <button
+                          onClick={() =>
+                            setAdjust({ row, type: 'INCREASE', quantity: '', reason: '' })
+                          }
+                          className="text-xs font-medium text-slate-900 underline underline-offset-2"
+                        >
+                          Adjust
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -318,6 +367,82 @@ export default function InventoryPage() {
               <button
                 type="button"
                 onClick={() => setAdjust(null)}
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </Drawer>
+
+      <Drawer
+        open={transfer !== null}
+        onClose={() => setTransfer(null)}
+        title="Transfer Stock"
+        subtitle={
+          transfer
+            ? `${transfer.row.genericName} · batch ${transfer.row.batchNo} · from ${transfer.row.location.name}`
+            : undefined
+        }
+        width="md"
+      >
+        {transfer && (
+          <form onSubmit={submitTransfer} className="space-y-4">
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              Available at {transfer.row.location.name}:{' '}
+              <span className="font-semibold tabular-nums text-slate-900">{transfer.row.quantity}</span>
+              {transfer.row.dispenseUnit ? ` ${transfer.row.dispenseUnit}` : ''}
+            </div>
+            <div>
+              <label className={label}>To location *</label>
+              <select
+                required
+                value={transfer.toLocationId}
+                onChange={(e) => setTransfer({ ...transfer, toLocationId: e.target.value })}
+                className={`mt-1 w-full ${input}`}
+              >
+                <option value="" disabled>Select a location…</option>
+                {locations
+                  .filter((l) => l.id !== transfer.row.location.id)
+                  .map((l) => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
+              </select>
+            </div>
+            <div>
+              <label className={label}>Quantity *</label>
+              <input
+                required
+                type="number"
+                min="1"
+                max={transfer.row.quantity}
+                step="1"
+                value={transfer.quantity}
+                onChange={(e) => setTransfer({ ...transfer, quantity: e.target.value })}
+                className={`mt-1 w-full ${input}`}
+              />
+            </div>
+            <div>
+              <label className={label}>Notes</label>
+              <input
+                value={transfer.notes}
+                onChange={(e) => setTransfer({ ...transfer, notes: e.target.value })}
+                placeholder="Optional — e.g. reason for the transfer"
+                className={`mt-1 w-full ${input}`}
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                disabled={transferring}
+                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+              >
+                {transferring ? 'Transferring…' : 'Transfer stock'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTransfer(null)}
                 className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
               >
                 Cancel
