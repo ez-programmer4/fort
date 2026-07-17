@@ -12,6 +12,7 @@ import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 import { Select } from '@/components/ui/select';
+import { Tabs } from '@/components/ui/tabs';
 
 const input =
   'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -216,19 +217,15 @@ export default function WalletPage() {
         ))}
       </div>
 
-      <div className="mt-6 flex gap-1 border-b border-slate-200">
-        {(['credits', 'payments'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => switchTab(t)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
-              tab === t ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            {t === 'credits' ? 'Outstanding Credits' : 'Payment History'}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        className="mt-6"
+        value={tab}
+        onChange={(v) => switchTab(v as 'credits' | 'payments')}
+        tabs={[
+          { key: 'credits', label: 'Outstanding Credits' },
+          { key: 'payments', label: 'Payment History' },
+        ]}
+      />
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <SearchInput

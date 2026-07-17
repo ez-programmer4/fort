@@ -14,6 +14,7 @@ import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 import { Icon } from '@/components/icons';
+import { Tabs } from '@/components/ui/tabs';
 
 const input =
   'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
@@ -1043,19 +1044,22 @@ export default function SalesPage() {
         )}
       </div>
 
-      <div className="mt-5 flex gap-1 border-b border-slate-200 print:hidden">
-        {(['dispense', 'history'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => { setTab(t); setSlipOrder(null); setPrintReport(false); setQ(''); setPage(1); }}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
-              tab === t ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            {t === 'dispense' ? 'New Dispense' : 'Sales History'}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        className="mt-5 print:hidden"
+        value={tab}
+        onChange={(v) => {
+          const t = v as 'dispense' | 'history';
+          setTab(t);
+          setSlipOrder(null);
+          setPrintReport(false);
+          setQ('');
+          setPage(1);
+        }}
+        tabs={[
+          { key: 'dispense', label: 'New Dispense' },
+          { key: 'history', label: 'Sales History' },
+        ]}
+      />
 
       {slipOrder && (
         <div className="mt-4">

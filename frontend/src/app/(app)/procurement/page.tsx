@@ -8,6 +8,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
 import { Combobox, ComboOption } from '@/components/ui/combobox';
 import { Select } from '@/components/ui/select';
+import { Tabs } from '@/components/ui/tabs';
 import { DatePicker } from '@/components/ui/date-picker';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -658,21 +659,12 @@ export default function ProcurementPage() {
         )}
       </div>
 
-      <div className="mt-5 flex gap-1 border-b border-slate-200">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => switchTab(t.key)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
-              tab === t.key
-                ? 'border-slate-900 text-slate-900'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        className="mt-5"
+        value={tab}
+        onChange={(v) => switchTab(v as Tab)}
+        tabs={tabs}
+      />
 
       <div className="mt-4">
         <SearchInput

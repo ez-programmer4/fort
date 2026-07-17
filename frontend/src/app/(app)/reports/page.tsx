@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { Select } from '@/components/ui/select';
+import { Tabs } from '@/components/ui/tabs';
 
 const label = 'block text-xs font-medium text-slate-600';
 const btnPrimary =
@@ -102,19 +103,15 @@ export default function ReportsPage() {
         <button onClick={downloadPdf} className={btnPrimary}>Download PDF</button>
       </div>
 
-      <div className="mt-5 flex gap-1 border-b border-slate-200">
-        {(['finance', 'sales'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
-              tab === t ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            {t === 'finance' ? 'Finance Report' : 'Sales Report'}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        className="mt-5"
+        value={tab}
+        onChange={(v) => setTab(v as 'finance' | 'sales')}
+        tabs={[
+          { key: 'finance', label: 'Finance Report' },
+          { key: 'sales', label: 'Sales Report' },
+        ]}
+      />
 
       <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4">
         <div>

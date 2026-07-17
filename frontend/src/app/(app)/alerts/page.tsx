@@ -11,6 +11,7 @@ import { SkeletonRows, Spinner } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { Select } from '@/components/ui/select';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
+import { Icon } from '@/components/icons';
 
 interface Option {
   id: number;
@@ -345,8 +346,6 @@ export default function AlertsPage() {
     return rows;
   }, [alerts, tab, q]);
 
-  const totalAll = alerts.length;
-
   // Empty sortBy keeps the server's urgency-first ordering; clicking a column
   // overrides it with a plain client-side sort (JS sort is spec-stable).
   const { sortBy, sortDir, toggle } = useSort('');
@@ -426,7 +425,7 @@ export default function AlertsPage() {
             Expiry, stock-level and adjustment alerts — thresholds are set per product, in its own unit.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => load(locationId, true)}
             disabled={refreshing}
@@ -444,7 +443,7 @@ export default function AlertsPage() {
             onChange={setLocationId}
             placeholder="All locations"
             options={[{ value: '', label: 'All locations' }, ...locations.map((l) => ({ value: String(l.id), label: l.name }))]}
-            className="w-48"
+            className="w-40 sm:w-48"
           />
         </div>
       </div>
@@ -472,35 +471,17 @@ export default function AlertsPage() {
         })}
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200">
-        <div className="flex flex-wrap gap-1">
-          {TABS.map((t) => {
-            const count = t.key === 'ALL' ? totalAll : counts[t.key] || 0;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium ${
-                  tab === t.key
-                    ? 'border-slate-900 text-slate-900'
-                    : 'border-transparent text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                {t.label}
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
-                    tab === t.key ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="pb-2">
-          <SearchInput onSearch={setQ} placeholder="Search product or batch…" className="w-64" />
-        </div>
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <SearchInput onSearch={setQ} placeholder="Search product or batch…" className="w-full sm:w-64" />
+        {tab !== 'ALL' && (
+          <button
+            onClick={() => setTab('ALL')}
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-slate-100 py-1.5 pl-3 pr-2 text-xs font-medium text-slate-700 hover:bg-slate-200"
+          >
+            Filtering: {TYPE_META[tab as Alert['type']].label}
+            <Icon name="x" className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">

@@ -5,6 +5,19 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Mobile-friendly tabs everywhere, and Alerts' duplicate filter removed
+
+**Phase:** user flagged that pages with tabs are hard to use on mobile, calling out Alerts specifically.
+
+**Done:**
+- New `components/ui/tabs.tsx` — a `Tabs` component that renders as a dropdown (reusing the house `Select`) below `sm`, and the familiar underline tab strip at `sm` and up. The old pattern (`flex gap-1 border-b` with no wrap or scroll handling) had no defense against overflow: 3 tabs with real labels ("Purchase Orders", "GRV History", "Other Purchases") or 2 tabs with longer text ("Outstanding Credits", "Payment History") would either get clipped or force the whole page to scroll sideways on a phone, since the app shell's `<main>` allows horizontal overflow. A dropdown can't overflow regardless of tab count or label length.
+- Applied it to the four pages that had this exact pattern: **Sales** (New Dispense / Sales History), **Reports** (Finance / Sales), **Procurement** (Purchase Orders / GRV History / Other Purchases), **Wallet** (Outstanding Credits / Payment History). Same active state, same click handlers — only the markup changed.
+- **Alerts was a different problem, not just a cramped tab strip**: it had *two* controls doing the same job — the colored stat-card grid (Expired/Expiring/Low Stock/Over Stock/Adjustments, already a perfectly good responsive filter, click a card to filter, click again to clear) sitting directly above a second row of pill tabs with the same five options plus "All", wrapping into a ragged multi-line block on narrow screens. Removed the redundant pill row entirely — the stat cards are the sole filter now (they already toggled to "ALL" on a second click). In its place, next to the search box, a small dismissible "Filtering: Low Stock ✕" chip appears only when a filter is active, so the reset action stays discoverable without permanently occupying space. Also let the Refresh-button-and-location-select row wrap (`flex-wrap`) and narrowed the location `Select` on mobile (`w-40 sm:w-48`), since that row alone was tight enough to overflow on the smallest phones (iPhone SE class, ~320px).
+
+**Verified:** `tsc --noEmit` clean. Full 17-page HTTP-200 sweep. Confirmed no page still uses the old unbounded `flex gap-1 border-b` tab pattern (only `tabs.tsx` itself and the still-legitimate stat-card grids remain).
+
+---
+
 ## 2026-07-17 — New Dispense split into a 2-step flow (choose items → dispense)
 
 **Phase:** follow-up to the sales page UX pass — user pointed out that having the full Dispense Summary auto-appear stacked below the product picker was awkward on every device, not just mobile, and asked for a "choose items" step before the "dispense" step.
