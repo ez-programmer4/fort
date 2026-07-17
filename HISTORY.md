@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Remove the public marketing homepage
+
+**Phase:** user request — the system no longer needs a public marketing site; the root URL should go straight into the app.
+
+**Done:**
+- Deleted `components/marketing/homepage.tsx` and its two exclusive dependencies (`globe-map.tsx`, `hooks.ts` — both were only ever imported by the homepage). Kept `decorative.tsx` (`FloatingPharmaIcons`), since the login page's background animation still uses it.
+- `app/page.tsx` no longer renders `Homepage` for signed-out visitors — it's now a pure redirect: signed-in → `/dashboard`, signed-out → `/login`. No more branching on whether to show marketing content.
+- `login/page.tsx`: removed the now-meaningless "Back to homepage" link and the two brand-logo `<Link href="/">` wrappers (linking to a page that itself immediately redirects back to `/login` was a dead loop-in-disguise) — the logo is now static, non-interactive brand identity.
+- Root `layout.tsx` metadata (page `<title>`/description) changed from the marketing-flavored "Global Pharmaceutical Imports" copy to a plain internal-system description, since there's no longer a public-facing page for that copy to serve.
+
+**Verified:** `tsc --noEmit` clean. Confirmed `GET /` no longer returns homepage markup and instead serves the redirect-loading shell that immediately client-navigates to `/login`. Full 17-page HTTP-200 sweep.
+
+---
+
 ## 2026-07-17 — Phase A12: manual-testing bugfix pass
 
 **Phase:** A12 — user ran a full manual pass over the internal system against `TESTING_GUIDE.md` and reported eight concrete problems in one message. All eight addressed in this pass.

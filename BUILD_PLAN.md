@@ -499,6 +499,16 @@ system, all fixed in one pass. Full detail in `HISTORY.md`; summary here:
 
 ---
 
+## Public Homepage — Removed
+
+The public marketing homepage built in Phase A7 (`components/marketing/homepage.tsx`,
+`globe-map.tsx`, `hooks.ts`) was removed at the user's request — the system no longer
+needs a public-facing marketing site. `/` now redirects straight to `/dashboard` (signed
+in) or `/login` (signed out). `decorative.tsx` (`FloatingPharmaIcons`) was kept since the
+login page's background still uses it. Full detail in `HISTORY.md`.
+
+---
+
 ## Backlog — Remaining Work
 
 Found via a full pass over every module in `requirnment.md` against the

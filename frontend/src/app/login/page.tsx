@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { Icon, type IconName } from '@/components/icons';
 import { LoadingScreen, Spinner } from '@/components/ui/loading';
@@ -61,10 +60,10 @@ export default function LoginPage() {
         <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-blue-600/25 blur-3xl" />
         <FloatingPharmaIcons variant="dark" />
 
-        <Link href="/" className="relative flex items-center gap-2">
+        <div className="relative flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-md bg-white text-sm font-bold text-slate-900">FP</span>
           <span className="text-lg font-bold tracking-tight text-white">Fort Pharma PLC</span>
-        </Link>
+        </div>
 
         <div className="relative">
           <h2 className="max-w-md text-3xl font-bold leading-tight tracking-tight text-white">
@@ -95,20 +94,12 @@ export default function LoginPage() {
       {/* Form panel */}
       <div className="flex items-center justify-center bg-white p-6">
         <div className="w-full max-w-sm">
-          <Link href="/" className="mb-8 flex items-center gap-2 md:hidden">
+          <div className="mb-8 flex items-center gap-2 md:hidden">
             <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">FP</span>
             <span className="text-base font-bold tracking-tight text-slate-900">Fort Pharma PLC</span>
-          </Link>
+          </div>
 
-          <Link
-            href="/"
-            className="hidden items-center gap-1 text-xs font-medium text-slate-400 transition-colors hover:text-slate-600 md:inline-flex"
-          >
-            <Icon name="arrowRight" className="h-3.5 w-3.5 rotate-180" />
-            Back to homepage
-          </Link>
-
-          <span className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500 md:mt-4">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
             FortInventory Portal
           </span>
           <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Welcome back</h1>
