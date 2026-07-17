@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Tabs: reverted the mobile dropdown, kept them as scrollable tabs
+
+**Phase:** user feedback on the previous change — preferred the actual tab strip over the dropdown-on-mobile swap, but still wanted the mobile overflow problem fixed.
+
+**Done:**
+- Reworked `components/ui/tabs.tsx` in place (no changes needed to the four pages using it — Sales, Reports, Procurement, Wallet — since they consume the same `<Tabs>` API). Every breakpoint now renders the same underline button strip; below `sm` it no longer swaps to a `Select` dropdown. Instead the strip is horizontally scrollable with CSS scroll-snap (`snap-x snap-proximity` on the container, `snap-start` on each button) and a hidden scrollbar (`scrollbar-none`, a Tailwind v4 core utility), so tabs that don't fit the viewport slide into view with a touch-swipe instead of wrapping, clipping, or dragging the whole page sideways.
+- Added one behavior that wasn't there before on desktop either: the active tab now scrolls itself into view (`scrollIntoView` on change), so switching to a tab near the scrolled-off edge doesn't leave it half-hidden.
+- Tap targets grew slightly on mobile (`py-2.5`, back to `py-2` at `sm:`) since a swipeable strip needs more forgiving touch targets than a mouse-hover strip.
+- Alerts' change from the same session (removing the redundant pill-tab row that duplicated the stat-card filters) was **not** part of this revert — that wasn't a dropdown conversion, it was deleting a genuinely duplicate control, and stays removed.
+
+**Verified:** `tsc --noEmit` clean. Full 17-page HTTP-200 sweep.
+
+---
+
 ## 2026-07-17 — Mobile-friendly tabs everywhere, and Alerts' duplicate filter removed
 
 **Phase:** user flagged that pages with tabs are hard to use on mobile, calling out Alerts specifically.
