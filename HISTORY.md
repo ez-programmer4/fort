@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — New Dispense split into a 2-step flow (choose items → dispense)
+
+**Phase:** follow-up to the sales page UX pass — user pointed out that having the full Dispense Summary auto-appear stacked below the product picker was awkward on every device, not just mobile, and asked for a "choose items" step before the "dispense" step.
+
+**Done:**
+- `NewDispense` gained `step: 'items' | 'dispense'` state and a small step indicator at the top (1. Choose items → 2. Dispense) — this now governs the whole flow on **every** breakpoint, not just mobile.
+- **Step 1 — Choose items**: location + stock search + add-to-cart (unchanged content, same mobile-card/desktop-table split from the previous pass), plus a new "Selected items" list underneath once the cart has anything in it — name, batch, quantity, a remove (×) button. No price/quantity editing here; that's deliberately deferred to step 2, so step 1 stays a pure "what am I selling" pick-list. A "Continue to Dispense (N)" button appears once the cart isn't empty — inline on tablet/desktop, and as a sticky bottom bar with a running subtotal on mobile (`sm:hidden`, matching the pattern from the previous pass).
+- **Step 2 — Dispense**: exactly the previous Dispense Summary (mobile cards with the quantity stepper / desktop table, the customer/payment/withholding/notes grid, the totals card, Confirm/Clear) — now gated behind `step === 'dispense'`, with a "← Back to items" link at the top that returns to step 1 without losing the cart. The sticky mobile Confirm bar now only renders in this step (previously it was keyed off `cart.length` alone, which would have doubled up with the new step-1 sticky bar).
+- Nothing about the underlying state, validation (`confirm()`), or the `/api/sales` payload changed — this was purely a JSX/flow restructuring of the same component.
+
+**Verified:** `tsc --noEmit` clean. Full page sweep still HTTP 200. Confirmed the two sticky mobile bars are mutually exclusive (gated on `step`, not just `cart.length`), so only one ever shows at a time.
+
+---
+
 ## 2026-07-17 — Sales page UI/UX pass, especially mobile
 
 **Phase:** user asked for more UI/UX polish on the Sales & Dispensing page, specifically the stock-search/"adding" flow and the Dispense Summary, especially on mobile.
