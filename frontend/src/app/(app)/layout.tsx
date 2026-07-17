@@ -33,6 +33,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem(COLLAPSE_KEY);
@@ -45,8 +47,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    setIsDesktop(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
     if (!loading && !user) router.replace('/login');
   }, [loading, user, router]);
+
+  // The sidebar closes itself on route change so navigating on mobile doesn't
+  // leave the overlay open over the new page.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   function toggleSidebar() {
     setCollapsed((prev) => {
@@ -60,23 +76,41 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const current = NAV.find((n) => pathname.startsWith(n.href));
+  // On mobile the sidebar is a full-width overlay, so the icon-only
+  // "collapsed" treatment only ever applies once we're at the md breakpoint.
+  const railCollapsed = isDesktop && collapsed;
 
   return (
     <div className="flex min-h-screen bg-slate-50">
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+          className="fixed inset-0 z-30 bg-slate-900/40 md:hidden"
+        />
+      )}
+
       <aside
-        className={`sticky top-0 z-30 flex h-screen shrink-0 flex-col border-r border-slate-200 bg-white transition-all duration-200 print:hidden ${
-          collapsed ? 'w-16' : 'w-64'
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 print:hidden md:sticky md:top-0 md:translate-x-0 md:transition-[width] ${
+          railCollapsed ? 'md:w-16' : 'md:w-64'
+        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className={`flex h-14 shrink-0 items-center border-b border-slate-200 ${collapsed ? 'justify-center' : 'px-5'}`}>
+        <div className={`flex h-14 shrink-0 items-center border-b border-slate-200 px-5 ${railCollapsed ? 'justify-center px-0' : ''}`}>
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-900 text-sm font-bold text-white">
             F
           </span>
-          {!collapsed && (
+          {!railCollapsed && (
             <span className="ml-2.5 truncate text-base font-bold tracking-tight text-slate-900">
               Fort<span className="font-normal text-slate-500">Inventory</span>
             </span>
           )}
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+            className="ml-auto rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 md:hidden"
+          >
+            <Icon name="x" className="h-5 w-5" />
+          </button>
         </div>
 
         <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
@@ -86,17 +120,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                title={collapsed ? item.label : undefined}
+                title={railCollapsed ? item.label : undefined}
                 className={`group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-1 ${
                   active
                     ? 'bg-slate-900 font-medium text-white'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                } ${collapsed ? 'justify-center px-0' : ''}`}
+                } ${railCollapsed ? 'justify-center px-0' : ''}`}
               >
                 <Icon name={item.icon} className="h-5 w-5 shrink-0" />
-                {!collapsed && <span className="truncate">{item.label}</span>}
-                {collapsed && (
-                  <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-40">
+                {!railCollapsed && <span className="truncate">{item.label}</span>}
+                {railCollapsed && (
+                  <span className="pointer-events-none absolute left-full z-40 ml-2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
                     {item.label}
                   </span>
                 )}
@@ -105,18 +139,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className={`shrink-0 border-t border-slate-200 ${collapsed ? 'p-2' : 'p-3'}`}>
-          <div className={`flex items-center gap-2.5 rounded-md px-1 py-1.5 ${collapsed ? 'justify-center' : ''}`}>
+        <div className={`shrink-0 border-t border-slate-200 p-3 ${railCollapsed ? 'p-2' : ''}`}>
+          <div className={`flex items-center gap-2.5 rounded-md px-1 py-1.5 ${railCollapsed ? 'justify-center' : ''}`}>
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
               {user.fullName.slice(0, 2).toUpperCase()}
             </span>
-            {!collapsed && (
+            {!railCollapsed && (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium leading-tight text-slate-900">{user.fullName}</p>
                 <p className="truncate text-xs leading-tight text-slate-500">{user.role}</p>
               </div>
             )}
-            {!collapsed && (
+            {!railCollapsed && (
               <button
                 onClick={logout}
                 title="Sign out"
@@ -126,33 +160,40 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </button>
             )}
           </div>
-          {collapsed && (
+          {railCollapsed && (
             <button
               onClick={logout}
               title="Sign out"
-              className="mt-1 flex w-full items-center justify-center rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+              className="mt-1 hidden w-full items-center justify-center rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 md:flex"
             >
               <Icon name="logout" className="h-4 w-4" />
             </button>
           )}
           <button
             onClick={toggleSidebar}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={`mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${
-              collapsed ? 'justify-center' : ''
+            title={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className={`mt-1 hidden w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 md:flex ${
+              railCollapsed ? 'justify-center' : ''
             }`}
           >
-            <Icon name="chevronsLeft" className={`h-4 w-4 shrink-0 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
-            {!collapsed && <span>Collapse</span>}
+            <Icon name="chevronsLeft" className={`h-4 w-4 shrink-0 transition-transform ${railCollapsed ? 'rotate-180' : ''}`} />
+            {!railCollapsed && <span>Collapse</span>}
           </button>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 print:hidden">
-          <span className="text-sm font-medium text-slate-900">{current?.label ?? ''}</span>
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 sm:px-6 print:hidden">
+          <button
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open menu"
+            className="-ml-1 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 md:hidden"
+          >
+            <Icon name="menu" className="h-5 w-5" />
+          </button>
+          <span className="truncate text-sm font-medium text-slate-900">{current?.label ?? ''}</span>
         </header>
-        <main className="flex-1 overflow-x-auto p-6">{children}</main>
+        <main className="flex-1 overflow-x-auto p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

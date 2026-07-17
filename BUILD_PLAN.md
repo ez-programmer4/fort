@@ -341,6 +341,61 @@ the company's real figures before this goes live.
 
 ---
 
+## Phase A9 — Responsiveness Pass (whole system)
+
+Full audit + fixes across the public site and the internal app, targeting
+mobile (~375px), tablet (~768px) and desktop (1024px+). The public homepage
+and login page were already built responsively (Phases A7/A8); this phase's
+real gap was the internal app, which had no mobile navigation at all.
+
+- [x] **`(app)/layout.tsx` — mobile off-canvas sidebar.** Previously the
+      256px/64px sidebar was always on-screen with zero mobile handling,
+      leaving almost no room for content on a phone. Now: below `md` the
+      sidebar is a `fixed` full-width (`w-64`) overlay that slides in via
+      `-translate-x-full` → `translate-x-0`, with a `bg-slate-900/40`
+      backdrop (click to close) and a header hamburger button
+      (`md:hidden`) to open it; it auto-closes on route change. At `md`+ it
+      reverts to exactly its previous sticky, collapsible-to-icon-rail
+      behavior — desktop/tablet users see no change. A new `railCollapsed
+      = isDesktop && collapsed` (tracked via a `matchMedia('(min-width:
+      768px)')` listener) replaces the old bare `collapsed` check so the
+      icon-only rail treatment can never leak onto the mobile overlay.
+- [x] **Dashboard's 3 unwrapped tables** (Top Moving Products, Recent
+      Sales, Top Customers) — found via a repo-wide sweep for `<table>`
+      without an `overflow-x-auto` ancestor; every other page's tables
+      already had it from the Phase A5 sweep, dashboard's three were
+      missed. Fixed the same way.
+- [x] **`components/ui/popover.tsx`** `usePopoverPosition` gained an
+      optional `panelWidth` param: Combobox's dropdown already matches its
+      trigger's own width so it can never overflow the viewport, but
+      `DatePicker`/`DateRangePicker`'s calendar panel is a fixed 288px
+      (`w-72`) regardless of trigger width or position — on a narrow
+      screen a trigger sitting anywhere in a filter bar with less than
+      288px of space to its right would push the panel off-screen. Now
+      clamped: `left` is kept within `[8px, viewportWidth - panelWidth -
+      8px]`. Both date pickers pass `panelWidth={288}`.
+- [x] Repo-wide sweep for other common mobile pitfalls (unqualified
+      `grid-cols-3+`, fixed pixel widths, `flex` header rows without
+      `flex-wrap`) — none found beyond the two issues above; the app's
+      existing table/filter-bar/grid conventions were already responsive
+      from earlier phases.
+- [x] Verified: `tsc --noEmit` clean; all 16 pages (public + internal)
+      return HTTP 200 against a freshly restarted dev server (the
+      previous one had stopped since the last phase). Confirmed via the
+      established SSR-bypass technique for the public pages; internal app
+      pages are gated behind client-side JWT auth (localStorage, not
+      cookies) so their SSR output is always the loading shell regardless
+      of the request — HTTP-200 status is the correct and sufficient
+      check for those, consistent with every prior phase's verification.
+
+**Not covered:** did not add touch/tap support to `TrendChart`'s hover
+tooltip (`components/ui/charts.tsx`) — it's mouse-hover-only, a pre-existing
+gap from Phase A4, not something introduced or fixed in this pass. No
+browser was available to visually confirm at each breakpoint; this pass was
+verified by code/class review plus the checks above, not screenshots.
+
+---
+
 ## Build Order Rationale
 
 Auth first because every other module needs users/permissions. Locations,

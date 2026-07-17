@@ -5,6 +5,22 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-16 — Phase A9: responsiveness pass across the whole system
+
+**Phase:** A9 — user asked to "dive into ensuring responsiveness of the system." Confirmed scope up front: whole system (public site + internal app), all breakpoints (mobile ~375px, tablet ~768px, desktop 1024px+).
+
+**Done:**
+- **The internal app had no mobile navigation at all** — this was the real finding. `(app)/layout.tsx`'s sidebar was a fixed 256px (or 64px collapsed) column, always on-screen, with no hamburger/overlay/off-canvas behavior. On a 375px phone the collapsed rail alone would eat 17% of the viewport width with no way to hide it. Rebuilt it as a proper responsive sidebar: below `md` it's a `fixed` full-width overlay that slides in/out (`-translate-x-full` ↔ `translate-x-0`) with a dimming backdrop (click to close, matching the Drawer component's existing backdrop convention) and a hamburger button in the header; it closes itself on route change. At `md`+ it's pixel-identical to the old behavior — sticky, collapsible to an icon rail, nothing changed for desktop/tablet users. Had to introduce a `railCollapsed = isDesktop && collapsed` (tracked via a live `matchMedia('(min-width: 768px)')` listener, not just a one-time check) so the icon-only rail treatment — which only makes sense as a *persistent* sidebar's space-saving mode — can never apply to the mobile overlay, which should always show full labels since it's temporary and not competing for screen space.
+- **Dashboard had 3 tables with no horizontal-scroll wrapper** (Top Moving Products, Recent Sales, Top Customers) — found via a repo-wide grep for every `<table>` lacking an `overflow-x-auto` ancestor. Every other page already had this from the Phase A5 sweep; dashboard's three were simply missed at the time. Wrapped the same way.
+- **DatePicker/DateRangePicker popovers could overflow off-screen on narrow viewports** — their calendar panel is a fixed 288px (`w-72`) regardless of where the trigger sits, unlike Combobox's dropdown (which matches its trigger's own width and can therefore never exceed the viewport by construction). A trigger positioned anywhere in a filter bar with less than 288px of clearance to its right would push the panel past the screen edge. Fixed at the source: `usePopoverPosition` (`components/ui/popover.tsx`) gained an optional `panelWidth` param that clamps `left` to `[8px, viewportWidth - panelWidth - 8px]`; both date pickers now pass `panelWidth={288}`. Combobox is unaffected (didn't pass the new param, so its existing trigger-matched-width behavior is unchanged).
+- Swept the rest of the codebase for the usual mobile pitfalls — unqualified 3+ column grids, fixed pixel widths, filter-bar rows without `flex-wrap` — and found nothing else; the table/grid/filter-bar conventions already established across Phases A1–A8 were already sound.
+
+**Verified:** `tsc --noEmit` clean. Discovered both dev servers had stopped since the last phase (not related to this work); restarted the frontend dev server and re-ran the full page sweep — all 16 routes (public + internal) return HTTP 200. Confirmed the public homepage/login page content still renders correctly via the established SSR-bypass technique. Internal app pages are gated behind client-side JWT auth stored in `localStorage` (not cookies), so a plain request to them always SSRs the loading shell regardless of the sidebar/layout changes underneath — HTTP-200 status is therefore the correct and sufficient check for those pages, exactly as it has been for every prior phase touching the internal app; no regression tooling exists to do better than that without a browser.
+
+**Known gap, not touched:** `TrendChart`'s hover tooltip (`components/ui/charts.tsx`) is mouse-only with no touch/tap handling — a pre-existing limitation from Phase A4, not introduced or addressed here.
+
+---
+
 ## 2026-07-16 — Login page redesign
 
 **Phase:** A7 follow-up — user asked for a more styled login page, to match the effort put into the new public homepage.

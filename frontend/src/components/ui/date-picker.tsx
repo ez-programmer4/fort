@@ -192,7 +192,7 @@ export function DatePicker({
   const [view, setView] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const panelRef = useRef<HTMLDivElement>(null);
   const ref = useOutsideClose(open, () => setOpen(false), panelRef);
-  const rect = usePopoverPosition(ref, open);
+  const rect = usePopoverPosition(ref, open, 288);
 
   return (
     <div ref={ref} className={`relative ${className || ''}`}>
@@ -260,7 +260,7 @@ export function DateRangePicker({
   const [view, setView] = useState({ y: anchor.getFullYear(), m: anchor.getMonth() });
   const panelRef = useRef<HTMLDivElement>(null);
   const ref = useOutsideClose(open, () => setOpen(false), panelRef);
-  const rect = usePopoverPosition(ref, open);
+  const rect = usePopoverPosition(ref, open, 288);
 
   const text = from && to ? `${fmt(from)} — ${fmt(to)}` : from ? `${fmt(from)} — …` : '';
 

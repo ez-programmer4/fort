@@ -199,56 +199,60 @@ export default function DashboardPage() {
               <div className="border-b border-slate-200 px-5 py-3">
                 <h2 className="text-sm font-semibold text-slate-900">Top Moving Products (30 days)</h2>
               </div>
-              <table className="w-full text-left text-sm">
-                <tbody>
-                  {data.topMovers.length === 0 && (
-                    <tr><td className="px-5 py-6 text-center text-slate-400">No dispensing activity yet.</td></tr>
-                  )}
-                  {data.topMovers.map((m, i) => (
-                    <tr key={i} className="border-b border-slate-100 last:border-0">
-                      <td className="px-5 py-2.5 text-slate-400">{i + 1}</td>
-                      <td className="px-2 py-2.5">
-                        <span className="font-medium text-slate-900">{m.product?.genericName || '?'}</span>
-                        <span className="ml-1 font-mono text-xs text-slate-400">{m.product?.code}</span>
-                      </td>
-                      <td className="px-5 py-2.5 text-right tabular-nums font-medium text-slate-900">
-                        {m.quantity}
-                        <span className="ml-1 text-xs font-normal text-slate-400">{m.product?.dispenseUnit || ''}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <tbody>
+                    {data.topMovers.length === 0 && (
+                      <tr><td className="px-5 py-6 text-center text-slate-400">No dispensing activity yet.</td></tr>
+                    )}
+                    {data.topMovers.map((m, i) => (
+                      <tr key={i} className="border-b border-slate-100 last:border-0">
+                        <td className="px-5 py-2.5 text-slate-400">{i + 1}</td>
+                        <td className="px-2 py-2.5">
+                          <span className="font-medium text-slate-900">{m.product?.genericName || '?'}</span>
+                          <span className="ml-1 font-mono text-xs text-slate-400">{m.product?.code}</span>
+                        </td>
+                        <td className="px-5 py-2.5 text-right tabular-nums font-medium text-slate-900">
+                          {m.quantity}
+                          <span className="ml-1 text-xs font-normal text-slate-400">{m.product?.dispenseUnit || ''}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-white">
               <div className="border-b border-slate-200 px-5 py-3">
                 <h2 className="text-sm font-semibold text-slate-900">Recent Sales</h2>
               </div>
-              <table className="w-full text-left text-sm">
-                <tbody>
-                  {data.recentSales.length === 0 && (
-                    <tr><td className="px-5 py-6 text-center text-slate-400">No sales yet.</td></tr>
-                  )}
-                  {data.recentSales.map((s) => (
-                    <tr key={s.id} className="border-b border-slate-100 last:border-0">
-                      <td className="px-5 py-2.5 font-mono text-xs text-slate-900">{s.dspNumber}</td>
-                      <td className="px-2 py-2.5 text-slate-600">{s.location}</td>
-                      <td className="px-2 py-2.5">
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          s.paymentType === 'CASH' ? 'bg-slate-100 text-slate-700' : 'bg-amber-50 text-amber-700'
-                        }`}>
-                          {s.paymentType === 'CASH' ? 'Cash' : 'Credit'}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2.5 text-right tabular-nums font-medium text-slate-900">{money(s.total)}</td>
-                      <td className="px-5 py-2.5 text-right text-xs text-slate-400">
-                        {new Date(s.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <tbody>
+                    {data.recentSales.length === 0 && (
+                      <tr><td className="px-5 py-6 text-center text-slate-400">No sales yet.</td></tr>
+                    )}
+                    {data.recentSales.map((s) => (
+                      <tr key={s.id} className="border-b border-slate-100 last:border-0">
+                        <td className="px-5 py-2.5 font-mono text-xs text-slate-900">{s.dspNumber}</td>
+                        <td className="px-2 py-2.5 text-slate-600">{s.location}</td>
+                        <td className="px-2 py-2.5">
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            s.paymentType === 'CASH' ? 'bg-slate-100 text-slate-700' : 'bg-amber-50 text-amber-700'
+                          }`}>
+                            {s.paymentType === 'CASH' ? 'Cash' : 'Credit'}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2.5 text-right tabular-nums font-medium text-slate-900">{money(s.total)}</td>
+                        <td className="px-5 py-2.5 text-right text-xs text-slate-400">
+                          {new Date(s.createdAt).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </>
@@ -396,40 +400,42 @@ export default function DashboardPage() {
             <div className="border-b border-slate-200 px-5 py-3">
               <h3 className="text-sm font-semibold text-slate-900">Top Customers</h3>
             </div>
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-5 py-2.5">#</th>
-                  <th className="px-2 py-2.5">Customer</th>
-                  <th className="px-2 py-2.5 text-right">Orders</th>
-                  <th className="px-2 py-2.5 text-right">Total Spent</th>
-                  <th className="px-5 py-2.5 text-right">Last Order</th>
-                </tr>
-              </thead>
-              <tbody>
-                {analytics.topCustomers.length === 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
-                    <td colSpan={5} className="px-5 py-6 text-center text-slate-400">
-                      No customers captured yet — pick a customer when dispensing to see rankings here.
-                    </td>
+                    <th className="px-5 py-2.5">#</th>
+                    <th className="px-2 py-2.5">Customer</th>
+                    <th className="px-2 py-2.5 text-right">Orders</th>
+                    <th className="px-2 py-2.5 text-right">Total Spent</th>
+                    <th className="px-5 py-2.5 text-right">Last Order</th>
                   </tr>
-                )}
-                {analytics.topCustomers.map((c, i) => (
-                  <tr key={c.customer?.id ?? i} className="border-b border-slate-100 last:border-0">
-                    <td className="px-5 py-2.5 text-slate-400">{i + 1}</td>
-                    <td className="px-2 py-2.5">
-                      <span className="font-medium text-slate-900">{c.customer?.name || 'Unknown'}</span>
-                      {c.customer?.phone && <span className="ml-1 text-xs text-slate-400">{c.customer.phone}</span>}
-                    </td>
-                    <td className="px-2 py-2.5 text-right tabular-nums text-slate-600">{c.orderCount}</td>
-                    <td className="px-2 py-2.5 text-right tabular-nums font-medium text-slate-900">{money(c.totalSpent)}</td>
-                    <td className="px-5 py-2.5 text-right text-xs text-slate-400">
-                      {new Date(c.lastOrderAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {analytics.topCustomers.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-5 py-6 text-center text-slate-400">
+                        No customers captured yet — pick a customer when dispensing to see rankings here.
+                      </td>
+                    </tr>
+                  )}
+                  {analytics.topCustomers.map((c, i) => (
+                    <tr key={c.customer?.id ?? i} className="border-b border-slate-100 last:border-0">
+                      <td className="px-5 py-2.5 text-slate-400">{i + 1}</td>
+                      <td className="px-2 py-2.5">
+                        <span className="font-medium text-slate-900">{c.customer?.name || 'Unknown'}</span>
+                        {c.customer?.phone && <span className="ml-1 text-xs text-slate-400">{c.customer.phone}</span>}
+                      </td>
+                      <td className="px-2 py-2.5 text-right tabular-nums text-slate-600">{c.orderCount}</td>
+                      <td className="px-2 py-2.5 text-right tabular-nums font-medium text-slate-900">{money(c.totalSpent)}</td>
+                      <td className="px-5 py-2.5 text-right text-xs text-slate-400">
+                        {new Date(c.lastOrderAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

@@ -20,7 +20,14 @@ const EST_HEIGHT = 320;
  * (a Drawer's scroll body, a table wrapped in `overflow-x-auto`, etc.), which
  * otherwise clips absolutely-positioned dropdowns.
  */
-export function usePopoverPosition(anchorRef: React.RefObject<HTMLElement | null>, open: boolean) {
+/**
+ * `panelWidth` lets a caller whose popover renders at a fixed width (rather
+ * than matching the trigger's own width, which can never overflow the
+ * viewport) keep that panel from bleeding off the right edge on narrow
+ * screens — the trigger may sit anywhere in a filter bar with less than
+ * `panelWidth` of space to its right.
+ */
+export function usePopoverPosition(anchorRef: React.RefObject<HTMLElement | null>, open: boolean, panelWidth?: number) {
   const [rect, setRect] = useState<PopoverRect | null>(null);
 
   useLayoutEffect(() => {
@@ -35,9 +42,13 @@ export function usePopoverPosition(anchorRef: React.RefObject<HTMLElement | null
       const spaceBelow = window.innerHeight - r.bottom;
       const spaceAbove = r.top;
       const openUpward = spaceBelow < EST_HEIGHT && spaceAbove > spaceBelow;
+      const margin = 8;
+      const left = panelWidth
+        ? Math.max(margin, Math.min(r.left, window.innerWidth - panelWidth - margin))
+        : r.left;
       setRect({
         top: openUpward ? r.top - GAP : r.bottom + GAP,
-        left: r.left,
+        left,
         width: r.width,
         openUpward,
       });
@@ -49,7 +60,7 @@ export function usePopoverPosition(anchorRef: React.RefObject<HTMLElement | null
       window.removeEventListener('scroll', update, true);
       window.removeEventListener('resize', update);
     };
-  }, [open, anchorRef]);
+  }, [open, anchorRef, panelWidth]);
 
   return rect;
 }
