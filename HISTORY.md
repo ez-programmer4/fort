@@ -5,6 +5,17 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Sidebar collapse toggle moved to a floating icon on the border
+
+**Phase:** user asked to move the sidebar's collapse control to the top, sitting on the border, as an icon (not a labeled row).
+
+**Done:**
+- `(app)/layout.tsx`: removed the old "Collapse" button (full-width row with a chevron + text label, bottom of the sidebar next to sign-out) and replaced it with a small circular icon button — `absolute -right-3 top-4.5`, half-overlapping the sidebar's right border near the top, same chevron icon (flips 180° when collapsed) with no text label. Desktop-only (`md:flex`), matching the existing rule that the icon-rail "collapsed" treatment never applies to the mobile overlay. Same `toggleSidebar()` handler and `localStorage` persistence as before — only the control's position and shape changed, not the behavior.
+
+**Verified:** `tsc --noEmit` clean. Page sweep still HTTP 200 across the internal app.
+
+---
+
 ## 2026-07-17 — Fixed the real cause of Wallet's wrong count: a backend pagination bug
 
 **Phase:** follow-up — the previous `setTotal(0)` fix addressed a real but *transient* staleness on tab switch; user reported the count was still wrong afterwards, which pointed at something deeper.

@@ -113,6 +113,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
+        <button
+          onClick={toggleSidebar}
+          aria-label={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="absolute -right-3 top-4.5 z-10 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 md:flex"
+        >
+          <Icon name="chevronsLeft" className={`h-3.5 w-3.5 transition-transform ${railCollapsed ? 'rotate-180' : ''}`} />
+        </button>
+
         <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
           {NAV.filter((item) => hasPermission(item.permission)).map((item) => {
             const active = pathname.startsWith(item.href);
@@ -169,16 +178,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Icon name="logout" className="h-4 w-4" />
             </button>
           )}
-          <button
-            onClick={toggleSidebar}
-            title={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={`mt-1 hidden w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 md:flex ${
-              railCollapsed ? 'justify-center' : ''
-            }`}
-          >
-            <Icon name="chevronsLeft" className={`h-4 w-4 shrink-0 transition-transform ${railCollapsed ? 'rotate-180' : ''}`} />
-            {!railCollapsed && <span>Collapse</span>}
-          </button>
         </div>
       </aside>
 
