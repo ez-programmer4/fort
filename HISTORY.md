@@ -5,6 +5,18 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Fixed the real cause of Wallet's wrong count: a backend pagination bug
+
+**Phase:** follow-up — the previous `setTotal(0)` fix addressed a real but *transient* staleness on tab switch; user reported the count was still wrong afterwards, which pointed at something deeper.
+
+**Found:** `wallet.controller.js`'s `credits()` computed `total` via `prisma.dispenseOrder.count({ where })` against *all* credit-type orders (settled + unsettled), while the actual rows went through `findMany({ where, skip, take })` — the same unfiltered `where` — and only *then*, after the DB had already paginated, filtered out settled orders in JS (`.filter(r => settled === 'true' ? true : r.outstanding > 0)`). "Outstanding" isn't a real column (it's `total` minus a sum over related `payments` rows), so it can't be pushed into Prisma's `where`. Confirmed live: default view (unsettled only) returned `total: 4` but only 2 actual rows — the count and the list were describing two different sets. This is exactly the "1–4 of 4 doesn't match what's on screen" symptom, and it's present on the very first load too, not just after switching tabs.
+- **Fix**: load every matching order (no DB-level skip/take), compute `outstanding` per order, filter to unsettled (or not, per the `settled` query param), *then* slice that filtered array for the page and set `total` to its length — so the count and the visible rows always come from the same set. Sorting still happens at the DB level first (only real columns are sortable per `CREDIT_SORT_FIELDS`), so order is preserved through the filter.
+- `listPayments()` (the other Wallet tab) was already correct — same `where` used for both `count` and `findMany`, no post-query filtering — so it needed no change.
+
+**Verified:** live API check — unsettled view now returns `total: 2, rows: 2`; `settled=true` returns `total: 4, rows: 4`; Payments still `total: 4, rows: 4`. `tsc --noEmit` clean, `node --check` on the controller, full page sweep.
+
+---
+
 ## 2026-07-17 — Alerts pagination, and a stale-total bug on tab switch (Wallet)
 
 **Phase:** two issues found in manual testing: Alerts had no pagination at all (unlike every other list page), and switching tabs on pages sharing one `total`/`Pagination` state could show a range ("1–4 of 4") left over from the *previous* tab instead of the one now on screen.

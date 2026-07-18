@@ -88,22 +88,22 @@ async function credits(req, res, next) {
     if (req.query.locationId) where.locationId = Number(req.query.locationId);
 
     const orderBy = req.query.sortBy ? parseSort(req.query, CREDIT_SORT_FIELDS, 'createdAt') : { id: 'desc' };
-    const [total, orders] = await Promise.all([
-      prisma.dispenseOrder.count({ where }),
-      prisma.dispenseOrder.findMany({
-        where,
-        include: {
-          location: { select: { name: true } },
-          dispensedBy: { select: { fullName: true } },
-          payments: { select: { amount: true } },
-        },
-        orderBy,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-    ]);
+    // "Outstanding" isn't a DB column (it's total minus a sum over payments), so it can't be
+    // pushed into a `where`/`count` at the database level. Filtering it in after a DB-level
+    // skip/take would make `total` count everything (settled + unsettled) while the page only
+    // ever shows what survives the filter — the count and the list would describe two different
+    // sets. Load every matching order, compute outstanding, filter, *then* paginate in memory.
+    const orders = await prisma.dispenseOrder.findMany({
+      where,
+      include: {
+        location: { select: { name: true } },
+        dispensedBy: { select: { fullName: true } },
+        payments: { select: { amount: true } },
+      },
+      orderBy,
+    });
 
-    const rows = orders
+    const allRows = orders
       .map((o) => {
         const paid = o.payments.reduce((s, p) => s + Number(p.amount), 0);
         return {
@@ -118,6 +118,9 @@ async function credits(req, res, next) {
         };
       })
       .filter((r) => (req.query.settled === 'true' ? true : r.outstanding > 0));
+
+    const total = allRows.length;
+    const rows = allRows.slice((page - 1) * pageSize, page * pageSize);
 
     res.json({ credits: rows, total, page, pageSize });
   } catch (err) {
