@@ -5,6 +5,19 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Alerts pagination, and a stale-total bug on tab switch (Wallet)
+
+**Phase:** two issues found in manual testing: Alerts had no pagination at all (unlike every other list page), and switching tabs on pages sharing one `total`/`Pagination` state could show a range ("1–4 of 4") left over from the *previous* tab instead of the one now on screen.
+
+**Done:**
+- **Alerts pagination**: `/api/alerts` returns everything in one shot (it's a computed, urgency-sorted list, not a simple paged DB query), so the fix is client-side: new `page`/`pageSize` state, `paged = sorted.slice((page-1)*pageSize, page*pageSize)` rendered instead of the full `sorted` array, and a `<Pagination>` footer matching every other list page. A `useEffect` resets `page` to 1 whenever anything upstream of the list changes (tab, search, location, sort column) so the footer can never show a range that doesn't match what's above it.
+- **Wallet's stale-total bug**: `switchTab` reset `tab`/search/page/sort but never `total`, unlike Procurement's equivalent `switchTab` which already zeroed it. Since Credits and Payments share one `<Pagination total={total} .../>`, switching tabs left the *previous* tab's total showing until the new tab's fetch resolved — exactly the "1–4 of 4 doesn't match this tab" symptom reported. Added the missing `setTotal(0)`, matching the pattern Procurement already had correct.
+- Audited every other tabbed+paginated page for the same gap: Procurement was already correct; Sales only paginates its one "Sales History" tab (no second tab shares the state, so no cross-tab mismatch is possible there); Reports doesn't use the `Pagination` component at all.
+
+**Verified:** `tsc --noEmit` clean. Full 17-page HTTP-200 sweep.
+
+---
+
 ## 2026-07-17 — Alerts gets the same Tabs bar as Sales/Wallet/Procurement/Reports
 
 **Phase:** follow-up correction — the previous change replaced Alerts' redundant pill-tab row with a small "Filtering: X ✕" chip instead of the shared `Tabs` component; user wants the same tab bar the other four pages have.

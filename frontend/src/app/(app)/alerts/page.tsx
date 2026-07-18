@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { Drawer } from '@/components/ui/drawer';
+import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -298,6 +299,8 @@ export default function AlertsPage() {
   const [q, setQ] = useState('');
   const [locations, setLocations] = useState<Option[]>([]);
   const [locationId, setLocationId] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [detailProductId, setDetailProductId] = useState<number | null>(null);
@@ -371,6 +374,20 @@ export default function AlertsPage() {
       return 0;
     });
   }, [visible, sortBy, sortDir]);
+
+  // Alerts are fetched in one shot (not server-paginated), so paging happens
+  // client-side over the already-filtered/sorted list. Any change upstream
+  // of that list — tab, search, location, sort — jumps back to page 1 so the
+  // pagination footer can't show a range that no longer matches what's above it.
+  useEffect(() => {
+    setPage(1);
+  }, [tab, q, locationId, sortBy, sortDir]);
+
+  const total = sorted.length;
+  const paged = useMemo(
+    () => sorted.slice((page - 1) * pageSize, page * pageSize),
+    [sorted, page, pageSize],
+  );
 
   function openDispose(a: Alert) {
     setDisposeTarget(a);
@@ -518,7 +535,7 @@ export default function AlertsPage() {
               </tr>
             )}
             {!loading &&
-              sorted.map((a, i) => {
+              paged.map((a, i) => {
                 const meta = TYPE_META[a.type];
                 const showDispose =
                   canDispose && (a.type === 'EXPIRED' || a.type === 'EXPIRING') && a.batchId != null;
@@ -587,6 +604,19 @@ export default function AlertsPage() {
               })}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-4">
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={(s) => {
+            setPageSize(s);
+            setPage(1);
+          }}
+        />
       </div>
 
       <ProductDetailDrawer productId={detailProductId} onClose={() => setDetailProductId(null)} />

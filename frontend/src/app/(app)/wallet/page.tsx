@@ -166,6 +166,7 @@ export default function WalletPage() {
     setTab(t);
     setQ('');
     setPage(1);
+    setTotal(0);
     resetSort('createdAt', 'desc');
   }
 
