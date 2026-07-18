@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
@@ -35,6 +35,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(COLLAPSE_KEY);
@@ -62,7 +64,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // leave the overlay open over the new page.
   useEffect(() => {
     setMobileOpen(false);
+    setUserMenuOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    function onDown(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [userMenuOpen]);
 
   function toggleSidebar() {
     setCollapsed((prev) => {
@@ -148,7 +160,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className={`shrink-0 border-t border-slate-200 p-3 ${railCollapsed ? 'p-2' : ''}`}>
+        <div
+          className={`shrink-0 border-t border-slate-200 p-3 ${railCollapsed ? 'p-2' : ''}`}
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
           <div className={`flex items-center gap-2.5 rounded-md px-1 py-1.5 ${railCollapsed ? 'justify-center' : ''}`}>
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
               {user.fullName.slice(0, 2).toUpperCase()}
@@ -197,6 +212,45 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Icon name="menu" className="h-5 w-5" />
           </button>
           <span className="truncate text-sm font-medium text-slate-900">{current?.label ?? ''}</span>
+
+          <div ref={userMenuRef} className="relative ml-auto">
+            <button
+              onClick={() => setUserMenuOpen((o) => !o)}
+              aria-label="Account menu"
+              aria-expanded={userMenuOpen}
+              className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 text-left hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
+                {user.fullName.slice(0, 2).toUpperCase()}
+              </span>
+              <span className="hidden min-w-0 sm:block">
+                <span className="block max-w-40 truncate text-sm font-medium leading-tight text-slate-900">
+                  {user.fullName}
+                </span>
+                <span className="block max-w-40 truncate text-xs leading-tight text-slate-500">{user.role}</span>
+              </span>
+              <Icon
+                name="chevronDown"
+                className={`hidden h-4 w-4 shrink-0 text-slate-400 transition-transform sm:block ${userMenuOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {userMenuOpen && (
+              <div className="absolute right-0 top-full z-30 mt-2 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+                <div className="border-b border-slate-100 px-3 py-2.5 sm:hidden">
+                  <p className="truncate text-sm font-medium text-slate-900">{user.fullName}</p>
+                  <p className="truncate text-xs text-slate-500">{user.role}</p>
+                </div>
+                <button
+                  onClick={logout}
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
+                >
+                  <Icon name="logout" className="h-4 w-4" />
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </header>
         <main className="flex-1 overflow-x-auto p-4 sm:p-6">{children}</main>
       </div>

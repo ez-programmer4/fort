@@ -5,6 +5,19 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Fixed sidebar bottom hidden by mobile's system bar; added a header account menu
+
+**Phase:** user reported the sidebar's bottom (the avatar/sign-out footer) gets covered by the phone's own bottom bar (home indicator / gesture pill), and asked for a user avatar + sign-out on the right side of the top header.
+
+**Done:**
+- **Safe-area fix**: the sidebar footer sat flush against the screen's bottom edge with a fixed `p-3`, so on notched/gesture-bar phones the OS chrome could visually overlap it. Added `paddingBottom: max(0.75rem, env(safe-area-inset-bottom))` (inline style, since Tailwind has no arbitrary-env utility) — resolves to the same 12px as before on ordinary screens, grows on devices that report a safe-area inset. Same technique already used for the Sales page's sticky mobile checkout bar.
+- **Header account menu**: new avatar button on the right of the top header (`ml-auto`), visible at every breakpoint — initials circle always shown, name/role/chevron collapse away below `sm` to keep the mobile header tight. Click opens a small dropdown (name/role repeated inside it on mobile, since the trigger hides that text there) with a red "Sign out" action, closing on an outside click or route change. This gives mobile users sign-out access without opening the full off-canvas sidebar at all — directly addressing the footer-visibility problem from a second angle, not just the safe-area patch.
+- The sidebar's own avatar/sign-out footer is unchanged and still there for desktop users who have it always in view.
+
+**Verified:** `tsc --noEmit` clean. Full 17-page HTTP-200 sweep.
+
+---
+
 ## 2026-07-17 — Logout icon: bigger, better-shaped, red on hover
 
 **Phase:** follow-up — user asked for further style/layout enhancement on the logout icon after the tooltip pass.
