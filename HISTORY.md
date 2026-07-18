@@ -5,6 +5,17 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Logout button: custom tooltip instead of the native browser one
+
+**Phase:** user asked for a more professional logout affordance — standard icon (already the case — `logout` is the standard Heroicons arrow-out-of-a-doorway glyph) with a proper tooltip instead of whatever's there.
+
+**Done:**
+- `(app)/layout.tsx`'s two sign-out buttons (expanded-sidebar footer, and the icon-only rail in collapsed mode) relied on the native `title` attribute — the plain, delayed, OS-styled browser tooltip, inconsistent with the app's own dark-pill tooltip already used for collapsed nav-item labels. Swapped both to that same custom tooltip pattern (`group`/`group-hover:opacity-100`, `bg-slate-900` pill, `shadow-lg`): the expanded button's tooltip opens above-right (`bottom-full right-0`, since it sits at the very bottom of the screen), the collapsed rail's opens to the right (`left-full`, identical positioning to the nav-item tooltips it sits right above). `title` replaced with `aria-label` on both so screen readers still get the accessible name.
+
+**Verified:** `tsc --noEmit` clean. Page sweep still HTTP 200 across the internal app. Confirmed no other logout UI exists elsewhere in the app (grepped the whole frontend) — this was the only place to change.
+
+---
+
 ## 2026-07-17 — Sidebar collapse toggle moved to a floating icon on the border
 
 **Phase:** user asked to move the sidebar's collapse control to the top, sitting on the border, as an icon (not a labeled row).

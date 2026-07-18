@@ -162,20 +162,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {!railCollapsed && (
               <button
                 onClick={logout}
-                title="Sign out"
-                className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                aria-label="Sign out"
+                className="group relative shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
               >
                 <Icon name="logout" className="h-4 w-4" />
+                <span className="pointer-events-none absolute bottom-full right-0 z-40 mb-2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                  Sign out
+                </span>
               </button>
             )}
           </div>
           {railCollapsed && (
             <button
               onClick={logout}
-              title="Sign out"
-              className="mt-1 hidden w-full items-center justify-center rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 md:flex"
+              aria-label="Sign out"
+              className="group relative mt-1 hidden w-full items-center justify-center rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 md:flex"
             >
               <Icon name="logout" className="h-4 w-4" />
+              <span className="pointer-events-none absolute left-full z-40 ml-2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                Sign out
+              </span>
             </button>
           )}
         </div>
