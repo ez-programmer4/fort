@@ -5,6 +5,19 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — Logout icon: bigger, better-shaped, red on hover
+
+**Phase:** follow-up — user asked for further style/layout enhancement on the logout icon after the tooltip pass.
+
+**Done:**
+- `(app)/layout.tsx`'s two sign-out buttons grew from a cramped `p-1.5` square with a 16px icon to a proper `h-8 w-8` (expanded row, matching the user avatar circle it sits beside) / `h-9` (collapsed rail, matching nav-row height) button with a 18–20px icon and `rounded-lg` — a real, consistent touch target instead of whatever the icon's intrinsic padding happened to produce.
+- Added a red hover/focus state (`hover:bg-red-50 hover:text-red-600`, `focus-visible:ring-red-500`) — a standard convention (GitHub, Linear, Slack all do this) that visually flags sign-out as a distinct, session-ending action instead of blending in with neutral nav icons. Default (non-hovered) state stays neutral slate so it doesn't shout at rest.
+- Tooltip pill kept neutral dark (unchanged from the previous pass) — only the icon/button itself picked up color, not the label.
+
+**Verified:** `tsc --noEmit` clean. Full page sweep still HTTP 200.
+
+---
+
 ## 2026-07-17 — Logout button: custom tooltip instead of the native browser one
 
 **Phase:** user asked for a more professional logout affordance — standard icon (already the case — `logout` is the standard Heroicons arrow-out-of-a-doorway glyph) with a proper tooltip instead of whatever's there.

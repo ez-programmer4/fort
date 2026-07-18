@@ -163,9 +163,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <button
                 onClick={logout}
                 aria-label="Sign out"
-                className="group relative shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                className="group relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
               >
-                <Icon name="logout" className="h-4 w-4" />
+                <Icon name="logout" className="h-4.5 w-4.5" />
                 <span className="pointer-events-none absolute bottom-full right-0 z-40 mb-2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
                   Sign out
                 </span>
@@ -176,9 +176,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <button
               onClick={logout}
               aria-label="Sign out"
-              className="group relative mt-1 hidden w-full items-center justify-center rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 md:flex"
+              className="group relative mt-1 hidden h-9 w-full items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 md:flex"
             >
-              <Icon name="logout" className="h-4 w-4" />
+              <Icon name="logout" className="h-5 w-5" />
               <span className="pointer-events-none absolute left-full z-40 ml-2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
                 Sign out
               </span>
