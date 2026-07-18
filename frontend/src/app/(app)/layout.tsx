@@ -93,7 +93,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const railCollapsed = isDesktop && collapsed;
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-dvh bg-slate-50">
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
@@ -103,7 +103,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 print:hidden md:sticky md:top-0 md:translate-x-0 md:transition-[width] ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-dvh w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 print:hidden md:sticky md:top-0 md:translate-x-0 md:transition-[width] ${
           railCollapsed ? 'md:w-16' : 'md:w-64'
         } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >

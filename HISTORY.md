@@ -5,6 +5,18 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-17 — The actual fix for the sidebar-hidden-by-mobile-toolbar bug
+
+**Phase:** follow-up — the safe-area padding from the previous pass didn't fully fix it; user confirmed the sidebar's bottom was still hidden behind the phone's own bottom bar.
+
+**Found:** the real cause was a different, more fundamental viewport bug. The `<aside>` used `h-screen` (`height: 100vh`) *together with* `inset-y-0` (`top: 0; bottom: 0`) — per the CSS spec, when `top`, `bottom`, and `height` are all set on a positioned element, `height` wins and `bottom` is ignored. On mobile browsers, `100vh` is the *static/largest* viewport size — as if the browser's own address/toolbar chrome were hidden — which is taller than what's actually visible whenever that chrome is showing. So the sidebar's box literally extended past the visible area, and its bottom content (the avatar/sign-out footer, and the safe-area padding added around it in the previous pass) rendered underneath the browser's bottom bar rather than above it. `env(safe-area-inset-bottom)` only accounts for OS-level chrome (notches, home indicators) — a completely different, smaller overlap than a mobile browser's own dynamic toolbar.
+
+**Fix:** swapped `h-screen`/`min-h-screen` for `h-dvh`/`min-h-dvh` (dynamic viewport height — a standard Tailwind utility, widely supported) on the sidebar and the page's outer wrapper. `dvh` tracks the *currently visible* viewport and shrinks/grows live as the mobile browser's chrome shows or hides, so the sidebar's bottom edge — and everything in it — is never rendered behind unreachable/invisible space again.
+
+**Verified:** `tsc --noEmit` clean. Page sweep still HTTP 200 across the internal app.
+
+---
+
 ## 2026-07-17 — Fixed sidebar bottom hidden by mobile's system bar; added a header account menu
 
 **Phase:** user reported the sidebar's bottom (the avatar/sign-out footer) gets covered by the phone's own bottom bar (home indicator / gesture pill), and asked for a user avatar + sign-out on the right side of the top header.
