@@ -103,6 +103,15 @@ export default function CustomersPage() {
     load(q, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
   }, [q, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Deep links from the command palette: ?q=<term> pre-fills the search,
+  // ?new=1 opens the Add Customer drawer.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const qParam = params.get('q');
+    if (qParam) setQ(qParam);
+    if (params.get('new') === '1') setForm(emptyForm);
+  }, []);
+
   // Payment-history summary — the data staff use to decide what to set the
   // rating to. Only exists for an existing customer, not while creating one.
   useEffect(() => {
@@ -197,6 +206,7 @@ export default function CustomersPage() {
             }}
             placeholder="Search name, phone, email…"
             className="w-64"
+            initialValue={q}
           />
           <button
             onClick={() => setForm(emptyForm)}

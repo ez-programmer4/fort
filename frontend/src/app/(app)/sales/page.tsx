@@ -987,6 +987,15 @@ export default function SalesPage() {
     if (tab === 'history') loadOrders(q, page, pageSize, from, to, sortBy, sortDir).catch((e) => toast.error(e.message));
   }, [tab, q, page, pageSize, from, to, sortBy, sortDir, loadOrders]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Deep link from the command palette: ?tab=history&q=<DSP no.> jumps
+  // straight to a matching sale in Sales History.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'history') setTab('history');
+    const qParam = params.get('q');
+    if (qParam) setQ(qParam);
+  }, []);
+
   function onDispensed(order: OrderDetail) {
     setSlipOrder(order);
     toast.success(`${order.dspNumber} dispensed — stock updated.`);
@@ -1089,6 +1098,7 @@ export default function SalesPage() {
                   setQ(term);
                   setPage(1);
                 }}
+                initialValue={q}
                 placeholder="Search DSP no. or product…"
                 className="w-72"
               />

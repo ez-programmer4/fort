@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Icon, IconName } from '@/components/icons';
 import { LoadingScreen } from '@/components/ui/loading';
+import { CommandPaletteProvider, SearchTrigger } from '@/components/ui/command-palette';
 
 // Nav grows as phases are built — permission gates which links a user sees
 const NAV: { href: string; label: string; icon: IconName; permission: string }[] = [
@@ -95,6 +96,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const railCollapsed = isDesktop && collapsed;
 
   return (
+    <CommandPaletteProvider nav={NAV}>
     <div className="flex min-h-dvh bg-slate-50">
       {mobileOpen && (
         <div
@@ -215,8 +217,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
           <span className="truncate text-sm font-medium text-slate-900">{current?.label ?? ''}</span>
 
-          <div ref={userMenuRef} className="relative ml-auto">
-            <button
+          <div className="ml-auto flex items-center gap-3">
+            <div className="hidden sm:block">
+              <SearchTrigger />
+            </div>
+
+            <div ref={userMenuRef} className="relative">
+              <button
               onClick={() => setUserMenuOpen((o) => !o)}
               aria-label="Account menu"
               aria-expanded={userMenuOpen}
@@ -251,11 +258,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   Sign out
                 </button>
               </div>
-            )}
+              )}
+            </div>
           </div>
         </header>
         <main className="flex-1 overflow-x-auto p-4 sm:p-6">{children}</main>
       </div>
     </div>
+    </CommandPaletteProvider>
   );
 }

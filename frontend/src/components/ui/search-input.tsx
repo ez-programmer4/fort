@@ -8,6 +8,8 @@ interface SearchInputProps {
   minChars?: number;
   delay?: number;
   className?: string;
+  /** Pre-fill the box on mount (e.g. a `?q=` deep link) — read once, not reactive. */
+  initialValue?: string;
 }
 
 /**
@@ -20,9 +22,12 @@ export function SearchInput({
   minChars = 2,
   delay = 350,
   className = 'w-64',
+  initialValue = '',
 }: SearchInputProps) {
-  const [value, setValue] = useState('');
-  const lastFired = useRef('');
+  const [value, setValue] = useState(initialValue);
+  // Starts equal to initialValue, not '', so a pre-filled box doesn't
+  // immediately re-fire onSearch for a query the parent already applied.
+  const lastFired = useRef(initialValue);
 
   useEffect(() => {
     const term = value.trim();

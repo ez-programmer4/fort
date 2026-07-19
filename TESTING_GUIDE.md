@@ -402,6 +402,27 @@ Non-sale purchases — office supplies, services and similar — previously the
 
 ---
 
+## 20. Command Palette
+
+Global quick-access search + navigation, opened with Ctrl+K (Cmd+K on Mac) from anywhere in the app, or the "Search…" button in the header.
+
+| #       | Scenario                        | Steps                                                                              | Expected                                                                                                       |
+| ------- | -------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 20.1 ✅ | Open via keyboard                | Press Ctrl+K (Cmd+K) from any page, including mid-form                              | Palette opens, search box auto-focused                                                                          |
+| 20.2 ✅ | Open via header button           | Click "Search…" in the header (desktop widths)                                      | Same palette opens                                                                                              |
+| 20.3 ✅ | Close                            | Press Escape, or click the dark backdrop                                            | Palette closes, search term clears                                                                              |
+| 20.4 ✅ | Empty-query browse               | Open the palette without typing                                                     | Shows all permitted Actions and Pages (no record search yet — need 2+ characters for that)                     |
+| 20.5 ✅ | Page navigation                  | Type part of a page name (e.g. "wallet"), press Enter or click                      | Navigates to that page; only pages the user has permission for appear                                          |
+| 20.6 ✅ | Quick action                     | Type "new sale" / "new customer" / etc., select it                                  | Navigates to the right page; for Customer/Supplier/Product/PO, the create drawer/form opens automatically       |
+| 20.7 ✅ | Action permission gating         | As a role without `procurement.manage`                                              | "New Purchase Order" does not appear in results, even when typed exactly                                       |
+| 20.8 ✅ | Product search → redirect        | Type a product name or code (2+ chars)                                              | Matching products appear (debounced ~250ms); selecting one opens Products already filtered to it                |
+| 20.9 ✅ | Customer / Supplier search       | Type a customer or supplier name                                                    | Matches appear under the right group; selecting jumps to Customers/Suppliers pre-filtered                       |
+| 20.10 ✅ | Sale search by DSP number        | Type a DSP number (e.g. "DSP-00001")                                                | Match appears under Sales; selecting jumps to Sales → History tab, pre-filtered to that DSP number               |
+| 20.11 ✅ | No matches                       | Type a nonsense term                                                                | "No matches." shown, no broken/empty sections                                                                    |
+| 20.12 ✅ | Keyboard navigation              | Arrow up/down through results, Enter to select                                      | Highlight moves correctly across Actions/Pages/Records as one combined list; Enter activates the highlighted row |
+
+---
+
 ## Sign-off template
 
 Copy this per test run:
@@ -411,6 +432,6 @@ Test run date: ____________
 Tester: ____________
 Environment: local / staging
 Backend commit: ____________
-Modules fully passed: ____ / 17
+Modules fully passed: ____ / 20
 Failures found (link to issue/notes): ____________
 ```

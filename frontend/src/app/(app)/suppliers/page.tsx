@@ -82,6 +82,15 @@ export default function SuppliersPage() {
     load(q, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
   }, [q, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Deep links from the command palette: ?q=<term> pre-fills the search,
+  // ?new=1 opens the Add Supplier drawer.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const qParam = params.get('q');
+    if (qParam) setQ(qParam);
+    if (params.get('new') === '1') setForm(emptyForm);
+  }, []);
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form) return;
@@ -161,6 +170,7 @@ export default function SuppliersPage() {
               setQ(term);
               setPage(1);
             }}
+            initialValue={q}
             placeholder="Search name, TIN, phone…"
             className="w-56"
           />

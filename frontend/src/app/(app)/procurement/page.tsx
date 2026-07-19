@@ -557,6 +557,11 @@ export default function ProcurementPage() {
     load(tab, q, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
   }, [tab, q, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Deep link from the command palette: ?new=1 opens the New Purchase Order drawer.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('new') === '1') setShowNew(true);
+  }, []);
+
   function switchTab(t: Tab) {
     setTab(t);
     setQ('');

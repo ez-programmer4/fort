@@ -5,6 +5,27 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-20 — Global command palette (Ctrl/Cmd+K): search, navigate, quick actions
+
+**Phase:** user asked for "quick functionality" — search-to-redirect, commands, and other quick access. Confirmed via AskUserQuestion: a global command palette (Ctrl/Cmd+K, like Linear/Notion/GitHub), searching across Products, Customers, Suppliers, and Sales (by DSP number), plus page navigation and quick-create actions.
+
+**New shared component (`frontend/src/components/ui/command-palette.tsx`):**
+- `CommandPaletteProvider` — wraps the app layout, owns the open/closed state, the global `Ctrl/Cmd+K` and `Escape` key listeners, and renders the modal itself. Exposes `useCommandPalette()` (an `open()` function) via context, and a `SearchTrigger` header button component that consumes it.
+- **Actions**: a small curated list (New Sale, New Purchase Order, New Customer, New Supplier, New Product), each permission-gated and navigating to the relevant page — `?new=1` for the four that open a create-drawer/form.
+- **Pages**: reuses the same nav list as the sidebar (passed in as a prop from `layout.tsx`, not duplicated), permission-filtered, fuzzy-matched against the typed term.
+- **Records**: once 2+ characters are typed, fans out (debounced 250ms) to the existing `?q=` search endpoints on `/api/products`, `/api/customers`, `/api/suppliers`, and `/api/sales` in parallel — no new backend search endpoint needed, since all four already supported it. Selecting a record navigates to its list page with `?q=<term>` so the target page lands already filtered to that exact result.
+- Full keyboard support: arrow keys + Enter across the combined result list (actions, pages, and records treated as one flat, ranked list), Escape to close, click-outside to close.
+
+**Deep-link support added to the target pages** (`products`, `customers`, `suppliers`, `procurement`, `sales`): each reads `window.location.search` once in a post-mount `useEffect` (not a `useState` initializer, to avoid an SSR/hydration mismatch — this codebase has no existing `useSearchParams()` usage and that hook requires a Suspense boundary Next.js doesn't otherwise need here) and applies `?q=` to its search state and/or `?new=1` to open its create form. The Sales page additionally honors `?tab=history` so a DSP-number search lands on the History tab, not the New Dispense tab.
+
+**Small supporting changes:**
+- `SearchInput` (`components/ui/search-input.tsx`) gained an `initialValue` prop so a deep-linked search term is visible in the box, not just applied invisibly to the data — the internal "last fired" ref is seeded with `initialValue` too, so the box doesn't redundantly re-fire the same search 350ms after mount.
+- New `search` icon added to `components/icons.tsx` (standard magnifying-glass path) — nothing existing fit.
+
+**Verified:** `tsc --noEmit` clean. Confirmed all four fan-out search endpoints return the exact shape the palette expects, against real data (`products?q=para` → 3 Paracetamol batches; `customers?q=a` → 3 matches; `suppliers?q=med` → MedSupply PLC; `sales?q=DSP-00001` → DSP-00001). Full 19-page sweep clean, plus a separate sweep of every deep-link URL (`/products?q=para&new=1`, `/customers?new=1`, `/suppliers?q=med`, `/procurement?new=1`, `/sales?tab=history&q=DSP`) — all 200, no rendered errors.
+
+---
+
 ## 2026-07-19 — Dashboard: second enhancement pass (location filter, trends, payment mix, location performance)
 
 **Phase:** follow-up to the first dashboard enhancement pass — user asked to keep adding professional features.

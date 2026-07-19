@@ -151,6 +151,16 @@ export default function ProductsPage() {
     load(q, typeFilter, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
   }, [q, typeFilter, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Deep links from the command palette: ?q=<term> pre-fills the search,
+  // ?new=1 opens the Add Product drawer. Read post-mount (not in a state
+  // initializer) so server- and client-rendered output match.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const qParam = params.get('q');
+    if (qParam) setQ(qParam);
+    if (params.get('new') === '1') setForm(emptyForm);
+  }, []);
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form) return;
@@ -331,6 +341,7 @@ export default function ProductsPage() {
           }}
           placeholder="Search code, name, brand, class…"
           className="w-72"
+          initialValue={q}
         />
         <Select
           value={typeFilter}
