@@ -11,11 +11,41 @@ function money(v: number) {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+interface MoverProduct {
+  code: string;
+  genericName: string;
+  brandName?: string | null;
+  dispenseUnit: string | null;
+}
+
+interface AlertInsight {
+  type: 'LOW_STOCK' | 'EXPIRING' | 'EXPIRED' | 'OVER_STOCK';
+  product: MoverProduct;
+  location: { id: number; name: string };
+  quantity: number;
+  unit: string | null;
+  severity?: number;
+  suggestedReorderQty?: number;
+  daysToExpiry?: number;
+  detail: string;
+}
+
 interface Overview {
   stock: { products: number; unitsInStock: number; stockValue: number; batchLocations: number };
-  sales: { todayTotal: number; todayCount: number; last7dTotal: number; last7dCount: number };
+  sales: {
+    todayTotal: number;
+    todayCount: number;
+    last7dTotal: number;
+    last7dCount: number;
+    last30dTotal: number;
+    last30dCount: number;
+  };
+  unpaidInvoices: { count: number; totalOutstanding: number };
+  totalBuyers: number;
   alertCounts: Record<string, number>;
-  topMovers: { product: { code: string; genericName: string; dispenseUnit: string | null } | undefined; quantity: number }[];
+  alertInsights: { lowStock: AlertInsight[]; expiring: AlertInsight[]; overStock: AlertInsight[] };
+  topMovers: { product: MoverProduct | undefined; quantity: number }[];
+  slowMovers: { product: MoverProduct & { id: number }; quantity: number; value: number; soldQty30d: number }[];
   recentSales: { id: number; dspNumber: string; total: number; paymentType: string; location: string; createdAt: string }[];
 }
 
@@ -24,6 +54,13 @@ const ALERT_LABELS: Record<string, string> = {
   EXPIRING: 'Expiring soon',
   LOW_STOCK: 'Low stock',
   OVER_STOCK: 'Over stock',
+};
+
+const INSIGHT_BADGE: Record<AlertInsight['type'], string> = {
+  EXPIRED: 'bg-red-50 text-red-700',
+  EXPIRING: 'bg-amber-50 text-amber-700',
+  LOW_STOCK: 'bg-red-50 text-red-700',
+  OVER_STOCK: 'bg-amber-50 text-amber-700',
 };
 
 // ── Phase A4: period-scoped analytics ───────────────────────
@@ -66,10 +103,12 @@ interface Analytics {
     lastOrderAt: string;
   }[];
   charts: {
+    salesOverview: { label: string; revenue: number; orders: number }[];
     salesVsPurchases: { label: string; sales: number; purchases: number }[];
     profitTrend: { label: string; gross: number; net: number }[];
     topProductsByMargin: ProductStat[];
     topProductsByVolume: ProductStat[];
+    topProductsByRevenue: ProductStat[];
     monthlyOverview: { label: string; sales: number; purchases: number }[];
   };
 }
@@ -99,6 +138,8 @@ function TrendBadge({ pct }: { pct: number }) {
 
 const CHART_BLUE = '#2a78d6';
 const CHART_GREEN = '#008300';
+const CHART_SLATE = '#475569';
+const CHART_AMBER = '#b45309';
 
 export default function DashboardPage() {
   const { user, hasPermission } = useAuth();
@@ -121,12 +162,6 @@ export default function DashboardPage() {
       .catch((e) => toast.error(e.message))
       .finally(() => setAnalyticsLoading(false));
   }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const alertTotal = data
-    ? Object.entries(data.alertCounts)
-        .filter(([k]) => k !== 'ADJUSTMENT')
-        .reduce((s, [, v]) => s + v, 0)
-    : 0;
 
   const quickLinks = [
     { href: '/procurement', label: 'Purchase Orders', permission: 'procurement.view' },
@@ -159,67 +194,103 @@ export default function DashboardPage() {
 
       {data && (
         <>
-          <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Stock Value</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total Inventory</p>
               <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{money(data.stock.stockValue)}</p>
               <p className="text-[11px] text-slate-400">
-                {data.stock.unitsInStock.toLocaleString()} unit(s) across {data.stock.batchLocations} batch-location(s)
+                {data.stock.unitsInStock.toLocaleString()} unit(s) · {data.stock.products} product(s)
               </p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Products</p>
-              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{data.stock.products}</p>
-              <p className="text-[11px] text-slate-400">active in catalogue</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Monthly Sales</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{money(data.sales.last30dTotal)}</p>
+              <p className="text-[11px] text-slate-400">
+                {data.sales.last30dCount} sale(s) · {money(data.sales.todayTotal)} today
+              </p>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Sales Today</p>
-              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{money(data.sales.todayTotal)}</p>
-              <p className="text-[11px] text-slate-400">{data.sales.todayCount} sale(s) today · {money(data.sales.last7dTotal)} last 7 days</p>
-            </div>
+            <Link
+              href="/wallet"
+              className={`rounded-lg border bg-white p-4 hover:border-slate-400 ${
+                data.unpaidInvoices.count > 0 ? 'border-amber-300' : 'border-slate-200'
+              }`}
+            >
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Unpaid Invoices</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{data.unpaidInvoices.count}</p>
+              <p className="text-[11px] text-slate-400">{money(data.unpaidInvoices.totalOutstanding)} outstanding</p>
+            </Link>
             <Link
               href="/alerts"
               className={`rounded-lg border bg-white p-4 hover:border-slate-400 ${
-                alertTotal > 0 ? 'border-slate-900' : 'border-slate-200'
+                (data.alertCounts.LOW_STOCK || 0) > 0 ? 'border-red-300' : 'border-slate-200'
               }`}
             >
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Active Alerts</p>
-              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{alertTotal}</p>
-              <p className="text-[11px] text-slate-400">
-                {Object.entries(data.alertCounts)
-                  .filter(([k]) => k !== 'ADJUSTMENT')
-                  .map(([k, v]) => `${v} ${ALERT_LABELS[k] || k}`)
-                  .join(' · ') || 'all clear'}
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Low Stock</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{data.alertCounts.LOW_STOCK || 0}</p>
+              <p className="text-[11px] text-slate-400">product(s) below minimum</p>
+            </Link>
+            <Link
+              href="/alerts"
+              className={`rounded-lg border bg-white p-4 hover:border-slate-400 ${
+                (data.alertCounts.EXPIRED || 0) + (data.alertCounts.EXPIRING || 0) > 0 ? 'border-amber-300' : 'border-slate-200'
+              }`}
+            >
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Expiring</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+                {(data.alertCounts.EXPIRED || 0) + (data.alertCounts.EXPIRING || 0)}
               </p>
+              <p className="text-[11px] text-slate-400">
+                {data.alertCounts.EXPIRED || 0} expired · {data.alertCounts.EXPIRING || 0} expiring soon
+              </p>
+            </Link>
+            <Link
+              href="/customers"
+              className="rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400"
+            >
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total Buyers</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{data.totalBuyers}</p>
+              <p className="text-[11px] text-slate-400">customer(s) with orders</p>
             </Link>
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="rounded-lg border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-5 py-3">
-                <h2 className="text-sm font-semibold text-slate-900">Top Moving Products (30 days)</h2>
+              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+                <h2 className="text-sm font-semibold text-slate-900">Alerts &amp; Insights</h2>
+                <Link href="/alerts" className="text-xs font-medium text-slate-500 hover:text-slate-900">
+                  View all →
+                </Link>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <tbody>
-                    {data.topMovers.length === 0 && (
-                      <tr><td className="px-5 py-6 text-center text-slate-400">No dispensing activity yet.</td></tr>
-                    )}
-                    {data.topMovers.map((m, i) => (
-                      <tr key={i} className="border-b border-slate-100 last:border-0">
-                        <td className="px-5 py-2.5 text-slate-400">{i + 1}</td>
-                        <td className="px-2 py-2.5">
-                          <span className="font-medium text-slate-900">{m.product?.genericName || '?'}</span>
-                          <span className="ml-1 font-mono text-xs text-slate-400">{m.product?.code}</span>
-                        </td>
-                        <td className="px-5 py-2.5 text-right tabular-nums font-medium text-slate-900">
-                          {m.quantity}
-                          <span className="ml-1 text-xs font-normal text-slate-400">{m.product?.dispenseUnit || ''}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="divide-y divide-slate-100 px-5 py-2">
+                {(['lowStock', 'expiring', 'overStock'] as const).map((key) => {
+                  const items = data.alertInsights[key];
+                  const typeLabel = key === 'lowStock' ? 'Low stock' : key === 'expiring' ? 'Expiring / expired' : 'Over stock';
+                  return (
+                    <div key={key} className="py-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {typeLabel} <span className="text-slate-400">({items.length})</span>
+                      </p>
+                      {items.length === 0 ? (
+                        <p className="mt-1.5 text-sm text-slate-400">All clear.</p>
+                      ) : (
+                        <ul className="mt-1.5 space-y-2">
+                          {items.map((a, i) => (
+                            <li key={i} className="text-sm">
+                              <div>
+                                <span className={`mr-1.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${INSIGHT_BADGE[a.type]}`}>
+                                  {ALERT_LABELS[a.type]}
+                                </span>
+                                <span className="font-medium text-slate-900">{a.product.genericName}</span>
+                                <span className="ml-1 text-xs text-slate-400">{a.location.name}</span>
+                              </div>
+                              <p className="mt-0.5 text-xs text-slate-500">{a.detail}</p>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -318,6 +389,35 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          <div className="mt-6">
+            <h3 className="text-base font-semibold text-slate-900">Sales Overview</h3>
+            <p className="text-xs text-slate-500">Revenue and order volume for the selected period.</p>
+            <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 bg-white p-5">
+                <h4 className="text-sm font-semibold text-slate-900">Revenue</h4>
+                <div className="mt-3">
+                  <TrendChart
+                    data={analytics.charts.salesOverview}
+                    series={[{ key: 'revenue', label: 'Revenue', color: CHART_BLUE }]}
+                    formatValue={money}
+                    formatAxisLabel={formatAxisLabel}
+                  />
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-5">
+                <h4 className="text-sm font-semibold text-slate-900">Order Volume</h4>
+                <div className="mt-3">
+                  <TrendChart
+                    data={analytics.charts.salesOverview}
+                    series={[{ key: 'orders', label: 'Orders', color: CHART_SLATE }]}
+                    formatValue={(v) => v.toLocaleString()}
+                    formatAxisLabel={formatAxisLabel}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="rounded-lg border border-slate-200 bg-white p-5">
               <h3 className="text-sm font-semibold text-slate-900">Sales vs Purchases</h3>
@@ -349,36 +449,97 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <h3 className="text-sm font-semibold text-slate-900">Top Products by Margin</h3>
-              <div className="mt-3">
-                <RankBars
-                  rows={analytics.charts.topProductsByMargin.map((p) => ({
-                    label: p.product.genericName,
-                    sublabel: p.product.code,
-                    value: p.margin,
-                  }))}
-                  color={CHART_BLUE}
-                  formatValue={money}
-                />
+          <div className="mt-6">
+            <h3 className="text-base font-semibold text-slate-900">Top Products</h3>
+            <p className="text-xs text-slate-500">Fast movers by revenue, margin, and volume for the selected period.</p>
+            <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div className="rounded-lg border border-slate-200 bg-white p-5">
+                <h4 className="text-sm font-semibold text-slate-900">By Revenue</h4>
+                <div className="mt-3">
+                  <RankBars
+                    rows={analytics.charts.topProductsByRevenue.map((p) => ({
+                      label: p.product.genericName,
+                      sublabel: p.product.code,
+                      value: p.revenue,
+                    }))}
+                    color={CHART_BLUE}
+                    formatValue={money}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <h3 className="text-sm font-semibold text-slate-900">Top Products by Volume</h3>
-              <div className="mt-3">
-                <RankBars
-                  rows={analytics.charts.topProductsByVolume.map((p) => ({
-                    label: p.product.genericName,
-                    sublabel: `${p.quantity} ${p.product.dispenseUnit || 'unit(s)'}`,
-                    value: p.quantity,
-                  }))}
-                  color={CHART_GREEN}
-                  formatValue={(v) => v.toLocaleString()}
-                />
+              <div className="rounded-lg border border-slate-200 bg-white p-5">
+                <h4 className="text-sm font-semibold text-slate-900">By Margin</h4>
+                <div className="mt-3">
+                  <RankBars
+                    rows={analytics.charts.topProductsByMargin.map((p) => ({
+                      label: p.product.genericName,
+                      sublabel: p.product.code,
+                      value: p.margin,
+                    }))}
+                    color={CHART_GREEN}
+                    formatValue={money}
+                  />
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-5">
+                <h4 className="text-sm font-semibold text-slate-900">By Volume</h4>
+                <div className="mt-3">
+                  <RankBars
+                    rows={analytics.charts.topProductsByVolume.map((p) => ({
+                      label: p.product.genericName,
+                      sublabel: `${p.quantity} ${p.product.dispenseUnit || 'unit(s)'}`,
+                      value: p.quantity,
+                    }))}
+                    color={CHART_SLATE}
+                    formatValue={(v) => v.toLocaleString()}
+                  />
+                </div>
               </div>
             </div>
           </div>
+
+          {data && (
+            <div className="mt-6">
+              <h3 className="text-base font-semibold text-slate-900">Fast &amp; Slow Movers</h3>
+              <p className="text-xs text-slate-500">Fixed 30-day window, independent of the period filter above.</p>
+              <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 bg-white p-5">
+                  <h4 className="text-sm font-semibold text-slate-900">Fast Movers</h4>
+                  <p className="text-xs text-slate-500">Top sellers in the last 30 days.</p>
+                  <div className="mt-3">
+                    <RankBars
+                      rows={data.topMovers
+                        .filter((m) => m.product)
+                        .map((m) => ({
+                          label: m.product!.genericName,
+                          sublabel: `${m.product!.code} · ${m.quantity} ${m.product!.dispenseUnit || 'unit(s)'} sold`,
+                          value: m.quantity,
+                        }))}
+                      color={CHART_GREEN}
+                      formatValue={(v) => v.toLocaleString()}
+                      emptyText="No dispensing activity in the last 30 days."
+                    />
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-5">
+                  <h4 className="text-sm font-semibold text-slate-900">Slow Movers</h4>
+                  <p className="text-xs text-slate-500">Sitting in stock — push or discount.</p>
+                  <div className="mt-3">
+                    <RankBars
+                      rows={data.slowMovers.map((m) => ({
+                        label: m.product.genericName,
+                        sublabel: `${m.product.code} · ${m.soldQty30d} sold in 30d`,
+                        value: m.value,
+                      }))}
+                      color={CHART_AMBER}
+                      formatValue={money}
+                      emptyText="Nothing sitting idle — everything in stock has recent sales."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
             <h3 className="text-sm font-semibold text-slate-900">Monthly Performance Overview (last 12 months)</h3>

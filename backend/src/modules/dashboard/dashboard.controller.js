@@ -3,6 +3,11 @@ const { buildAlerts } = require('../alerts/alerts.controller');
 
 const round2 = (v) => Math.round(v * 100) / 100;
 
+// "Slow mover" ranking: in-stock products with the least (or zero) dispensing
+// activity over the lookback window, ranked by how much money is tied up in
+// them — the ones most worth pushing or discounting first.
+const SLOW_MOVER_COUNT = 6;
+
 async function overview(req, res, next) {
   try {
     const locationId = req.query.locationId ? Number(req.query.locationId) : undefined;
@@ -13,42 +18,80 @@ async function overview(req, res, next) {
 
     const whereLoc = locationId ? { locationId } : {};
 
-    const [stocks, productCount, salesToday, sales7d, topMoverGroups, recentSales, alerts] =
-      await Promise.all([
-        prisma.stock.findMany({
-          where: { quantity: { gt: 0 }, ...whereLoc },
-          include: {
-            batch: { select: { unitCost: true, product: { select: { unitPrice: true } } } },
+    const [
+      stocks,
+      productCount,
+      salesToday,
+      sales7d,
+      sales30d,
+      topMoverGroups,
+      soldQty30dGroups,
+      recentSales,
+      alerts,
+      creditOrders,
+      buyerGroups,
+    ] = await Promise.all([
+      prisma.stock.findMany({
+        where: { quantity: { gt: 0 }, ...whereLoc },
+        include: {
+          batch: {
+            select: {
+              unitCost: true,
+              product: {
+                select: { id: true, code: true, genericName: true, brandName: true, dispenseUnit: true, unitPrice: true },
+              },
+            },
           },
-        }),
-        prisma.product.count({ where: { isActive: true } }),
-        prisma.dispenseOrder.aggregate({
-          where: { createdAt: { gte: startOfDay }, ...whereLoc },
-          _sum: { total: true },
-          _count: true,
-        }),
-        prisma.dispenseOrder.aggregate({
-          where: { createdAt: { gte: sevenDaysAgo }, ...whereLoc },
-          _sum: { total: true },
-          _count: true,
-        }),
-        prisma.dispenseItem.groupBy({
-          by: ['productId'],
-          where: {
-            dispenseOrder: { createdAt: { gte: thirtyDaysAgo }, ...whereLoc },
-          },
-          _sum: { quantity: true },
-          orderBy: { _sum: { quantity: 'desc' } },
-          take: 5,
-        }),
-        prisma.dispenseOrder.findMany({
-          where: whereLoc,
-          include: { location: { select: { name: true } } },
-          orderBy: { id: 'desc' },
-          take: 5,
-        }),
-        buildAlerts(locationId),
-      ]);
+        },
+      }),
+      prisma.product.count({ where: { isActive: true } }),
+      prisma.dispenseOrder.aggregate({
+        where: { createdAt: { gte: startOfDay }, ...whereLoc },
+        _sum: { total: true },
+        _count: true,
+      }),
+      prisma.dispenseOrder.aggregate({
+        where: { createdAt: { gte: sevenDaysAgo }, ...whereLoc },
+        _sum: { total: true },
+        _count: true,
+      }),
+      prisma.dispenseOrder.aggregate({
+        where: { createdAt: { gte: thirtyDaysAgo }, ...whereLoc },
+        _sum: { total: true },
+        _count: true,
+      }),
+      prisma.dispenseItem.groupBy({
+        by: ['productId'],
+        where: {
+          dispenseOrder: { createdAt: { gte: thirtyDaysAgo }, ...whereLoc },
+        },
+        _sum: { quantity: true },
+        orderBy: { _sum: { quantity: 'desc' } },
+        take: 5,
+      }),
+      prisma.dispenseItem.groupBy({
+        by: ['productId'],
+        where: {
+          dispenseOrder: { createdAt: { gte: thirtyDaysAgo }, ...whereLoc },
+        },
+        _sum: { quantity: true },
+      }),
+      prisma.dispenseOrder.findMany({
+        where: whereLoc,
+        include: { location: { select: { name: true } } },
+        orderBy: { id: 'desc' },
+        take: 5,
+      }),
+      buildAlerts(locationId),
+      prisma.dispenseOrder.findMany({
+        where: { paymentType: 'CREDIT', ...whereLoc },
+        select: { total: true, payments: { select: { amount: true } } },
+      }),
+      prisma.dispenseOrder.groupBy({
+        by: ['customerId'],
+        where: { customerId: { not: null }, ...whereLoc },
+      }),
+    ]);
 
     const stockValue = stocks.reduce((s, st) => {
       const cost = st.batch.unitCost != null ? Number(st.batch.unitCost) : Number(st.batch.product.unitPrice);
@@ -69,6 +112,47 @@ async function overview(req, res, next) {
     const alertCounts = {};
     for (const a of alerts) alertCounts[a.type] = (alertCounts[a.type] || 0) + 1;
 
+    // Alert insights: the handful of most urgent items per type, so the
+    // dashboard can say something specific instead of just a count.
+    const bySeverityDesc = (a, b) => (b.severity || 0) - (a.severity || 0);
+    const byDaysAsc = (a, b) => (a.daysToExpiry ?? Infinity) - (b.daysToExpiry ?? Infinity);
+    const alertInsights = {
+      lowStock: alerts.filter((a) => a.type === 'LOW_STOCK').sort(bySeverityDesc).slice(0, 5),
+      expiring: alerts.filter((a) => a.type === 'EXPIRING' || a.type === 'EXPIRED').sort(byDaysAsc).slice(0, 5),
+      overStock: alerts.filter((a) => a.type === 'OVER_STOCK').sort(bySeverityDesc).slice(0, 3),
+    };
+
+    // Slow movers: products sitting in stock with the least (or zero) sales
+    // in the last 30 days, ranked by stock value — the most money tied up
+    // in the slowest-moving inventory, i.e. what to push or discount first.
+    const soldMap = new Map(soldQty30dGroups.map((g) => [g.productId, g._sum.quantity || 0]));
+    const stockByProduct = new Map();
+    for (const st of stocks) {
+      const p = st.batch.product;
+      const cost = st.batch.unitCost != null ? Number(st.batch.unitCost) : Number(p.unitPrice);
+      const cur = stockByProduct.get(p.id) || { product: p, quantity: 0, value: 0 };
+      cur.quantity += st.quantity;
+      cur.value += st.quantity * cost;
+      stockByProduct.set(p.id, cur);
+    }
+    const slowMovers = [...stockByProduct.values()]
+      .map((x) => ({ ...x, value: round2(x.value), soldQty30d: soldMap.get(x.product.id) || 0 }))
+      .sort((a, b) => a.soldQty30d - b.soldQty30d || b.value - a.value)
+      .slice(0, SLOW_MOVER_COUNT);
+
+    const unpaidInvoices = creditOrders.reduce(
+      (acc, o) => {
+        const outstanding = Math.max(0, Number(o.total) - o.payments.reduce((p, x) => p + Number(x.amount), 0));
+        if (outstanding > 0) {
+          acc.count += 1;
+          acc.totalOutstanding += outstanding;
+        }
+        return acc;
+      },
+      { count: 0, totalOutstanding: 0 },
+    );
+    unpaidInvoices.totalOutstanding = round2(unpaidInvoices.totalOutstanding);
+
     res.json({
       stock: {
         products: productCount,
@@ -81,9 +165,15 @@ async function overview(req, res, next) {
         todayCount: salesToday._count,
         last7dTotal: Number(sales7d._sum.total || 0),
         last7dCount: sales7d._count,
+        last30dTotal: Number(sales30d._sum.total || 0),
+        last30dCount: sales30d._count,
       },
+      unpaidInvoices,
+      totalBuyers: buyerGroups.length,
       alertCounts,
+      alertInsights,
       topMovers,
+      slowMovers,
       recentSales: recentSales.map((o) => ({
         id: o.id,
         dspNumber: o.dspNumber,
@@ -224,6 +314,26 @@ async function topCustomers(start, end, locationId, limit = 8) {
   }));
 }
 
+// Revenue + order count per bucket — the "Sales Overview" chart. Kept
+// separate from salesVsPurchasesSeries (which pairs sales against purchases)
+// since order volume is a count, not a money figure, and the two shouldn't
+// share a y-axis with revenue.
+async function salesOverviewSeries(start, end, granularity, locationId) {
+  const orders = await prisma.dispenseOrder.findMany({
+    where: { createdAt: { gte: start, lte: end }, ...(locationId ? { locationId } : {}) },
+    select: { createdAt: true, total: true },
+  });
+  const buckets = new Map(bucketLabels(start, end, granularity).map((l) => [l, { label: l, revenue: 0, orders: 0 }]));
+  for (const o of orders) {
+    const b = buckets.get(bucketKey(o.createdAt, granularity));
+    if (b) {
+      b.revenue += Number(o.total);
+      b.orders += 1;
+    }
+  }
+  return [...buckets.values()].map((b) => ({ label: b.label, revenue: round2(b.revenue), orders: b.orders }));
+}
+
 async function salesVsPurchasesSeries(start, end, granularity, locationId) {
   const [sales, purchases] = await Promise.all([
     prisma.dispenseOrder.findMany({
@@ -321,6 +431,7 @@ async function productStats(start, end, locationId, limit = 5) {
   return {
     byMargin: [...all].sort((a, b) => b.margin - a.margin).slice(0, limit),
     byVolume: [...all].sort((a, b) => b.quantity - a.quantity).slice(0, limit),
+    byRevenue: [...all].sort((a, b) => b.revenue - a.revenue).slice(0, limit),
   };
 }
 
@@ -334,11 +445,12 @@ async function analytics(req, res, next) {
     const now = new Date();
     const twelveMoStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
-    const [currentProfit, previousProfit, customers, salesVsPurchases, profitTrend, products, monthlyOverview] =
+    const [currentProfit, previousProfit, customers, salesOverview, salesVsPurchases, profitTrend, products, monthlyOverview] =
       await Promise.all([
         computeProfitTotals(start, end, locationId),
         computeProfitTotals(prevStart, prevEnd, locationId),
         topCustomers(start, end, locationId),
+        salesOverviewSeries(start, end, granularity, locationId),
         salesVsPurchasesSeries(start, end, granularity, locationId),
         profitSeries(start, end, granularity, locationId),
         productStats(start, end, locationId),
@@ -358,10 +470,12 @@ async function analytics(req, res, next) {
       },
       topCustomers: customers,
       charts: {
+        salesOverview,
         salesVsPurchases,
         profitTrend,
         topProductsByMargin: products.byMargin,
         topProductsByVolume: products.byVolume,
+        topProductsByRevenue: products.byRevenue,
         monthlyOverview,
       },
     });
