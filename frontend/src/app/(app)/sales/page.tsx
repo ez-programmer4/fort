@@ -28,13 +28,11 @@ function money(v: string | number) {
   return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function expiryBadge(expiry: string | null) {
+function expiryLabel(expiry: string | null) {
   if (!expiry) return null;
   const days = Math.floor((new Date(expiry).getTime() - Date.now()) / 86400000);
-  if (days < 0)
-    return <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">Expired</span>;
-  if (days <= 90)
-    return <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">{days}d left</span>;
+  if (days < 0) return 'EXPIRED';
+  if (days <= 90) return `${days}d left`;
   return null;
 }
 
@@ -337,6 +335,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
   const [stockQuery, setStockQuery] = useState('');
   const [stockOptions, setStockOptions] = useState<StockRow[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
+  const [pickedBatchId, setPickedBatchId] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customerId, setCustomerId] = useState('');
   const [customerOptions, setCustomerOptions] = useState<ComboOption[]>([]);
@@ -410,6 +409,36 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
   function addToCart(s: StockRow) {
     if (cart.some((c) => c.stock.batchId === s.batchId)) return;
     setCart([...cart, { stock: s, quantity: '1', unitPrice: String(s.unitPrice) }]);
+  }
+
+  // Search-combo add: options are individual batches (not just products), so
+  // staff can tell batches of the same product apart by expiry/quantity and
+  // pick the right one — important for expiry-sensitive dispensing.
+  const stockComboOptions: ComboOption[] = stockOptions
+    .filter((s) => !cart.some((c) => c.stock.batchId === s.batchId))
+    .map((s) => {
+      const expiry = expiryLabel(s.expiryDate);
+      const sublabel = [
+        s.code,
+        `batch ${s.batchNo}`,
+        `${s.quantity} ${s.dispenseUnit || 'avail'}`,
+        money(s.unitPrice),
+        expiry,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      return {
+        value: String(s.batchId),
+        label: `${s.genericName}${s.brandName ? ` (${s.brandName})` : ''}`,
+        sublabel,
+      };
+    });
+
+  function pickProduct(batchId: string) {
+    setPickedBatchId(batchId);
+    const s = stockOptions.find((x) => String(x.batchId) === batchId);
+    if (s) addToCart(s);
+    setPickedBatchId('');
   }
 
   function setLine(i: number, patch: Partial<CartLine>) {
@@ -500,7 +529,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
       {step === 'items' && (
         <>
           <div className="rounded-lg border border-slate-200 bg-white p-4 sm:p-5">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>Dispense from location *</label>
                 <Select
@@ -515,128 +544,20 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
                 />
               </div>
               {locationId && (
-                <div className="sm:col-span-2">
-                  <label className={label}>Search stock (product, batch…)</label>
-                  <SearchInput
+                <div>
+                  <label className={label}>Add product</label>
+                  <Combobox
+                    options={stockComboOptions}
+                    value={pickedBatchId}
+                    onChange={pickProduct}
                     onSearch={setStockQuery}
-                    placeholder="Type to search available stock…"
-                    className="mt-1 w-full"
+                    placeholder="Search by name, code or batch…"
+                    emptyText={stockLoading ? 'Searching…' : 'No matching stock at this location'}
+                    className="mt-1"
                   />
                 </div>
               )}
             </div>
-
-            {locationId && (
-              <>
-                {/* Mobile: card list — a 6-column table is unusable on a phone */}
-                <div className="mt-4 space-y-2 sm:hidden">
-                  {stockLoading &&
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="h-24 animate-pulse rounded-lg bg-slate-100" />
-                    ))}
-                  {!stockLoading && stockOptions.length === 0 && (
-                    <p className="rounded-md border border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">
-                      No stock at this location.
-                    </p>
-                  )}
-                  {!stockLoading &&
-                    stockOptions.map((s) => {
-                      const inCart = cart.some((c) => c.stock.batchId === s.batchId);
-                      return (
-                        <div key={s.batchId} className="rounded-lg border border-slate-200 p-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-slate-900">
-                                {s.genericName}
-                                {s.brandName && <span className="font-normal text-slate-500"> ({s.brandName})</span>}
-                              </p>
-                              <p className="font-mono text-xs text-slate-400">{s.code}</p>
-                            </div>
-                            <p className="shrink-0 text-right text-sm font-semibold tabular-nums text-slate-900">
-                              {money(s.unitPrice)}
-                            </p>
-                          </div>
-                          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                            <span>Batch {s.batchNo}</span>
-                            <span className="text-slate-300">·</span>
-                            <span>{s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : 'No expiry'}</span>
-                            {expiryBadge(s.expiryDate)}
-                          </div>
-                          <div className="mt-3 flex items-center justify-between gap-3">
-                            <p className="text-xs text-slate-500">
-                              Available <span className="font-semibold tabular-nums text-slate-900">{s.quantity}</span>{' '}
-                              {s.dispenseUnit || ''}
-                            </p>
-                            <button
-                              onClick={() => addToCart(s)}
-                              disabled={inCart}
-                              className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                                inCart
-                                  ? 'bg-emerald-50 text-emerald-700'
-                                  : 'bg-slate-900 text-white hover:bg-slate-700'
-                              }`}
-                            >
-                              <Icon name={inCart ? 'check' : 'cart'} className="h-3.5 w-3.5" />
-                              {inCart ? 'Added' : 'Add'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-
-                {/* Tablet/desktop: dense table */}
-                <div className="mt-4 hidden max-h-56 overflow-y-auto rounded-md border border-slate-200 sm:block">
-                  <table className="w-full text-left text-sm">
-                    <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                      <tr>
-                        <th className="px-3 py-2">Product</th>
-                        <th className="px-3 py-2">Batch</th>
-                        <th className="px-3 py-2">Expiry</th>
-                        <th className="px-3 py-2 text-right">Available</th>
-                        <th className="px-3 py-2 text-right">Price</th>
-                        <th className="px-3 py-2 text-right"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stockLoading && <SkeletonRows rows={3} cols={6} />}
-                      {!stockLoading && stockOptions.length === 0 && (
-                        <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400">No stock at this location.</td></tr>
-                      )}
-                      {!stockLoading &&
-                        stockOptions.map((s) => {
-                          const inCart = cart.some((c) => c.stock.batchId === s.batchId);
-                          return (
-                            <tr key={s.batchId} className="border-t border-slate-100">
-                              <td className="px-3 py-2">
-                                <span className="font-medium text-slate-900">{s.genericName}</span>
-                                {s.brandName && <span className="text-slate-500"> ({s.brandName})</span>}
-                                <span className="ml-1 font-mono text-xs text-slate-400">{s.code}</span>
-                              </td>
-                              <td className="px-3 py-2 text-slate-600">{s.batchNo}</td>
-                              <td className="px-3 py-2 text-slate-600">
-                                {s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : '—'}
-                                {' '}{expiryBadge(s.expiryDate)}
-                              </td>
-                              <td className="px-3 py-2 text-right tabular-nums">{s.quantity}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{money(s.unitPrice)}</td>
-                              <td className="px-3 py-2 text-right">
-                                <button
-                                  onClick={() => addToCart(s)}
-                                  disabled={inCart}
-                                  className="text-xs font-medium text-slate-900 underline underline-offset-2 disabled:text-slate-300 disabled:no-underline"
-                                >
-                                  {inCart ? 'Added' : '+ Add'}
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
           </div>
 
           {cart.length > 0 && (

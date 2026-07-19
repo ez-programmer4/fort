@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-19 — Sales: search-combo product picker replaces the browse table
+
+**Phase:** user feedback — with many products, finding and adding items to a dispense order via the old "search box + scroll a table + click Add" flow was slow. Confirmed via AskUserQuestion: replace it (not add alongside) with the same fast search-combo pattern Procurement already uses for "Add products" on a Purchase Order; the "other additional" part of the request was about the same Sales screen, not a second page.
+
+**Done:**
+- `frontend/src/app/(app)/sales/page.tsx`: the New Dispense step's mobile card list + desktop scrollable table (each with its own "Add" button) is gone. In its place, a single "Add product" `Combobox` — type a product name, code, or batch number; the dropdown narrows (debounced, server-side via the existing `/api/inventory` search) and selecting a result adds it to the cart immediately, no extra click.
+- Combo options are per-**batch**, not per-product, since dispensing must pick a specific batch — a product with multiple batches at a location shows one option per batch, each labeled with its batch no., quantity available, price, and an expiry hint (`45d left` / `EXPIRED`, reused from the old badge logic — `expiryBadge()` renamed to `expiryLabel()` and now returns plain text for the combo's sublabel instead of a JSX pill, since Combobox options are text-only).
+- Batches already in the cart are filtered out of the dropdown so the same batch can't be added twice (previously handled by disabling/graying an "Added" button in the table).
+- No backend changes — same `/api/inventory` endpoint, same response shape, same `addToCart` cart logic; this was purely a picker-UI change.
+
+**Verified:** `tsc --noEmit` clean. Confirmed the inventory search response shape still matches what the combo expects (`batchId`, `code`, `genericName`, `brandName`, `dispenseUnit`, `unitPrice`, `quantity`, `batchNo`, `expiryDate`). Simulated the label/sublabel formatting against real data (`"Paracetamol (Panadol)"` / `"P-00001 · batch BN-2026-001 · 242 Strip · 12.50"`). Full 19-page HTTP-200 sweep, no rendered errors.
+
+---
+
 ## 2026-07-19 — Withholding tax receipt tracking on the Withholding report
 
 **Phase:** follow-up to the Withholding report (Phase A13) — user wants to track when the customer's withholding tax certificate/receipt is actually received back, with the receipt number, and have that status visible on the report.
