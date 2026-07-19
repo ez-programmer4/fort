@@ -212,14 +212,9 @@ Test with each of the 4 role accounts from the setup table.
 | 9.2.8 ❌ | Invalid WHT type                | Type not NONE/GOODS/SERVICES (API-level)                                                  | `withholdingType must be one of: NONE, GOODS, SERVICES`                                                                       |
 | 9.2.9 ✅ | GRV history                     | Procurement → GRV tab                                                                     | Lists all receipts, searchable/sortable, each linkable back to its PO                                                         |
 
-### 9.3 Non-sale purchases (Expenses)
-
-| #        | Scenario             | Steps                                                                                                 | Expected                                                |
-| -------- | -------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| 9.3.1 ✅ | Record a purchase    | Procurement → Other Purchases → Record, description/category/amount (+ optional supplier/WHT), submit | Appears in the Expenses list; feeds into Finance report |
-| 9.3.2 ❌ | Missing description  | Submit with description blank                                                                         | `Description is required`                               |
-| 9.3.3 ❌ | Zero/negative amount | Amount ≤ 0                                                                                            | `Amount must be greater than zero`                      |
-| 9.3.4 ❌ | Unknown supplier     | (API-level) bad supplierId                                                                            | `Supplier not found`                                    |
+Non-sale purchases (expenses) used to be a third Procurement tab ("Other
+Purchases") — they're now their own page, **Expenses**, with its own
+sidebar entry. See section 19.
 
 ## 10. Sales & Dispensing
 
@@ -367,6 +362,20 @@ Test with each of the 4 role accounts from the setup table.
 | 18.18 ✅ | Credit advisory in Sales               | New Dispense → pick a customer with history → set Payment to Credit | Amber "Credit check" panel appears: rating badge, outstanding balance, N/M past credit sales settled, "Advisory only" label |
 | 18.19 ✅ | Advisory doesn't block                 | With a Poor-rated / high-outstanding customer, complete a Credit sale anyway | Sale completes normally — the panel is informational only, never blocks                             |
 | 18.20 ✅ | Advisory disappears for Cash           | Switch Payment back to Cash (or clear the customer)                | The credit-check panel disappears                                                                   |
+
+## 19. Expenses
+
+Non-sale purchases — office supplies, services and similar — previously the
+"Other Purchases" tab on Procurement, now its own page.
+
+| #       | Scenario              | Steps                                                                             | Expected                                                 |
+| ------- | --------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 19.1 ✅ | Record a purchase     | Expenses → + Record Purchase, description/category/amount (+ optional supplier/WHT), submit | Appears in the list; feeds into the Finance report         |
+| 19.2 ❌ | Missing description   | Submit with description blank                                                     | `Description is required`                                 |
+| 19.3 ❌ | Zero/negative amount  | Amount ≤ 0                                                                        | `Amount must be greater than zero`                        |
+| 19.4 ❌ | Unknown supplier      | (API-level) bad supplierId                                                        | `Supplier not found`                                       |
+| 19.5 ✅ | Search + sort         | Search by description/category; click sortable headers                          | Debounced search; correct asc/desc ordering                |
+| 19.6 ✅ | Withholding on an expense | Set withholding type/rate when recording                                     | `withholdingAmount`/`netPayable` computed correctly, rolls into the Finance report |
 
 ---
 

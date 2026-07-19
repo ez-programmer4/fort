@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-19 — Expenses split out of Procurement into its own page
+
+**Phase:** user asked for Procurement's "Other Purchases" tab to become its own standalone page with a sidebar entry, named "Expenses".
+
+**Done:**
+- New `frontend/src/app/(app)/expenses/page.tsx` — the "Other Purchases" tab's content moved here wholesale (list, search, sort, pagination, the "Record Non-Sale Purchase" drawer form with description/category/supplier/amount/withholding), unchanged in behavior. Backend untouched — still `GET/POST /api/procurement/expenses`, same `procurement.view`/`procurement.manage` permission gates, since this was purely a frontend information-architecture change, not an API restructuring.
+- `procurement/page.tsx` trimmed back to just Purchase Orders and GRV History: removed the `Expense` interface, `emptyExpense`, the `expenses`/`exp`/`expSaving`/`showNewExpense` state, `saveExpense()`, the expenses branch in `load()`, the "Other Purchases" `Tabs` entry, its table, and its Drawer. `Tab` type is now `'orders' | 'grv'`; the page's description line updated from "Purchase orders, goods receiving and non-sale purchases" to "Purchase orders and goods receiving."
+- New sidebar nav entry "Expenses" (`/expenses`), positioned right after Procurement since that's where it came from, gated by the same `procurement.view` permission. New `banknotes` icon added to `components/icons.tsx` (Heroicons outline) since nothing existing fit — every other plausible icon was already claimed by another nav item.
+- `TESTING_GUIDE.md`: removed the "9.3 Non-sale purchases" subsection from Procurement (replaced with a pointer to the new section), added a new "19. Expenses" section with equivalent test cases reworded for the new page.
+
+**Verified:** `tsc --noEmit` clean. Live API check confirms `/api/procurement/expenses` still returns real data unchanged (2 existing expense records). Full 19-page HTTP-200 sweep (18 prior + the new `/expenses` route).
+
+---
+
 ## 2026-07-19 — Customer credit rating (manual, backed by a payment-history summary)
 
 **Phase:** follow-up to Customer management — user wants a rating to help decide whether to extend credit, surfaced during a Credit sale. Confirmed scope via AskUserQuestion: rating is **manual** (staff sets it), but backed by a **computed payment-history summary** so the decision isn't a guess; enforcement is **advisory only** — shown, never blocks the sale.
