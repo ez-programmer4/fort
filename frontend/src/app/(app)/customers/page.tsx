@@ -10,10 +10,25 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
+import { Select } from '@/components/ui/select';
 
 const input =
   'mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
 const label = 'block text-xs font-medium text-slate-600';
+
+type Rating = 'UNRATED' | 'GOOD' | 'FAIR' | 'POOR';
+
+const RATING_META: Record<Rating, { label: string; badge: string }> = {
+  UNRATED: { label: 'Unrated', badge: 'bg-slate-100 text-slate-600' },
+  GOOD: { label: 'Good', badge: 'bg-emerald-50 text-emerald-700' },
+  FAIR: { label: 'Fair', badge: 'bg-amber-50 text-amber-700' },
+  POOR: { label: 'Poor', badge: 'bg-red-50 text-red-700' },
+};
+const RATING_OPTIONS = (Object.keys(RATING_META) as Rating[]).map((r) => ({ value: r, label: RATING_META[r].label }));
+
+function money(v: number) {
+  return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 interface BankAccount {
   bankName: string;
@@ -26,6 +41,7 @@ interface CustomerRow {
   phone: string | null;
   email: string | null;
   bankAccounts: BankAccount[];
+  creditRating: Rating;
   isActive: boolean;
   createdAt: string;
   _count?: { dispenseOrders: number };
@@ -37,9 +53,22 @@ interface FormState {
   phone: string;
   email: string;
   bankAccounts: BankAccount[];
+  creditRating: Rating;
 }
 
-const emptyForm: FormState = { id: null, name: '', phone: '', email: '', bankAccounts: [] };
+interface CreditSummary {
+  creditRating: Rating;
+  totalOrders: number;
+  creditOrderCount: number;
+  settledCount: number;
+  outstandingCount: number;
+  totalCreditAmount: number;
+  totalPaid: number;
+  outstanding: number;
+  lastOrderAt: string | null;
+}
+
+const emptyForm: FormState = { id: null, name: '', phone: '', email: '', bankAccounts: [], creditRating: 'UNRATED' };
 
 export default function CustomersPage() {
   const toast = useToast();
@@ -53,6 +82,8 @@ export default function CustomersPage() {
   const [saving, setSaving] = useState(false);
   const [confirmRow, setConfirmRow] = useState<CustomerRow | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
+  const [summary, setSummary] = useState<CreditSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const { sortBy, sortDir, toggle } = useSort('name');
 
   const load = useCallback(async (search: string, pageNum: number, size: number, sBy: string, sDir: string) => {
@@ -72,6 +103,20 @@ export default function CustomersPage() {
     load(q, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
   }, [q, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Payment-history summary — the data staff use to decide what to set the
+  // rating to. Only exists for an existing customer, not while creating one.
+  useEffect(() => {
+    if (!form?.id) {
+      setSummary(null);
+      return;
+    }
+    setSummaryLoading(true);
+    api<CreditSummary>(`/api/customers/${form.id}/credit-summary`)
+      .then(setSummary)
+      .catch((e) => toast.error(e.message))
+      .finally(() => setSummaryLoading(false));
+  }, [form?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form) return;
@@ -82,6 +127,7 @@ export default function CustomersPage() {
         phone: form.phone || null,
         email: form.email || null,
         bankAccounts: form.bankAccounts,
+        creditRating: form.creditRating,
       });
       if (form.id === null) {
         await api('/api/customers', { method: 'POST', body });
@@ -169,6 +215,7 @@ export default function CustomersPage() {
               <SortableHeader label="Phone" sortKey="phone" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Bank Accounts</th>
+              <th className="px-4 py-3">Rating</th>
               <th className="px-4 py-3 text-right">Orders</th>
               <SortableHeader label="Added" sortKey="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3">Status</th>
@@ -176,10 +223,10 @@ export default function CustomersPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && <SkeletonRows rows={5} cols={8} />}
+            {loading && <SkeletonRows rows={5} cols={9} />}
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={9}>
                   <EmptyState
                     title={q ? 'No customers match your search' : 'No customers yet'}
                     description={
@@ -203,6 +250,11 @@ export default function CustomersPage() {
                       ? row.bankAccounts.map((b) => `${b.bankName} ${b.accountNumber}`).join(', ')
                       : '—'}
                   </td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${RATING_META[row.creditRating].badge}`}>
+                      {RATING_META[row.creditRating].label}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-600">{row._count?.dispenseOrders ?? 0}</td>
                   <td className="px-4 py-3 text-slate-500">{new Date(row.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
@@ -223,6 +275,7 @@ export default function CustomersPage() {
                           phone: row.phone || '',
                           email: row.email || '',
                           bankAccounts: row.bankAccounts || [],
+                          creditRating: row.creditRating,
                         })
                       }
                       className="text-xs font-medium text-slate-900 underline underline-offset-2"
@@ -331,6 +384,44 @@ export default function CustomersPage() {
                 </div>
               ))}
             </div>
+
+            {form.id !== null && (
+              <div className="border-t border-slate-200 pt-4">
+                <label className={label}>Payment history</label>
+                {summaryLoading && (
+                  <div className="mt-2 h-16 animate-pulse rounded-md bg-slate-100" />
+                )}
+                {!summaryLoading && summary && (
+                  <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+                    <p><span className="text-slate-500">Credit sales:</span> <span className="text-slate-900">{summary.creditOrderCount}</span></p>
+                    <p><span className="text-slate-500">Fully settled:</span> <span className="text-slate-900">{summary.settledCount}</span></p>
+                    <p><span className="text-slate-500">Total extended:</span> <span className="tabular-nums text-slate-900">{money(summary.totalCreditAmount)}</span></p>
+                    <p><span className="text-slate-500">Total paid:</span> <span className="tabular-nums text-slate-900">{money(summary.totalPaid)}</span></p>
+                    <p className="col-span-2">
+                      <span className="text-slate-500">Outstanding now:</span>{' '}
+                      <span className={`tabular-nums font-semibold ${summary.outstanding > 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                        {money(summary.outstanding)}
+                      </span>
+                    </p>
+                    {summary.lastOrderAt && (
+                      <p className="col-span-2 text-xs text-slate-400">
+                        Last order {new Date(summary.lastOrderAt).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <p className="mt-2 text-[11px] text-slate-400">Use this history to decide the rating below.</p>
+                <div className="mt-3">
+                  <label className={label}>Credit rating</label>
+                  <Select
+                    value={form.creditRating}
+                    onChange={(v) => setForm({ ...form, creditRating: v as Rating })}
+                    options={RATING_OPTIONS}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2 pt-2">
               <button

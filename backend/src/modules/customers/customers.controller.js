@@ -3,6 +3,7 @@ const { ApiError } = require('../../middleware/error');
 const { parseSort } = require('../../utils/sort');
 
 const SORT_FIELDS = { name: 'name', phone: 'phone', createdAt: 'createdAt' };
+const RATINGS = ['UNRATED', 'GOOD', 'FAIR', 'POOR'];
 
 async function list(req, res, next) {
   try {
@@ -45,7 +46,7 @@ async function list(req, res, next) {
 }
 
 function validate(body, partial = false) {
-  const { name, phone, email, bankAccounts } = body || {};
+  const { name, phone, email, bankAccounts, creditRating } = body || {};
   if (!partial && (!name || !String(name).trim())) throw new ApiError(400, 'Customer name is required');
   const data = {};
   if (name !== undefined) {
@@ -54,6 +55,10 @@ function validate(body, partial = false) {
   }
   if (phone !== undefined) data.phone = phone ? String(phone).trim() : null;
   if (email !== undefined) data.email = email ? String(email).trim() : null;
+  if (creditRating !== undefined) {
+    if (!RATINGS.includes(creditRating)) throw new ApiError(400, `creditRating must be one of: ${RATINGS.join(', ')}`);
+    data.creditRating = creditRating;
+  }
   if (bankAccounts !== undefined) {
     if (!Array.isArray(bankAccounts)) throw new ApiError(400, 'bankAccounts must be an array');
     data.bankAccounts = bankAccounts
@@ -92,6 +97,53 @@ async function update(req, res, next) {
   }
 }
 
+// Payment-history summary for one customer — the "detailed summary" staff use
+// to decide what to manually set creditRating to, and what the Sales dispense
+// flow shows (advisory only) when a Credit sale is being made against them.
+async function creditSummary(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const customer = await prisma.customer.findUnique({ where: { id } });
+    if (!customer) throw new ApiError(404, 'Customer not found');
+
+    const orders = await prisma.dispenseOrder.findMany({
+      where: { customerId: id },
+      select: {
+        id: true, paymentType: true, total: true, createdAt: true,
+        payments: { select: { amount: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const creditOrders = orders.filter((o) => o.paymentType === 'CREDIT');
+    let totalCreditAmount = 0;
+    let totalPaid = 0;
+    let settledCount = 0;
+    for (const o of creditOrders) {
+      const total = Number(o.total);
+      const paid = o.payments.reduce((s, p) => s + Number(p.amount), 0);
+      totalCreditAmount += total;
+      totalPaid += Math.min(paid, total);
+      if (paid >= total) settledCount += 1;
+    }
+    const outstanding = Math.round((totalCreditAmount - totalPaid) * 100) / 100;
+
+    res.json({
+      creditRating: customer.creditRating,
+      totalOrders: orders.length,
+      creditOrderCount: creditOrders.length,
+      settledCount,
+      outstandingCount: creditOrders.length - settledCount,
+      totalCreditAmount: Math.round(totalCreditAmount * 100) / 100,
+      totalPaid: Math.round(totalPaid * 100) / 100,
+      outstanding,
+      lastOrderAt: orders[0]?.createdAt || null,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function remove(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -111,4 +163,4 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, create, update, remove };
+module.exports = { list, create, update, remove, creditSummary };

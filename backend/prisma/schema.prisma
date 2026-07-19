@@ -247,6 +247,7 @@ model Customer {
   phone        String?
   email        String?
   bankAccounts Json     @default("[]") // [{ bankName, accountNumber }]
+  creditRating String   @default("UNRATED") // UNRATED | GOOD | FAIR | POOR — set manually by staff
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 

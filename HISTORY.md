@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-19 — Customer credit rating (manual, backed by a payment-history summary)
+
+**Phase:** follow-up to Customer management — user wants a rating to help decide whether to extend credit, surfaced during a Credit sale. Confirmed scope via AskUserQuestion: rating is **manual** (staff sets it), but backed by a **computed payment-history summary** so the decision isn't a guess; enforcement is **advisory only** — shown, never blocks the sale.
+
+**Done:**
+- `Customer.creditRating String @default("UNRATED")` — `UNRATED | GOOD | FAIR | POOR`, migration `20260719115738_customer_credit_rating`. Deliberately a plain string with an allow-list check in `validate()` (`RATINGS` const), matching how `withholdingType`/`paymentType` are already modeled elsewhere in this schema — not a Prisma enum, consistent with existing convention.
+- New `GET /api/customers/:id/credit-summary` (`customers.controller.js`): pulls every `DispenseOrder` for that customer, splits out the `CREDIT`-type ones, and computes credit order count, fully-settled count, total credit extended, total paid, and current outstanding — the "detailed summary" staff use to decide what to set the rating to. Reachable by `customers.manage`, `sales.dispense`, or `sales.view` (same OR-permission pattern as the rest of the module), since it needs to be visible both in customer management and in the Sales dispense flow.
+- **Customer management page**: new "Rating" column (colored badge — green/amber/red/gray), and inside the Add/Edit drawer (existing customers only, no history to show for a brand-new one) a payment-history panel — credit sales count, settled count, total extended, total paid, outstanding, last order date — sitting directly above the rating `Select`, so the data that should inform the decision is right where the decision gets made.
+- **Sales dispense flow**: when `Payment = Credit` and a customer is picked, a small amber advisory panel appears — rating badge, current outstanding balance, "N/M past credit sales settled" — with an explicit "Advisory only — use your judgment" label. Does not block the sale regardless of rating, per the confirmed scope.
+
+**Verified:** live API checks — new customer defaults to `UNRATED`; PATCH to `GOOD` persists; an invalid rating value (`EXCELLENT`) correctly rejected with `creditRating must be one of: UNRATED, GOOD, FAIR, POOR`; credit-summary against a customer with real order history (2 total orders, 1 credit order for 87.50, 40.00 paid) correctly computed `outstanding: 47.5`, `settledCount: 0`. `tsc --noEmit` clean, `node --check` on both modified backend files. Full 18-page HTTP-200 sweep.
+
+---
+
 ## 2026-07-19 — Customer bank accounts (multiple per customer)
 
 **Phase:** follow-up to Phase A13 — user asked for the same multi-bank-account capability Suppliers already has, on Customers.

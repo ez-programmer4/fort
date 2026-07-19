@@ -11,5 +11,8 @@ router.get('/', requirePermission('customers.manage', 'sales.dispense', 'sales.v
 router.post('/', requirePermission('customers.manage', 'sales.dispense'), ctrl.create);
 router.patch('/:id', requirePermission('customers.manage'), ctrl.update);
 router.delete('/:id', requirePermission('customers.manage'), ctrl.remove);
+// Payment-history summary, used both by customer management (to inform the manual
+// rating) and by the Sales dispense flow (advisory, when a Credit sale is picked).
+router.get('/:id/credit-summary', requirePermission('customers.manage', 'sales.dispense', 'sales.view'), ctrl.creditSummary);
 
 module.exports = router;

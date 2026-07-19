@@ -360,6 +360,13 @@ Test with each of the 4 role accounts from the setup table.
 | 18.11 ✅ | Add bank accounts                      | Add one or more `{bankName, accountNumber}` rows on a customer     | Saved and shown in the Bank Accounts column and on re-opening Edit                                  |
 | 18.12 ❌ | Malformed bank accounts                | (API-level) send `bankAccounts` as a non-array                     | `bankAccounts must be an array`                                                                     |
 | 18.13 ✅ | Replace bank accounts                  | Edit a customer's bank accounts to a different set, save           | Old rows are replaced, not appended to                                                              |
+| 18.14 ✅ | New customer defaults to Unrated       | Add a customer, check the Rating column                            | Shows "Unrated" (gray badge)                                                                        |
+| 18.15 ✅ | Payment-history summary informs rating | Edit a customer with credit sales history                          | Drawer shows credit sales count, settled count, total extended, total paid, outstanding, last order date, directly above the rating selector |
+| 18.16 ✅ | Set a rating                           | Edit → Credit rating → Good/Fair/Poor, save                        | Badge updates in the list (green/amber/red)                                                         |
+| 18.17 ❌ | Invalid rating (API-level)             | PATCH `creditRating` to a value outside UNRATED/GOOD/FAIR/POOR     | `creditRating must be one of: UNRATED, GOOD, FAIR, POOR`                                            |
+| 18.18 ✅ | Credit advisory in Sales               | New Dispense → pick a customer with history → set Payment to Credit | Amber "Credit check" panel appears: rating badge, outstanding balance, N/M past credit sales settled, "Advisory only" label |
+| 18.19 ✅ | Advisory doesn't block                 | With a Poor-rated / high-outstanding customer, complete a Credit sale anyway | Sale completes normally — the panel is informational only, never blocks                             |
+| 18.20 ✅ | Advisory disappears for Cash           | Switch Payment back to Cash (or clear the customer)                | The credit-check panel disappears                                                                   |
 
 ---
 

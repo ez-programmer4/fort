@@ -70,6 +70,23 @@ interface CartLine {
   unitPrice: string;
 }
 
+type CreditRating = 'UNRATED' | 'GOOD' | 'FAIR' | 'POOR';
+
+interface CustomerCreditSummary {
+  creditRating: CreditRating;
+  creditOrderCount: number;
+  settledCount: number;
+  outstandingCount: number;
+  outstanding: number;
+}
+
+const CREDIT_RATING_META: Record<CreditRating, { label: string; badge: string }> = {
+  UNRATED: { label: 'Unrated', badge: 'bg-slate-100 text-slate-600' },
+  GOOD: { label: 'Good', badge: 'bg-emerald-50 text-emerald-700' },
+  FAIR: { label: 'Fair', badge: 'bg-amber-50 text-amber-700' },
+  POOR: { label: 'Poor', badge: 'bg-red-50 text-red-700' },
+};
+
 interface OrderDetail {
   id: number;
   dspNumber: string;
@@ -329,6 +346,22 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<'items' | 'dispense'>('items');
+  const [creditSummary, setCreditSummary] = useState<CustomerCreditSummary | null>(null);
+  const [creditSummaryLoading, setCreditSummaryLoading] = useState(false);
+
+  // Advisory only (not a block): shows the customer's manually-set rating and
+  // payment-history stats when Credit is picked, so the cashier can decide.
+  useEffect(() => {
+    if (paymentType !== 'CREDIT' || !customerId) {
+      setCreditSummary(null);
+      return;
+    }
+    setCreditSummaryLoading(true);
+    api<CustomerCreditSummary>(`/api/customers/${customerId}/credit-summary`)
+      .then(setCreditSummary)
+      .catch(() => setCreditSummary(null))
+      .finally(() => setCreditSummaryLoading(false));
+  }, [paymentType, customerId]);
 
   useEffect(() => {
     if (!locationId) {
@@ -860,6 +893,27 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
               <input value={notes} onChange={(e) => setNotes(e.target.value)} className={`mt-1 w-full ${input}`} />
             </div>
           </div>
+
+          {paymentType === 'CREDIT' && customerId && (
+            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+              {creditSummaryLoading && <div className="h-5 w-48 animate-pulse rounded bg-amber-100" />}
+              {!creditSummaryLoading && creditSummary && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                  <span className="font-medium text-amber-900">Credit check —</span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${CREDIT_RATING_META[creditSummary.creditRating].badge}`}>
+                    {CREDIT_RATING_META[creditSummary.creditRating].label}
+                  </span>
+                  <span className="text-amber-800">
+                    Outstanding: <span className="font-semibold tabular-nums">{money(creditSummary.outstanding)}</span>
+                  </span>
+                  <span className="text-amber-800">
+                    {creditSummary.settledCount}/{creditSummary.creditOrderCount} past credit sales settled
+                  </span>
+                  <span className="text-xs text-amber-600">Advisory only — use your judgment.</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-4 rounded-md bg-slate-50 p-4">
             <div className="flex items-center justify-between text-sm">
