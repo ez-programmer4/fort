@@ -56,16 +56,41 @@ function startReport(res, { filename, title, subtitle, filters, branding = {} })
   return doc;
 }
 
+// pdfkit's own `ellipsis`/`lineBreak: false` options still wrap text that's
+// wider than the given box (tested against pdfkit 0.19.1), which lets a long
+// cell's second line bleed down into the row below. Truncate manually
+// instead — measuring against the font/size already active on `doc` — so
+// what we pass to text() is guaranteed to fit on one line.
+function fitText(doc, str, width) {
+  const s = String(str);
+  // pdfkit's text() wraps at a slightly smaller effective width than
+  // widthOfString() reports (observed ~1-2pt gap), so anything measured
+  // within a couple points of the box still wraps if passed through as-is.
+  // Budget a safety margin to stay clear of that gap.
+  const budget = width - 2;
+  if (doc.widthOfString(s) <= budget) return s;
+  let out = s;
+  while (out.length > 1 && doc.widthOfString(`${out}…`) > budget) {
+    out = out.slice(0, -1);
+  }
+  return `${out}…`;
+}
+
 /** Simple table: columns = [{label, width, align?}], rows = string[][] */
 function table(doc, columns, rows, { zebra = true } = {}) {
   const startX = 50;
   let y = doc.y;
 
+  // Leave a small gap before the next column starts so adjacent cells never
+  // visually touch.
+  const CELL_PAD = 6;
+
   const drawHeader = () => {
     doc.font('Helvetica-Bold').fontSize(8.5).fillColor(SLATE_500);
     let x = startX;
     for (const col of columns) {
-      doc.text(col.label.toUpperCase(), x, y, { width: col.width, align: col.align || 'left' });
+      const w = col.width - CELL_PAD;
+      doc.text(fitText(doc, col.label.toUpperCase(), w), x, y, { width: w, align: col.align || 'left' });
       x += col.width;
     }
     y += 16;
@@ -88,7 +113,8 @@ function table(doc, columns, rows, { zebra = true } = {}) {
     doc.fillColor(SLATE_900);
     let x = startX;
     row.forEach((cell, ci) => {
-      doc.text(String(cell), x, y, { width: columns[ci].width, align: columns[ci].align || 'left' });
+      const w = columns[ci].width - CELL_PAD;
+      doc.text(fitText(doc, cell, w), x, y, { width: w, align: columns[ci].align || 'left' });
       x += columns[ci].width;
     });
     y += 15;

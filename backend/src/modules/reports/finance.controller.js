@@ -314,14 +314,15 @@ async function withholdingPdf(req, res, next) {
     pdf.table(
       doc,
       [
-        { label: 'DSP No.', width: 65 },
-        { label: 'Date', width: 55 },
-        { label: 'Customer', width: 90 },
-        { label: 'Subtotal', width: 60, align: 'right' },
-        { label: 'Rate', width: 35, align: 'right' },
-        { label: 'Withheld', width: 55, align: 'right' },
-        { label: 'Net Total', width: 55, align: 'right' },
-        { label: 'Receipt', width: 80 },
+        { label: 'DSP No.', width: 55 },
+        { label: 'Date', width: 54 },
+        { label: 'Customer', width: 75 },
+        { label: 'Subtotal', width: 54, align: 'right' },
+        { label: 'Rate', width: 32, align: 'right' },
+        { label: 'Withheld', width: 54, align: 'right' },
+        { label: 'Net Total', width: 54, align: 'right' },
+        { label: 'Receipt No.', width: 69 },
+        { label: 'Status', width: 48 },
       ],
       rows.map((r) => [
         r.dspNumber,
@@ -331,7 +332,8 @@ async function withholdingPdf(req, res, next) {
         `${r.withholdingRate}%`,
         pdf.money(r.withholdingAmount),
         pdf.money(r.total),
-        r.withholdingReceivedAt ? `Received: ${r.withholdingReceiptNumber}` : 'Pending',
+        r.withholdingReceiptNumber || '—',
+        r.withholdingReceivedAt ? 'Received' : 'Pending',
       ]),
     );
 

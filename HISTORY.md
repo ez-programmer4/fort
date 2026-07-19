@@ -17,6 +17,13 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 **Verified:** `tsc --noEmit` clean, `node --check` on all three modified backend files. Live API smoke test: marked a real withheld sale received (receipt no. persisted, `withholdingReceivedAt` stamped, report's `receivedCount` went 0→1), cleared it back to pending (fields nulled, `receivedCount` back to 0), confirmed the 400 rejection on a sale with no withholding, downloaded the PDF (valid 1-page PDF, 200 OK). Full 19-page HTTP-200 sweep, no rendered errors.
 
+**Follow-up fix (same day):** the PDF's new 9-column table was garbled — the added "Receipt" column ran into "Net Total" with no gap, and any cell whose text was too wide for its column (a long receipt number, a long customer name, even the "Net Total"/"Withheld" headers themselves) wrapped to a second line that visually overlapped the row below. Root-caused in `backend/src/utils/pdf.js`'s shared `table()` helper (used by every report PDF, not just Withholding):
+- pdfkit 0.19.1's own `ellipsis`/`lineBreak: false` text options were tested directly and confirmed to **not** suppress wrapping in this version — text still wrapped onto multiple lines regardless.
+- Replaced with a manual `fitText()` that measures against `doc.widthOfString()` and truncates+ellipsizes character-by-character until it fits, plus a small per-column gap (`CELL_PAD`) so adjacent columns never touch, plus a small extra safety margin (pdfkit's actual line-wrap threshold sits ~1-2pt tighter than what `widthOfString()` reports, confirmed empirically — a string measured just under the box width still wrapped).
+- Rebalanced the Withholding table's 9 column widths (measured real header/content widths — dates, 6-digit money, DSP numbers, "Received"/"Pending" — against the new fit-budget) so nothing that should normally fit gets needlessly truncated; only pathologically long input (e.g. an unusually long receipt number) now ellipsizes, which is the intended, non-overlapping fallback.
+
+**Re-verified:** rendered the table in isolation with deliberately long test content (a 30-char customer name, a 27-char receipt number) — every cell stays on one line, no overlap, ellipsis kicks in only where genuinely necessary. Re-downloaded the live Withholding PDF — clean single-line rows, all headers fully legible. `node --check` clean, full 19-page sweep re-run clean.
+
 ---
 
 ## 2026-07-19 — Expenses split out of Procurement into its own page
