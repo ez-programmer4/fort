@@ -23,5 +23,6 @@ router.get('/:id', requirePermission('sales.view', 'sales.dispense'), ctrl.getOn
 router.post('/', requirePermission('sales.dispense'), ctrl.create);
 router.post('/:id/attachments', requirePermission('sales.view', 'sales.dispense'), upload.single('file'), ctrl.addAttachment);
 router.get('/:id/attachments/:attId', requirePermission('sales.view', 'sales.dispense'), ctrl.downloadAttachment);
+router.patch('/:id/withholding-receipt', requirePermission('finance.manage'), ctrl.updateWithholdingReceipt);
 
 module.exports = router;

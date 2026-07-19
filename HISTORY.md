@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-19 — Withholding tax receipt tracking on the Withholding report
+
+**Phase:** follow-up to the Withholding report (Phase A13) — user wants to track when the customer's withholding tax certificate/receipt is actually received back, with the receipt number, and have that status visible on the report.
+
+**Done:**
+- `DispenseOrder.withholdingReceiptNumber String?` and `withholdingReceivedAt DateTime?` — null until received, migration `20260719123209_withholding_receipt_tracking`.
+- New `PATCH /api/sales/:id/withholding-receipt` (`sales.controller.js` `updateWithholdingReceipt`, gated by `finance.manage`, same permission used for Wallet payment recording): a non-empty `receiptNumber` records it as received (stamps `withholdingReceivedAt`); an empty one clears it back to pending — one endpoint handles both mark and un-mark, no separate undo route. Rejects with 400 if the sale has no withholding to track (`withholdingType === 'NONE'`).
+- `finance.controller.js`'s `computeWithholding()` now selects and returns `withholdingReceiptNumber`/`withholdingReceivedAt` per row, plus a `receivedCount` in `totals`. PDF export gained a "Receipt" column (`Received: <no.>` or `Pending`) and a "Receipts received" summary line; table columns rebalanced to fit the 495px page-width budget.
+- **Reports page, Withholding tab**: new "Receipt" column with a Received (green, shows receipt no.)/Pending (amber) badge, and — gated behind `hasPermission('finance.manage')`, mirroring Wallet's payment-recording UI — an "Actions" column with a "Mark received"/"Edit" button opening a `Drawer` form to enter the receipt number (blank + save clears it back to pending).
+
+**Verified:** `tsc --noEmit` clean, `node --check` on all three modified backend files. Live API smoke test: marked a real withheld sale received (receipt no. persisted, `withholdingReceivedAt` stamped, report's `receivedCount` went 0→1), cleared it back to pending (fields nulled, `receivedCount` back to 0), confirmed the 400 rejection on a sale with no withholding, downloaded the PDF (valid 1-page PDF, 200 OK). Full 19-page HTTP-200 sweep, no rendered errors.
+
+---
+
 ## 2026-07-19 — Expenses split out of Procurement into its own page
 
 **Phase:** user asked for Procurement's "Other Purchases" tab to become its own standalone page with a sidebar entry, named "Expenses".

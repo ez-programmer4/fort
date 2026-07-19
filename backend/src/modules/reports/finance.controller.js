@@ -250,6 +250,7 @@ async function computeWithholding(filters) {
     select: {
       id: true, dspNumber: true, createdAt: true,
       subtotal: true, withholdingType: true, withholdingRate: true, withholdingAmount: true, total: true,
+      withholdingReceiptNumber: true, withholdingReceivedAt: true,
       customer: { select: { name: true } },
       location: { select: { name: true } },
     },
@@ -266,6 +267,8 @@ async function computeWithholding(filters) {
     withholdingRate: Number(o.withholdingRate),
     withholdingAmount: Number(o.withholdingAmount),
     total: Number(o.total),
+    withholdingReceiptNumber: o.withholdingReceiptNumber,
+    withholdingReceivedAt: o.withholdingReceivedAt,
   }));
   const totals = rows.reduce(
     (t, r) => ({
@@ -273,8 +276,9 @@ async function computeWithholding(filters) {
       subtotal: t.subtotal + r.subtotal,
       withholdingAmount: t.withholdingAmount + r.withholdingAmount,
       total: t.total + r.total,
+      receivedCount: t.receivedCount + (r.withholdingReceivedAt ? 1 : 0),
     }),
-    { count: 0, subtotal: 0, withholdingAmount: 0, total: 0 },
+    { count: 0, subtotal: 0, withholdingAmount: 0, total: 0, receivedCount: 0 },
   );
   return { rows, totals };
 }
@@ -310,13 +314,14 @@ async function withholdingPdf(req, res, next) {
     pdf.table(
       doc,
       [
-        { label: 'DSP No.', width: 75 },
-        { label: 'Date', width: 65 },
-        { label: 'Customer', width: 110 },
-        { label: 'Subtotal', width: 70, align: 'right' },
-        { label: 'Rate', width: 45, align: 'right' },
-        { label: 'Withheld', width: 65, align: 'right' },
-        { label: 'Net Total', width: 65, align: 'right' },
+        { label: 'DSP No.', width: 65 },
+        { label: 'Date', width: 55 },
+        { label: 'Customer', width: 90 },
+        { label: 'Subtotal', width: 60, align: 'right' },
+        { label: 'Rate', width: 35, align: 'right' },
+        { label: 'Withheld', width: 55, align: 'right' },
+        { label: 'Net Total', width: 55, align: 'right' },
+        { label: 'Receipt', width: 80 },
       ],
       rows.map((r) => [
         r.dspNumber,
@@ -326,6 +331,7 @@ async function withholdingPdf(req, res, next) {
         `${r.withholdingRate}%`,
         pdf.money(r.withholdingAmount),
         pdf.money(r.total),
+        r.withholdingReceivedAt ? `Received: ${r.withholdingReceiptNumber}` : 'Pending',
       ]),
     );
 
@@ -333,6 +339,7 @@ async function withholdingPdf(req, res, next) {
       { label: `Total (${totals.count} sale(s))`, value: pdf.money(totals.subtotal), bold: true },
       { label: 'Total withheld', value: pdf.money(totals.withholdingAmount) },
       { label: 'Net total', value: pdf.money(totals.total), bold: true },
+      { label: 'Receipts received', value: `${totals.receivedCount} / ${totals.count}` },
     ]);
 
     pdf.signatureBlock(doc);

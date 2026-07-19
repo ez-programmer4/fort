@@ -214,4 +214,35 @@ async function downloadAttachment(req, res, next) {
   }
 }
 
-module.exports = { list, getOne, create, addAttachment, downloadAttachment, UPLOAD_DIR };
+// Mark (or un-mark) the withholding tax certificate as received from the
+// customer. A non-empty receiptNumber records it as received (with a
+// timestamp); an empty/omitted one clears it back to pending — lets staff
+// fix a mistaken entry without needing a separate "undo" endpoint.
+async function updateWithholdingReceipt(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const order = await prisma.dispenseOrder.findUnique({ where: { id } });
+    if (!order) throw new ApiError(404, 'Dispense order not found');
+    if (order.withholdingType === 'NONE') throw new ApiError(400, 'This sale has no withholding to track');
+
+    const raw = req.body?.receiptNumber;
+    const receiptNumber = raw ? String(raw).trim() : '';
+
+    const updated = await prisma.dispenseOrder.update({
+      where: { id },
+      data: receiptNumber
+        ? { withholdingReceiptNumber: receiptNumber, withholdingReceivedAt: new Date() }
+        : { withholdingReceiptNumber: null, withholdingReceivedAt: null },
+    });
+
+    res.json({
+      id: updated.id,
+      withholdingReceiptNumber: updated.withholdingReceiptNumber,
+      withholdingReceivedAt: updated.withholdingReceivedAt,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, getOne, create, addAttachment, downloadAttachment, updateWithholdingReceipt, UPLOAD_DIR };

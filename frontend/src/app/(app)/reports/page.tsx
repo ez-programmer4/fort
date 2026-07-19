@@ -2,16 +2,22 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api, apiDownload } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { DateRangePicker } from '@/components/ui/date-picker';
+import { Drawer } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { Select } from '@/components/ui/select';
 import { Tabs } from '@/components/ui/tabs';
 
+const input =
+  'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
 const label = 'block text-xs font-medium text-slate-600';
 const btnPrimary =
   'rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50';
+const btnGhost =
+  'rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50';
 
 function money(v: number) {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -51,15 +57,23 @@ interface WithholdingRow {
   withholdingRate: number;
   withholdingAmount: number;
   total: number;
+  withholdingReceiptNumber: string | null;
+  withholdingReceivedAt: string | null;
 }
 
 interface WithholdingData {
   rows: WithholdingRow[];
-  totals: { count: number; subtotal: number; withholdingAmount: number; total: number };
+  totals: { count: number; subtotal: number; withholdingAmount: number; total: number; receivedCount: number };
+}
+
+interface ReceiptForm {
+  row: WithholdingRow;
+  receiptNumber: string;
 }
 
 export default function ReportsPage() {
   const toast = useToast();
+  const { hasPermission } = useAuth();
   const [tab, setTab] = useState<'finance' | 'sales' | 'withholding'>('finance');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -69,6 +83,8 @@ export default function ReportsPage() {
   const [sales, setSales] = useState<SalesData | null>(null);
   const [withholding, setWithholding] = useState<WithholdingData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [receiptForm, setReceiptForm] = useState<ReceiptForm | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const params = useCallback(() => {
     const p = new URLSearchParams();
@@ -99,6 +115,35 @@ export default function ReportsPage() {
   function downloadPdf() {
     const path = `/api/reports/${tab}.pdf`;
     apiDownload(`${path}?${params()}`, `${tab}-report.pdf`).catch((e) => toast.error(e.message));
+  }
+
+  function reloadWithholding() {
+    return api<WithholdingData>(`/api/reports/withholding?${params()}`)
+      .then(setWithholding)
+      .catch((e) => toast.error(e.message));
+  }
+
+  async function submitReceipt(e: React.FormEvent) {
+    e.preventDefault();
+    if (!receiptForm) return;
+    setSaving(true);
+    try {
+      await api(`/api/sales/${receiptForm.row.id}/withholding-receipt`, {
+        method: 'PATCH',
+        body: JSON.stringify({ receiptNumber: receiptForm.receiptNumber }),
+      });
+      toast.success(
+        receiptForm.receiptNumber
+          ? `Receipt ${receiptForm.receiptNumber} recorded for ${receiptForm.row.dspNumber}.`
+          : `Receipt status cleared for ${receiptForm.row.dspNumber}.`,
+      );
+      setReceiptForm(null);
+      await reloadWithholding();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update receipt status');
+    } finally {
+      setSaving(false);
+    }
   }
 
   const financeRows = finance
@@ -252,13 +297,15 @@ export default function ReportsPage() {
                 <th className="px-4 py-3 text-right">Rate</th>
                 <th className="px-4 py-3 text-right">Withheld</th>
                 <th className="px-4 py-3 text-right">Net Total</th>
+                <th className="px-4 py-3">Receipt</th>
+                {hasPermission('finance.manage') && <th className="px-4 py-3 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {loading && <SkeletonRows rows={6} cols={8} />}
+              {loading && <SkeletonRows rows={6} cols={hasPermission('finance.manage') ? 10 : 9} />}
               {!loading && withholding && withholding.rows.length === 0 && (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={hasPermission('finance.manage') ? 10 : 9}>
                     <EmptyState
                       title="No withheld sales in this period"
                       description="Sales with a withholding type of Goods or Services will show up here."
@@ -280,6 +327,32 @@ export default function ReportsPage() {
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">−{money(r.withholdingAmount)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums font-medium text-slate-900">{money(r.total)}</td>
+                    <td className="px-4 py-2.5">
+                      {r.withholdingReceivedAt ? (
+                        <span className="inline-flex flex-col">
+                          <span className="w-fit rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                            Received
+                          </span>
+                          <span className="mt-0.5 text-xs text-slate-500">{r.withholdingReceiptNumber}</span>
+                        </span>
+                      ) : (
+                        <span className="w-fit rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                          Pending
+                        </span>
+                      )}
+                    </td>
+                    {hasPermission('finance.manage') && (
+                      <td className="px-4 py-2.5 text-right">
+                        <button
+                          onClick={() =>
+                            setReceiptForm({ row: r, receiptNumber: r.withholdingReceiptNumber || '' })
+                          }
+                          className="text-xs font-medium text-slate-900 underline underline-offset-2"
+                        >
+                          {r.withholdingReceivedAt ? 'Edit' : 'Mark received'}
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               {!loading && withholding && withholding.rows.length > 0 && (
@@ -291,12 +364,48 @@ export default function ReportsPage() {
                   <td />
                   <td className="px-4 py-2.5 text-right tabular-nums">−{money(withholding.totals.withholdingAmount)}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{money(withholding.totals.total)}</td>
+                  <td className="px-4 py-2.5 text-slate-600" colSpan={hasPermission('finance.manage') ? 2 : 1}>
+                    {withholding.totals.receivedCount} / {withholding.totals.count} received
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
       )}
+
+      <Drawer
+        open={receiptForm !== null}
+        onClose={() => setReceiptForm(null)}
+        title="Withholding Receipt"
+        subtitle={receiptForm ? `${receiptForm.row.dspNumber} — ${receiptForm.row.customer}` : undefined}
+        width="md"
+      >
+        {receiptForm && (
+          <form onSubmit={submitReceipt} className="space-y-4" noValidate>
+            <div>
+              <label className={label}>Receipt / certificate number</label>
+              <input
+                value={receiptForm.receiptNumber}
+                placeholder="e.g. WHT-00123"
+                onChange={(e) => setReceiptForm({ ...receiptForm, receiptNumber: e.target.value })}
+                className={`mt-1 w-full ${input}`}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Leave blank and save to clear the receipt status back to pending.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button type="submit" disabled={saving} className={btnPrimary}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => setReceiptForm(null)} className={btnGhost}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </Drawer>
     </div>
   );
 }

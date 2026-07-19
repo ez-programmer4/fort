@@ -293,6 +293,10 @@ sidebar entry. See section 19.
 | 14.7 ✅ | Withholding report — on screen | Reports → Withholding tab, pick location + date range | Every sale with `withholdingType != NONE` in range: DSP no., date, customer, location, subtotal, rate, withheld amount, net total, plus a totals row |
 | 14.8 ✅ | Withholding report — PDF       | Click Download PDF while on the Withholding tab       | Same branded PDF layout as Finance/Sales, table of withheld sales + summary totals                                                                   |
 | 14.9 ✅ | Withholding report — empty     | Filter to a period/location with no withheld sales    | "No withheld sales in this period" empty state, no totals row rendered                                                                               |
+| 14.10 ✅ | Withholding receipt — mark received | On the Withholding tab, click "Mark received" on a row (requires `finance.manage`), enter a receipt number, save | Row switches to a green "Received" badge showing the receipt number; totals row's received count increments; toast confirms |
+| 14.11 ✅ | Withholding receipt — edit/clear | Click "Edit" on an already-received row, clear the receipt number field, save | Row reverts to an amber "Pending" badge; received count decrements |
+| 14.12 ❌ | Withholding receipt — no withholding | (API-level) PATCH `/api/sales/:id/withholding-receipt` for a sale with `withholdingType = NONE` | `This sale has no withholding to track` |
+| 14.13 ❌ | Withholding receipt — permission | User without `finance.manage` views the Withholding tab | Receipt badges still visible; no "Actions" column or mark/edit button shown |
 
 ## 15. Settings
 
