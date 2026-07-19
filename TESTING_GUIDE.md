@@ -290,6 +290,14 @@ sidebar entry. See section 19.
 | 13.14 ✅ | Slow Movers                     | A product with stock but zero/low sales in the last 30 days                       | Appears in the "Slow Movers" list, ranked by stock value tied up, with its 30-day sold count shown            |
 | 13.15 ✅ | Alerts & Insights panel         | Compare the Low Stock / Expiring / Over Stock mini-lists against the Alerts page   | Same items, same detail text (suggested reorder qty, days to expiry, etc.); "View all →" navigates to Alerts |
 | 13.16 ✅ | Alerts & Insights — all clear   | A category (e.g. Over Stock) with zero active alerts                              | Shows "All clear." instead of an empty list                                                                  |
+| 13.17 ✅ | Location filter                 | Pick a specific location from the new dropdown                                    | Every KPI, chart, and list on the page (both the always-current section and the period-scoped section) re-scopes to that location only |
+| 13.18 ✅ | Location filter — all locations | Reset the dropdown to "All locations"                                             | Figures return to the unfiltered, all-location totals                                                        |
+| 13.19 ✅ | Last updated + refresh          | Note the "Updated HH:MM:SS" timestamp, click the refresh icon                     | Timestamp updates to the current time; both the KPI section and the period-scoped section re-fetch            |
+| 13.20 ✅ | Monthly Sales trend badge       | Compare the badge against last-30-days vs the prior 30-days total                 | Up/down arrow and percentage match the computed change                                                        |
+| 13.21 ✅ | Payment Mix                     | Compare Cash/Credit totals and counts against Wallet's summary for the same period| Split bar proportions and legend numbers match exactly                                                        |
+| 13.22 ✅ | Payment Mix — no sales          | Filter to a period/location with zero sales                                       | Shows "No sales in this period." instead of a broken/empty bar                                                |
+| 13.23 ✅ | Location Performance            | With 2+ locations having sales in the period                                      | Ranked bar list by revenue, with order count per location; matches Reports figures per location               |
+| 13.24 ✅ | Location Performance — hidden   | Filter to a single location, or a period where only one location has sales        | Panel doesn't render (comparing one location to itself isn't useful)                                          |
 
 ## 14. Reports
 

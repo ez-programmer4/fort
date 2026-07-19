@@ -5,6 +5,26 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-19 — Dashboard: second enhancement pass (location filter, trends, payment mix, location performance)
+
+**Phase:** follow-up to the first dashboard enhancement pass — user asked to keep adding professional features.
+
+**Backend (`dashboard.controller.js`):**
+- `overview()`: added a previous-30-day comparison so Monthly Sales gets a trend badge (`sales.last30dTrend`, reusing the existing `pctChange()` helper — already module-scoped from the analytics section, so no duplication).
+- `analytics()`: two new functions — `paymentMix()` (cash vs. credit totals/counts for the period) and `locationPerformance()` (revenue + order count grouped by location for the period, always computed since it's cheap; the frontend decides whether it's worth showing).
+
+**Frontend (`dashboard/page.tsx`):**
+- **Location filter**: the backend already accepted `locationId` on both endpoints but the UI never exposed it. Added a location `Select` (fetches `/api/locations` once) that re-scopes the entire dashboard — both the always-current KPIs and the period-scoped analytics — when changed.
+- **Last updated + manual refresh**: a timestamp plus a refresh icon button that re-fires both the overview and analytics fetches on demand, without waiting for a state change to trigger a re-fetch.
+- **Trend badge on Monthly Sales**: reused the existing `TrendBadge` component (already used on Gross/Net Profit) against the new 30-day-over-30-day comparison.
+- **Payment Mix**: a Cash vs. Credit split — a simple two-segment horizontal bar plus a legend with counts and totals, deliberately not a new chart type (reuses the existing color tokens, avoids adding a pie/donut component for two categories).
+- **Location Performance**: a `RankBars` panel ranking locations by revenue for the period — only rendered when there are 2+ locations with activity (comparing one location to itself is meaningless), so single-location deployments never see an empty/pointless panel.
+- Extracted `loadOverview`/`loadAnalytics` into `useCallback`s (previously inline in `useEffect`) so the new refresh button can call the exact same fetch logic instead of duplicating it.
+
+**Verified:** `node --check` on the controller. Live API checks confirm the location filter actually re-scopes results (stock value: 4,386.25 all-locations → 4,096.00 at Main Warehouse → 290.25 at Bole Retail Branch; Bole's last-30-day sales correctly 0). `paymentMix`/`locationPerformance` checked against real data. `tsc --noEmit` clean, full 19-page HTTP-200 sweep, no rendered errors.
+
+---
+
 ## 2026-07-19 — Dashboard: professional enhancement pass (KPIs, Sales Overview, Top Products, Fast/Slow Movers, Alerts insights)
 
 **Phase:** user asked for a richer, more professional dashboard: a specific 6-metric KPI row (Total Inventory, Monthly Sales, Unpaid Invoices, Low Stock, Expiring, Total Buyers), a "Sales Overview" with revenue and order-volume graphs, a "Top Products" view framed as fast movers by revenue, a dedicated "Fast Movers" (30-day top sellers) and "Slow Movers" (stock sitting idle — push or discount) view, and alerts surfaced with actual insights rather than just counts.

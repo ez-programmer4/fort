@@ -15,6 +15,7 @@ async function overview(req, res, next) {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 86400000);
 
     const whereLoc = locationId ? { locationId } : {};
 
@@ -24,6 +25,7 @@ async function overview(req, res, next) {
       salesToday,
       sales7d,
       sales30d,
+      sales30dPrev,
       topMoverGroups,
       soldQty30dGroups,
       recentSales,
@@ -59,6 +61,10 @@ async function overview(req, res, next) {
         where: { createdAt: { gte: thirtyDaysAgo }, ...whereLoc },
         _sum: { total: true },
         _count: true,
+      }),
+      prisma.dispenseOrder.aggregate({
+        where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo }, ...whereLoc },
+        _sum: { total: true },
       }),
       prisma.dispenseItem.groupBy({
         by: ['productId'],
@@ -167,6 +173,7 @@ async function overview(req, res, next) {
         last7dCount: sales7d._count,
         last30dTotal: Number(sales30d._sum.total || 0),
         last30dCount: sales30d._count,
+        last30dTrend: pctChange(Number(sales30d._sum.total || 0), Number(sales30dPrev._sum.total || 0)),
       },
       unpaidInvoices,
       totalBuyers: buyerGroups.length,
@@ -314,6 +321,47 @@ async function topCustomers(start, end, locationId, limit = 8) {
   }));
 }
 
+async function paymentMix(start, end, locationId) {
+  const rows = await prisma.dispenseOrder.groupBy({
+    by: ['paymentType'],
+    where: { createdAt: { gte: start, lte: end }, ...(locationId ? { locationId } : {}) },
+    _sum: { total: true },
+    _count: true,
+  });
+  const cash = rows.find((r) => r.paymentType === 'CASH');
+  const credit = rows.find((r) => r.paymentType === 'CREDIT');
+  return {
+    cashTotal: round2(Number(cash?._sum.total || 0)),
+    cashCount: cash?._count || 0,
+    creditTotal: round2(Number(credit?._sum.total || 0)),
+    creditCount: credit?._count || 0,
+  };
+}
+
+// Revenue by location for the period — only meaningful when the dashboard
+// isn't already scoped to a single location, but cheap enough to always
+// compute; the frontend decides whether to show it.
+async function locationPerformance(start, end) {
+  const rows = await prisma.dispenseOrder.groupBy({
+    by: ['locationId'],
+    where: { createdAt: { gte: start, lte: end } },
+    _sum: { total: true },
+    _count: true,
+    orderBy: { _sum: { total: 'desc' } },
+  });
+  if (rows.length === 0) return [];
+  const locations = await prisma.location.findMany({
+    where: { id: { in: rows.map((r) => r.locationId) } },
+    select: { id: true, name: true },
+  });
+  const byId = new Map(locations.map((l) => [l.id, l]));
+  return rows.map((r) => ({
+    location: byId.get(r.locationId) || { id: r.locationId, name: 'Unknown' },
+    revenue: round2(Number(r._sum.total || 0)),
+    orders: r._count,
+  }));
+}
+
 // Revenue + order count per bucket — the "Sales Overview" chart. Kept
 // separate from salesVsPurchasesSeries (which pairs sales against purchases)
 // since order volume is a count, not a money figure, and the two shouldn't
@@ -445,17 +493,29 @@ async function analytics(req, res, next) {
     const now = new Date();
     const twelveMoStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
-    const [currentProfit, previousProfit, customers, salesOverview, salesVsPurchases, profitTrend, products, monthlyOverview] =
-      await Promise.all([
-        computeProfitTotals(start, end, locationId),
-        computeProfitTotals(prevStart, prevEnd, locationId),
-        topCustomers(start, end, locationId),
-        salesOverviewSeries(start, end, granularity, locationId),
-        salesVsPurchasesSeries(start, end, granularity, locationId),
-        profitSeries(start, end, granularity, locationId),
-        productStats(start, end, locationId),
-        salesVsPurchasesSeries(twelveMoStart, now, 'month', locationId),
-      ]);
+    const [
+      currentProfit,
+      previousProfit,
+      customers,
+      salesOverview,
+      salesVsPurchases,
+      profitTrend,
+      products,
+      monthlyOverview,
+      mix,
+      locationRows,
+    ] = await Promise.all([
+      computeProfitTotals(start, end, locationId),
+      computeProfitTotals(prevStart, prevEnd, locationId),
+      topCustomers(start, end, locationId),
+      salesOverviewSeries(start, end, granularity, locationId),
+      salesVsPurchasesSeries(start, end, granularity, locationId),
+      profitSeries(start, end, granularity, locationId),
+      productStats(start, end, locationId),
+      salesVsPurchasesSeries(twelveMoStart, now, 'month', locationId),
+      paymentMix(start, end, locationId),
+      locationPerformance(start, end),
+    ]);
 
     res.json({
       period,
@@ -469,6 +529,8 @@ async function analytics(req, res, next) {
         },
       },
       topCustomers: customers,
+      paymentMix: mix,
+      locationPerformance: locationRows,
       charts: {
         salesOverview,
         salesVsPurchases,

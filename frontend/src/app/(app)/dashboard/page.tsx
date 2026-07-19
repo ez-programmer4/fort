@@ -1,11 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { TrendChart, RankBars } from '@/components/ui/charts';
+import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+
+interface LocationOption {
+  id: number;
+  name: string;
+}
 
 function money(v: number) {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -39,6 +45,7 @@ interface Overview {
     last7dCount: number;
     last30dTotal: number;
     last30dCount: number;
+    last30dTrend: number;
   };
   unpaidInvoices: { count: number; totalOutstanding: number };
   totalBuyers: number;
@@ -102,6 +109,8 @@ interface Analytics {
     totalSpent: number;
     lastOrderAt: string;
   }[];
+  paymentMix: { cashTotal: number; cashCount: number; creditTotal: number; creditCount: number };
+  locationPerformance: { location: { id: number; name: string }; revenue: number; orders: number }[];
   charts: {
     salesOverview: { label: string; revenue: number; orders: number }[];
     salesVsPurchases: { label: string; sales: number; purchases: number }[];
@@ -148,20 +157,51 @@ export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>('30d');
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [locationId, setLocationId] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
-    api<Overview>('/api/dashboard')
-      .then(setData)
+    api<{ locations: LocationOption[] }>('/api/locations')
+      .then((d) => setLocations(d.locations))
+      .catch(() => {});
+  }, []);
+
+  const loadOverview = useCallback(() => {
+    const q = locationId ? `?locationId=${locationId}` : '';
+    return api<Overview>(`/api/dashboard${q}`)
+      .then((d) => {
+        setData(d);
+        setLastUpdated(new Date());
+      })
       .catch((e) => toast.error(e.message));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [locationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
+  const loadAnalytics = useCallback(() => {
     setAnalyticsLoading(true);
-    api<Analytics>(`/api/dashboard/analytics?period=${period}`)
-      .then(setAnalytics)
+    const q = new URLSearchParams({ period });
+    if (locationId) q.set('locationId', locationId);
+    return api<Analytics>(`/api/dashboard/analytics?${q}`)
+      .then((d) => {
+        setAnalytics(d);
+        setLastUpdated(new Date());
+      })
       .catch((e) => toast.error(e.message))
       .finally(() => setAnalyticsLoading(false));
-  }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [period, locationId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    loadOverview();
+  }, [loadOverview]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
+
+  function refresh() {
+    loadOverview();
+    loadAnalytics();
+  }
 
   const quickLinks = [
     { href: '/procurement', label: 'Purchase Orders', permission: 'procurement.view' },
@@ -192,6 +232,30 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="w-48">
+          <Select
+            value={locationId}
+            onChange={setLocationId}
+            placeholder="All locations"
+            options={[{ value: '', label: 'All locations' }, ...locations.map((l) => ({ value: String(l.id), label: l.name }))]}
+          />
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          {lastUpdated && <span>Updated {lastUpdated.toLocaleTimeString()}</span>}
+          <button
+            type="button"
+            onClick={refresh}
+            aria-label="Refresh dashboard"
+            className="rounded-md border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-3.5 w-3.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
       {data && (
         <>
           <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -203,7 +267,10 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Monthly Sales</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Monthly Sales</p>
+                <TrendBadge pct={data.sales.last30dTrend} />
+              </div>
               <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{money(data.sales.last30dTotal)}</p>
               <p className="text-[11px] text-slate-400">
                 {data.sales.last30dCount} sale(s) · {money(data.sales.todayTotal)} today
@@ -416,6 +483,63 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border border-slate-200 bg-white p-5">
+              <h3 className="text-sm font-semibold text-slate-900">Payment Mix</h3>
+              <p className="text-xs text-slate-500">Cash vs. credit sales for the selected period.</p>
+              {(() => {
+                const { cashTotal, cashCount, creditTotal, creditCount } = analytics.paymentMix;
+                const total = cashTotal + creditTotal;
+                const cashPct = total > 0 ? (cashTotal / total) * 100 : 50;
+                return total === 0 ? (
+                  <div className="mt-3 flex min-h-20 items-center justify-center text-sm text-slate-400">
+                    No sales in this period.
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full" style={{ width: `${cashPct}%`, backgroundColor: CHART_BLUE }} />
+                      <div className="h-full" style={{ width: `${100 - cashPct}%`, backgroundColor: CHART_AMBER }} />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CHART_BLUE }} />
+                        <span className="font-medium text-slate-900">Cash</span>
+                        <span className="text-xs text-slate-400">({cashCount})</span>
+                      </span>
+                      <span className="tabular-nums font-semibold text-slate-900">{money(cashTotal)}</span>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CHART_AMBER }} />
+                        <span className="font-medium text-slate-900">Credit</span>
+                        <span className="text-xs text-slate-400">({creditCount})</span>
+                      </span>
+                      <span className="tabular-nums font-semibold text-slate-900">{money(creditTotal)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            {analytics.locationPerformance.length > 1 && (
+              <div className="rounded-lg border border-slate-200 bg-white p-5">
+                <h3 className="text-sm font-semibold text-slate-900">Location Performance</h3>
+                <p className="text-xs text-slate-500">Revenue by location for the selected period.</p>
+                <div className="mt-3">
+                  <RankBars
+                    rows={analytics.locationPerformance.map((l) => ({
+                      label: l.location.name,
+                      sublabel: `${l.orders} order(s)`,
+                      value: l.revenue,
+                    }))}
+                    color={CHART_GREEN}
+                    formatValue={money}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
