@@ -5,6 +5,19 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-19 — Customer bank accounts (multiple per customer)
+
+**Phase:** follow-up to Phase A13 — user asked for the same multi-bank-account capability Suppliers already has, on Customers.
+
+**Done:**
+- `Customer.bankAccounts Json @default("[]")` — new field, exact same shape as `Supplier.bankAccounts` (`[{ bankName, accountNumber }]`), same reason for `Json` over a relational table (a handful of unstructured pairs, no need to query into them). Migration `20260719114619_customer_bank_accounts`.
+- `customers.controller.js`'s `validate()` gained the identical `bankAccounts` handling `suppliers.controller.js` already has: array check, trim each pair, drop empty ones.
+- `customers/page.tsx`: new "Bank Accounts" table column (joined `bankName accountNumber` list, matching Suppliers' column exactly); the Add/Edit drawer gained the same repeatable bank-account rows section (+ Add bank account / Remove per row) as the Suppliers form, byte-for-byte the same interaction pattern.
+
+**Verified:** live API round-trip — created a customer with two bank accounts, confirmed both persisted; updated to replace them with a different single account, confirmed the replacement (not an append) persisted correctly; cleaned up. `tsc --noEmit` clean, `node --check` on the controller. Full 18-page HTTP-200 sweep.
+
+---
+
 ## 2026-07-19 — Phase A13: Withholding report + Customer management
 
 **Phase:** client-requested — withholding tax tracking (by DSP no. and customer) as a report tab, plus a real Customer management page. Confirmed scope up front via AskUserQuestion: two separate features (not one), and the withholding report covers sales-side only (not procurement).

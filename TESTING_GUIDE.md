@@ -174,13 +174,14 @@ Test with each of the 4 role accounts from the setup table.
 
 ## 8. Bin Card
 
-| #      | Scenario                    | Steps                                                 | Expected                                                                                                                      |
+| # | Scenario | Steps | Expected  
+ |
 | ------ | --------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 8.1 ✅ | Generate bin card           | Bin Card page, pick a product + location + date range | Table: Date, Batch, Expiry, Supplier, In, Out, Balance, Performed By, Remark — running balance is arithmetically correct      |
-| 8.2 ❌ | Missing product or location | Submit without both selected                          | `productId and locationId are required`                                                                                       |
-| 8.3 ❌ | Invalid date range          | Enter a malformed date                                | `Invalid date range`                                                                                                          |
-| 8.4 ❌ | Unknown product/location    | (API-level) bad ids                                   | `Product not found` / `Location not found`                                                                                    |
-| 8.5 ✅ | Print                       | Click Print                                           | Browser print dialog opens; layout is clean (no sidebar/nav bleeding into the printout — check `print:hidden` classes worked) |
+| 8.1 ✅ | Generate bin card | Bin Card page, pick a product + location + date range | Table: Date, Batch, Expiry, Supplier, In, Out, Balance, Performed By, Remark — running balance is arithmetically correct |
+| 8.2 ❌ | Missing product or location | Submit without both selected | `productId and locationId are required` |
+| 8.3 ❌ | Invalid date range | Enter a malformed date | `Invalid date range` |
+| 8.4 ❌ | Unknown product/location | (API-level) bad ids | `Product not found` / `Location not found` |
+| 8.5 ✅ | Print | Click Print | Browser print dialog opens; layout is clean (no sidebar/nav bleeding into the printout — check `print:hidden` classes worked) |
 
 ## 9. Procurement
 
@@ -194,7 +195,7 @@ Test with each of the 4 role accounts from the setup table.
 | 9.1.4 ❌ | Invalid item                            | Missing productId, zero/negative quantity, or negative unit cost on a line                               | Matching per-line message, e.g. `Item 1: quantity must be a positive whole number`   |
 | 9.1.5 ❌ | Unknown product                         | (API-level) reference a productId that doesn't exist                                                     | `One or more products do not exist`                                                  |
 | 9.1.6 ✅ | Cancel an open PO                       | Cancel a PO still in `OPEN` status                                                                       | Status → `CANCELLED`; no stock effect                                                |
-|  |
+|          |
 | 9.1.7 ❌ | Cancel an already-received/cancelled PO | Try to cancel a PO that's `RECEIVED` or already `CANCELLED`                                              | `Only open purchase orders can be cancelled (this one is received)` (or `cancelled`) |
 
 ### 9.2 Goods Receiving (GRV)
@@ -286,17 +287,17 @@ Test with each of the 4 role accounts from the setup table.
 
 ## 14. Reports
 
-| #       | Scenario                       | Steps                                         | Expected                                                                                                                                    |
-| ------- | ------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 14.1 ✅ | Finance report — on screen     | Reports → Finance, pick location + date range | Total Sales, COGS, Gross Profit, Withholding, Net Revenue, Payments all shown and internally consistent (Gross Profit = Sales − COGS, etc.) |
-| 14.2 ✅ | Finance report — PDF           | Click Download PDF                            | Branded PDF (logo, pharmacy name/address/phone from Settings, filters, generated timestamp) downloads correctly                             |
-| 14.3 ✅ | Sales report — on screen + PDF | Reports → Sales tab, same flow                | Date-wise revenue breakdown; PDF downloads                                                                                                  |
-| 14.4 ❌ | Invalid date range             | Malformed from/to dates                       | `Invalid date range`                                                                                                                        |
-| 14.5 ❌ | Unknown location filter        | (API-level) bad locationId                    | `Location not found`                                                                                                                        |
-| 14.6 ✅ | Filter by location             | Pick a specific location                      | Figures scope to just that location's activity                                                                                              |
+| #       | Scenario                       | Steps                                                 | Expected                                                                                                                                             |
+| ------- | ------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 14.1 ✅ | Finance report — on screen     | Reports → Finance, pick location + date range         | Total Sales, COGS, Gross Profit, Withholding, Net Revenue, Payments all shown and internally consistent (Gross Profit = Sales − COGS, etc.)          |
+| 14.2 ✅ | Finance report — PDF           | Click Download PDF                                    | Branded PDF (logo, pharmacy name/address/phone from Settings, filters, generated timestamp) downloads correctly                                      |
+| 14.3 ✅ | Sales report — on screen + PDF | Reports → Sales tab, same flow                        | Date-wise revenue breakdown; PDF downloads                                                                                                           |
+| 14.4 ❌ | Invalid date range             | Malformed from/to dates                               | `Invalid date range`                                                                                                                                 |
+| 14.5 ❌ | Unknown location filter        | (API-level) bad locationId                            | `Location not found`                                                                                                                                 |
+| 14.6 ✅ | Filter by location             | Pick a specific location                              | Figures scope to just that location's activity                                                                                                       |
 | 14.7 ✅ | Withholding report — on screen | Reports → Withholding tab, pick location + date range | Every sale with `withholdingType != NONE` in range: DSP no., date, customer, location, subtotal, rate, withheld amount, net total, plus a totals row |
-| 14.8 ✅ | Withholding report — PDF       | Click Download PDF while on the Withholding tab | Same branded PDF layout as Finance/Sales, table of withheld sales + summary totals |
-| 14.9 ✅ | Withholding report — empty     | Filter to a period/location with no withheld sales | "No withheld sales in this period" empty state, no totals row rendered |
+| 14.8 ✅ | Withholding report — PDF       | Click Download PDF while on the Withholding tab       | Same branded PDF layout as Finance/Sales, table of withheld sales + summary totals                                                                   |
+| 14.9 ✅ | Withholding report — empty     | Filter to a period/location with no withheld sales    | "No withheld sales in this period" empty state, no totals row rendered                                                                               |
 
 ## 15. Settings
 
@@ -344,18 +345,21 @@ Test with each of the 4 role accounts from the setup table.
 
 ## 18. Customer Management
 
-| #       | Scenario                              | Steps                                                              | Expected                                                                                          |
-| ------- | -------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 18.1 ✅ | Add a customer                        | Customers → + Add Customer, fill name (phone/email optional), save   | Customer created, appears in the list, active by default                                          |
-| 18.2 ❌ | Add without a name                    | Submit the form blank                                                | `Customer name is required`                                                                       |
-| 18.3 ✅ | Edit a customer                       | Edit an existing row, change phone/email, save                       | Updated fields persist                                                                            |
-| 18.4 ✅ | Deactivate / reactivate               | Toggle Deactivate on a row, then Activate again                      | Status badge flips; deactivated customers no longer appear in the Sales dispense-flow quick-picker |
-| 18.5 ✅ | Delete an unused customer             | Delete a customer with zero sales history                            | Removed from the list                                                                             |
-| 18.6 ❌ | Delete a customer with sales history  | Try to delete a customer that has at least one dispense order        | `This customer has sales history — deactivate them instead`                                       |
-| 18.7 ✅ | Search                                | Search by name, phone, or email                                      | Debounced, matches any of the three fields                                                        |
-| 18.8 ✅ | Sort + paginate                       | Click sortable headers; change rows-per-page; page forward/back      | Correct order; correct "X–Y of Z" range                                                           |
-| 18.9 ✅ | Orders column                         | Check the Orders count for a customer with sales history             | Matches the number of dispense orders on that customer                                            |
-| 18.10 ✅ | Quick-create still works during a sale | Sales → New Dispense → create a new customer inline                  | Still works exactly as before (unaffected by the new management page/permission)                  |
+| #        | Scenario                               | Steps                                                              | Expected                                                                                           |
+| -------- | -------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| 18.1 ✅  | Add a customer                         | Customers → + Add Customer, fill name (phone/email optional), save | Customer created, appears in the list, active by default                                           |
+| 18.2 ❌  | Add without a name                     | Submit the form blank                                              | `Customer name is required`                                                                        |
+| 18.3 ✅  | Edit a customer                        | Edit an existing row, change phone/email, save                     | Updated fields persist                                                                             |
+| 18.4 ✅  | Deactivate / reactivate                | Toggle Deactivate on a row, then Activate again                    | Status badge flips; deactivated customers no longer appear in the Sales dispense-flow quick-picker |
+| 18.5 ✅  | Delete an unused customer              | Delete a customer with zero sales history                          | Removed from the list                                                                              |
+| 18.6 ❌  | Delete a customer with sales history   | Try to delete a customer that has at least one dispense order      | `This customer has sales history — deactivate them instead`                                        |
+| 18.7 ✅  | Search                                 | Search by name, phone, or email                                    | Debounced, matches any of the three fields                                                         |
+| 18.8 ✅  | Sort + paginate                        | Click sortable headers; change rows-per-page; page forward/back    | Correct order; correct "X–Y of Z" range                                                            |
+| 18.9 ✅  | Orders column                          | Check the Orders count for a customer with sales history           | Matches the number of dispense orders on that customer                                             |
+| 18.10 ✅ | Quick-create still works during a sale | Sales → New Dispense → create a new customer inline                | Still works exactly as before (unaffected by the new management page/permission)                   |
+| 18.11 ✅ | Add bank accounts                      | Add one or more `{bankName, accountNumber}` rows on a customer     | Saved and shown in the Bank Accounts column and on re-opening Edit                                  |
+| 18.12 ❌ | Malformed bank accounts                | (API-level) send `bankAccounts` as a non-array                     | `bankAccounts must be an array`                                                                     |
+| 18.13 ✅ | Replace bank accounts                  | Edit a customer's bank accounts to a different set, save           | Old rows are replaced, not appended to                                                              |
 
 ---
 

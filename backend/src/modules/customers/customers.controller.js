@@ -45,7 +45,7 @@ async function list(req, res, next) {
 }
 
 function validate(body, partial = false) {
-  const { name, phone, email } = body || {};
+  const { name, phone, email, bankAccounts } = body || {};
   if (!partial && (!name || !String(name).trim())) throw new ApiError(400, 'Customer name is required');
   const data = {};
   if (name !== undefined) {
@@ -54,6 +54,15 @@ function validate(body, partial = false) {
   }
   if (phone !== undefined) data.phone = phone ? String(phone).trim() : null;
   if (email !== undefined) data.email = email ? String(email).trim() : null;
+  if (bankAccounts !== undefined) {
+    if (!Array.isArray(bankAccounts)) throw new ApiError(400, 'bankAccounts must be an array');
+    data.bankAccounts = bankAccounts
+      .map((b) => ({
+        bankName: String(b?.bankName || '').trim(),
+        accountNumber: String(b?.accountNumber || '').trim(),
+      }))
+      .filter((b) => b.bankName || b.accountNumber);
+  }
   return data;
 }
 

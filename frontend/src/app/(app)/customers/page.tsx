@@ -15,11 +15,17 @@ const input =
   'mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
 const label = 'block text-xs font-medium text-slate-600';
 
+interface BankAccount {
+  bankName: string;
+  accountNumber: string;
+}
+
 interface CustomerRow {
   id: number;
   name: string;
   phone: string | null;
   email: string | null;
+  bankAccounts: BankAccount[];
   isActive: boolean;
   createdAt: string;
   _count?: { dispenseOrders: number };
@@ -30,9 +36,10 @@ interface FormState {
   name: string;
   phone: string;
   email: string;
+  bankAccounts: BankAccount[];
 }
 
-const emptyForm: FormState = { id: null, name: '', phone: '', email: '' };
+const emptyForm: FormState = { id: null, name: '', phone: '', email: '', bankAccounts: [] };
 
 export default function CustomersPage() {
   const toast = useToast();
@@ -74,6 +81,7 @@ export default function CustomersPage() {
         name: form.name,
         phone: form.phone || null,
         email: form.email || null,
+        bankAccounts: form.bankAccounts,
       });
       if (form.id === null) {
         await api('/api/customers', { method: 'POST', body });
@@ -102,6 +110,12 @@ export default function CustomersPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Update failed');
     }
+  }
+
+  function setBank(i: number, patch: Partial<BankAccount>) {
+    if (!form) return;
+    const next = form.bankAccounts.map((b, idx) => (idx === i ? { ...b, ...patch } : b));
+    setForm({ ...form, bankAccounts: next });
   }
 
   async function remove() {
@@ -154,6 +168,7 @@ export default function CustomersPage() {
               <SortableHeader label="Name" sortKey="name" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <SortableHeader label="Phone" sortKey="phone" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3">Email</th>
+              <th className="px-4 py-3">Bank Accounts</th>
               <th className="px-4 py-3 text-right">Orders</th>
               <SortableHeader label="Added" sortKey="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
               <th className="px-4 py-3">Status</th>
@@ -161,10 +176,10 @@ export default function CustomersPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && <SkeletonRows rows={5} cols={7} />}
+            {loading && <SkeletonRows rows={5} cols={8} />}
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={8}>
                   <EmptyState
                     title={q ? 'No customers match your search' : 'No customers yet'}
                     description={
@@ -183,6 +198,11 @@ export default function CustomersPage() {
                   <td className="px-4 py-3 font-medium text-slate-900">{row.name}</td>
                   <td className="px-4 py-3 text-slate-600">{row.phone || '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{row.email || '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {row.bankAccounts?.length
+                      ? row.bankAccounts.map((b) => `${b.bankName} ${b.accountNumber}`).join(', ')
+                      : '—'}
+                  </td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-600">{row._count?.dispenseOrders ?? 0}</td>
                   <td className="px-4 py-3 text-slate-500">{new Date(row.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
@@ -202,6 +222,7 @@ export default function CustomersPage() {
                           name: row.name,
                           phone: row.phone || '',
                           email: row.email || '',
+                          bankAccounts: row.bankAccounts || [],
                         })
                       }
                       className="text-xs font-medium text-slate-900 underline underline-offset-2"
@@ -264,6 +285,53 @@ export default function CustomersPage() {
               <input type="email" value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })} className={input} />
             </div>
+
+            <div className="border-t border-slate-200 pt-4">
+              <div className="flex items-center justify-between">
+                <label className={label}>Bank accounts</label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      bankAccounts: [...form.bankAccounts, { bankName: '', accountNumber: '' }],
+                    })
+                  }
+                  className="text-xs font-medium text-slate-900 underline underline-offset-2"
+                >
+                  + Add bank account
+                </button>
+              </div>
+              {form.bankAccounts.map((b, i) => (
+                <div key={i} className="mt-2 flex items-center gap-2">
+                  <input
+                    placeholder="Bank name"
+                    value={b.bankName}
+                    onChange={(e) => setBank(i, { bankName: e.target.value })}
+                    className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                  />
+                  <input
+                    placeholder="Account number"
+                    value={b.accountNumber}
+                    onChange={(e) => setBank(i, { accountNumber: e.target.value })}
+                    className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        bankAccounts: form.bankAccounts.filter((_, idx) => idx !== i),
+                      })
+                    }
+                    className="shrink-0 text-xs text-slate-400 hover:text-red-600"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+
             <div className="flex gap-2 pt-2">
               <button
                 type="submit"

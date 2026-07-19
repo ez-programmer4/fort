@@ -242,12 +242,13 @@ model ExpensePurchase {
 // ── Phase 6: Sales & Dispensing ──────────────────────────────
 
 model Customer {
-  id        Int      @id @default(autoincrement())
-  name      String
-  phone     String?
-  email     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  name         String
+  phone        String?
+  email        String?
+  bankAccounts Json     @default("[]") // [{ bankName, accountNumber }]
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
 
   dispenseOrders DispenseOrder[]
 
