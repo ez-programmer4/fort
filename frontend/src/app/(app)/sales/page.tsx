@@ -440,6 +440,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
     const s = stockOptions.find((x) => String(x.batchId) === batchId);
     if (s) addToCart(s);
     setPickedBatchId('');
+    setAddingProduct(false);
   }
 
   function setLine(i: number, patch: Partial<CartLine>) {
