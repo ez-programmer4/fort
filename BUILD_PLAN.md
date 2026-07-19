@@ -499,6 +499,50 @@ system, all fixed in one pass. Full detail in `HISTORY.md`; summary here:
 
 ---
 
+## Phase A13 — Withholding Report + Customer Management
+
+Client-requested: a per-sale withholding tracking view, and a real Customer
+management page (closing the backlog gap noted above).
+
+- [x] **Withholding report** — new "Withholding" tab on Reports, alongside
+      Finance/Sales. Backend: `computeWithholding()` in
+      `finance.controller.js` (new file functions, reusing the existing
+      `parseFilters`/`locationName`/`pdf.js` helpers already powering
+      Finance/Sales) queries every `DispenseOrder` with
+      `withholdingType != NONE` in the filtered date range/location,
+      returning DSP no., date, customer, location, subtotal, WHT rate/type,
+      WHT amount and net total per row, plus totals. `GET /api/reports/withholding`
+      (JSON) and `GET /api/reports/withholding.pdf` (same branded-PDF
+      pattern as the other two reports). Frontend table matches the Sales
+      Report tab's style — no pagination, by design, matching how
+      Finance/Sales already work (a filtered-date-range document meant to
+      be reviewed/printed whole, not paged through).
+- [x] **Customer management page** — new `/customers` route, mirroring the
+      Suppliers page exactly (search, sortable paginated table, Add/Edit
+      drawer, Activate/Deactivate, Delete-with-FK-guard). Schema gained
+      `Customer.isActive` (new migration `customer_active`) since the
+      model previously had no active/inactive concept at all. New
+      `customers.manage` permission (seeded onto Admin via `ALL` and onto
+      the Sales role, since customers are sales-adjacent) gates editing;
+      the existing quick-search/quick-create endpoints stay reachable by
+      `sales.dispense`/`sales.view`/`dashboard.view` as before — the
+      permission check is additive (OR'd in), not a breaking change to who
+      could already search/quick-create customers while dispensing.
+      Deactivated customers are now excluded from the sales-dispense
+      customer picker (`?active=true`), matching the same pattern already
+      applied to suppliers/products/locations earlier in the session.
+
+**Verified:** live API checks — `customers.manage` present on the admin
+token after reseeding; paginated customer list, create, deactivate,
+delete (with cleanup) all round-tripped correctly; deactivated customer
+confirmed excluded from `?active=true` search; withholding JSON returned
+real aggregated totals matching 3 existing withheld sales; withholding
+PDF downloaded with a valid `%PDF-` header. `tsc --noEmit` clean, all
+modified backend files pass `node --check`. Full 18-page HTTP-200 sweep
+(17 existing + the new `/customers` route).
+
+---
+
 ## Public Homepage — Removed
 
 The public marketing homepage built in Phase A7 (`components/marketing/homepage.tsx`,
@@ -541,11 +585,8 @@ is started; this is a list to pick from, not a plan.
 3. **No forgot-password / email reset flow.** Known since the login
    redesign — the system has no email-sending capability at all, so this
    would mean adding SMTP integration from scratch, not just a form.
-4. **No dedicated Customer management page.** Customers are quick-created
-   inline during dispensing (Phase A4) and are only otherwise visible via
-   "Top Customers" on the dashboard and the customer name on a sales
-   order. No edit/merge/deduplicate UI. Not in the original written spec
-   — an organic addition, so lower priority than items 1–2.
+
+~~No dedicated Customer management page~~ — done, see Phase A13.
 
 ---
 

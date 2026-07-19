@@ -16,6 +16,7 @@ const NAV: { href: string; label: string; icon: IconName; permission: string }[]
   { href: '/bincard', label: 'Bin Card', icon: 'document', permission: 'products.view' },
   { href: '/procurement', label: 'Procurement', icon: 'truck', permission: 'procurement.view' },
   { href: '/sales', label: 'Sales & Dispensing', icon: 'cart', permission: 'sales.view' },
+  { href: '/customers', label: 'Customers', icon: 'heart', permission: 'customers.manage' },
   { href: '/wallet', label: 'Wallet', icon: 'wallet', permission: 'finance.view' },
   { href: '/reports', label: 'Reports', icon: 'chart', permission: 'reports.view' },
   { href: '/locations', label: 'Locations', icon: 'mapPin', permission: 'locations.manage' },

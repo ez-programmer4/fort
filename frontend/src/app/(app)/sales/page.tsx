@@ -346,7 +346,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
 
   const searchCustomers = useCallback((term: string) => {
     api<{ customers: { id: number; name: string; phone: string | null }[] }>(
-      `/api/customers?q=${encodeURIComponent(term)}`,
+      `/api/customers?active=true&q=${encodeURIComponent(term)}`,
     )
       .then((d) =>
         setCustomerOptions(

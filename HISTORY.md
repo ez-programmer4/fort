@@ -5,6 +5,20 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-19 — Phase A13: Withholding report + Customer management
+
+**Phase:** client-requested — withholding tax tracking (by DSP no. and customer) as a report tab, plus a real Customer management page. Confirmed scope up front via AskUserQuestion: two separate features (not one), and the withholding report covers sales-side only (not procurement).
+
+**Done:**
+- **Withholding report** (`backend/src/modules/reports/finance.controller.js`): new `computeWithholding()`/`withholdingJson`/`withholdingPdf`, reusing the file's existing `parseFilters`/`locationName`/`pdf.js` helpers so it looks and behaves exactly like Finance/Sales. Queries `DispenseOrder` where `withholdingType != 'NONE'` within the date range/location filter, returning DSP no., date, customer name (`Walk-in` if none), location, subtotal, WHT type/rate/amount, and net total, plus aggregate totals. New routes `GET /api/reports/withholding` and `GET /api/reports/withholding.pdf`. Frontend: `reports/page.tsx` gained a third `Tabs` entry and a table matching the Sales Report tab's structure (DSP No./Date/Customer/Location/Subtotal/Rate/Withheld/Net Total + a totals footer row); `downloadPdf()` generalized from a two-way ternary to `/api/reports/${tab}.pdf` since there are now three tabs.
+- **Customer management** (`/customers`, new page mirroring Suppliers exactly): search, sortable paginated table (Name/Phone/Email/Orders count/Added/Status/Actions), Add/Edit drawer, Activate/Deactivate, Delete-with-FK-guard (`P2003` → "has sales history — deactivate them instead", same pattern as Suppliers/Locations). Schema gained `Customer.isActive Boolean @default(true)` — migration `20260719113024_customer_active` — since the model had no active/inactive concept before this. `customers.controller.js` rewritten to the dual-mode list pattern (`?page` present → paginated management view with `_count.dispenseOrders`; absent → capped 20-row quick-search, unchanged shape for the existing sales-dispense combobox) plus `update`/`remove`. New `customers.manage` permission, seeded onto Admin (via `ALL`) and the Sales role; `customers.routes.js`'s existing `GET`/`POST` permission checks got `customers.manage` OR'd in additively — the quick-search/quick-create paths Sales-role users already used while dispensing keep working unchanged. New sidebar nav entry (`heart` icon, gated on `customers.manage`), placed between Sales and Wallet.
+- Sales page's customer quick-search (`searchCustomers` in `sales/page.tsx`) now passes `?active=true`, excluding deactivated customers from the dispense-flow picker — the same "deactivated entities don't belong in creation dropdowns" fix applied to suppliers/products/locations earlier in the session, now extended to customers now that they have an active flag at all.
+- Re-ran `prisma migrate dev` (had to stop all node processes first — the Windows query-engine-DLL EPERM issue noted throughout this project) and `npm run seed` (idempotent — safe to re-run, only touches Lookup/Permission/Role/RolePermission and upserts the admin user).
+
+**Verified:** live API round-trip — admin token confirmed to carry `customers.manage` after reseeding; paginated list, create, deactivate, `?active=true` exclusion, and delete (with cleanup) all behaved correctly; withholding JSON returned real totals matching 3 existing withheld sales in the dev DB (`{count: 3, subtotal: 10050.5, withholdingAmount: 2003.26, total: 8047.24}`); withholding PDF downloaded with a valid `%PDF-` header (~26KB, consistent with the branded-logo header established earlier). `tsc --noEmit` clean; every modified backend file passes `node --check`. Full 18-page HTTP-200 sweep (the prior 17 plus the new `/customers` route).
+
+---
+
 ## 2026-07-17 — The actual fix for the sidebar-hidden-by-mobile-toolbar bug
 
 **Phase:** follow-up — the safe-area padding from the previous pass didn't fully fix it; user confirmed the sidebar's bottom was still hidden behind the phone's own bottom bar.

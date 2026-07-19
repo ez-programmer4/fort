@@ -5,8 +5,11 @@ const ctrl = require('./customers.controller');
 router.use(requireAuth);
 
 // Any signed-in user who can dispense or view sales/dashboard may search customers;
-// creating (quick-create) requires being able to dispense.
-router.get('/', requirePermission('sales.dispense', 'sales.view', 'dashboard.view'), ctrl.list);
-router.post('/', requirePermission('sales.dispense'), ctrl.create);
+// creating (quick-create) requires being able to dispense. Full management (edit,
+// activate/deactivate) requires customers.manage.
+router.get('/', requirePermission('customers.manage', 'sales.dispense', 'sales.view', 'dashboard.view'), ctrl.list);
+router.post('/', requirePermission('customers.manage', 'sales.dispense'), ctrl.create);
+router.patch('/:id', requirePermission('customers.manage'), ctrl.update);
+router.delete('/:id', requirePermission('customers.manage'), ctrl.remove);
 
 module.exports = router;

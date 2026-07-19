@@ -20,6 +20,7 @@ const PERMISSIONS = [
   ['procurement.manage', 'Create POs & receive goods', 'Procurement'],
   ['sales.view', 'View sales history', 'Sales'],
   ['sales.dispense', 'Dispense / make sales', 'Sales'],
+  ['customers.manage', 'Manage customers', 'Sales'],
   ['finance.view', 'View wallet & balances', 'Finance'],
   ['finance.manage', 'Record payments, manage taxes', 'Finance'],
   ['reports.view', 'View & export reports', 'Reports'],
@@ -48,7 +49,10 @@ const ROLES = {
   Sales: {
     description: 'Dispensing, Sales History',
     isSystem: false,
-    permissions: ['dashboard.view', 'alerts.view', 'products.view', 'inventory.view', 'sales.view', 'sales.dispense'],
+    permissions: [
+      'dashboard.view', 'alerts.view', 'products.view', 'inventory.view',
+      'sales.view', 'sales.dispense', 'customers.manage',
+    ],
   },
 };
 
@@ -105,7 +109,7 @@ async function main() {
     },
   });
 
-  console.log('Seed complete: 18 permissions, 4 roles, admin user (admin@fortinventory.local / admin123)');
+  console.log(`Seed complete: ${PERMISSIONS.length} permissions, 4 roles, admin user (admin@fortinventory.local / admin123)`);
 }
 
 main()

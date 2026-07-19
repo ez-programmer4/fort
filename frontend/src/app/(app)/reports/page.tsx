@@ -40,15 +40,34 @@ interface SalesData {
   totals: { count: number; gross: number; net: number; cash: number; credit: number };
 }
 
+interface WithholdingRow {
+  id: number;
+  dspNumber: string;
+  createdAt: string;
+  customer: string;
+  location: string;
+  subtotal: number;
+  withholdingType: string;
+  withholdingRate: number;
+  withholdingAmount: number;
+  total: number;
+}
+
+interface WithholdingData {
+  rows: WithholdingRow[];
+  totals: { count: number; subtotal: number; withholdingAmount: number; total: number };
+}
+
 export default function ReportsPage() {
   const toast = useToast();
-  const [tab, setTab] = useState<'finance' | 'sales'>('finance');
+  const [tab, setTab] = useState<'finance' | 'sales' | 'withholding'>('finance');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [locations, setLocations] = useState<Option[]>([]);
   const [locationId, setLocationId] = useState('');
   const [finance, setFinance] = useState<Finance | null>(null);
   const [sales, setSales] = useState<SalesData | null>(null);
+  const [withholding, setWithholding] = useState<WithholdingData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const params = useCallback(() => {
@@ -68,12 +87,17 @@ export default function ReportsPage() {
   useEffect(() => {
     setLoading(true);
     const q = params();
-    const req = tab === 'finance' ? api<Finance>(`/api/reports/finance?${q}`).then(setFinance) : api<SalesData>(`/api/reports/sales?${q}`).then(setSales);
+    const req =
+      tab === 'finance'
+        ? api<Finance>(`/api/reports/finance?${q}`).then(setFinance)
+        : tab === 'sales'
+        ? api<SalesData>(`/api/reports/sales?${q}`).then(setSales)
+        : api<WithholdingData>(`/api/reports/withholding?${q}`).then(setWithholding);
     req.catch((e) => toast.error(e.message)).finally(() => setLoading(false));
   }, [tab, params]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function downloadPdf() {
-    const path = tab === 'finance' ? '/api/reports/finance.pdf' : '/api/reports/sales.pdf';
+    const path = `/api/reports/${tab}.pdf`;
     apiDownload(`${path}?${params()}`, `${tab}-report.pdf`).catch((e) => toast.error(e.message));
   }
 
@@ -106,10 +130,11 @@ export default function ReportsPage() {
       <Tabs
         className="mt-5"
         value={tab}
-        onChange={(v) => setTab(v as 'finance' | 'sales')}
+        onChange={(v) => setTab(v as 'finance' | 'sales' | 'withholding')}
         tabs={[
           { key: 'finance', label: 'Finance Report' },
           { key: 'sales', label: 'Sales Report' },
+          { key: 'withholding', label: 'Withholding' },
         ]}
       />
 
@@ -207,6 +232,65 @@ export default function ReportsPage() {
                   <td className="px-4 py-2.5 text-right tabular-nums">{money(sales.totals.cash)}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{money(sales.totals.credit)}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{money(sales.totals.net)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === 'withholding' && (
+        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3">DSP No.</th>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Location</th>
+                <th className="px-4 py-3 text-right">Subtotal</th>
+                <th className="px-4 py-3 text-right">Rate</th>
+                <th className="px-4 py-3 text-right">Withheld</th>
+                <th className="px-4 py-3 text-right">Net Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && <SkeletonRows rows={6} cols={8} />}
+              {!loading && withholding && withholding.rows.length === 0 && (
+                <tr>
+                  <td colSpan={8}>
+                    <EmptyState
+                      title="No withheld sales in this period"
+                      description="Sales with a withholding type of Goods or Services will show up here."
+                    />
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                withholding &&
+                withholding.rows.map((r) => (
+                  <tr key={r.id} className="border-b border-slate-100">
+                    <td className="px-4 py-2.5 font-mono text-xs text-slate-900">{r.dspNumber}</td>
+                    <td className="px-4 py-2.5 text-slate-600">{new Date(r.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-2.5 text-slate-600">{r.customer}</td>
+                    <td className="px-4 py-2.5 text-slate-600">{r.location}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-slate-900">{money(r.subtotal)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">
+                      {r.withholdingRate}% <span className="text-slate-400">({r.withholdingType.toLowerCase()})</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">−{money(r.withholdingAmount)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-medium text-slate-900">{money(r.total)}</td>
+                  </tr>
+                ))}
+              {!loading && withholding && withholding.rows.length > 0 && (
+                <tr className="bg-slate-50 font-semibold">
+                  <td colSpan={4} className="px-4 py-2.5 text-slate-900">
+                    Total ({withholding.totals.count} sale(s))
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">{money(withholding.totals.subtotal)}</td>
+                  <td />
+                  <td className="px-4 py-2.5 text-right tabular-nums">−{money(withholding.totals.withholdingAmount)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">{money(withholding.totals.total)}</td>
                 </tr>
               )}
             </tbody>

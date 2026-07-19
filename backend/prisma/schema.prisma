@@ -246,6 +246,7 @@ model Customer {
   name      String
   phone     String?
   email     String?
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
   dispenseOrders DispenseOrder[]

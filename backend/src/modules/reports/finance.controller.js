@@ -238,4 +238,108 @@ async function salesPdf(req, res, next) {
   }
 }
 
-module.exports = { financeJson, financePdf, salesJson, salesPdf };
+// Withholding report: every sale with customer-withheld tax — DSP no., customer, amounts
+async function computeWithholding(filters) {
+  const whereOrders = {
+    withholdingType: { not: 'NONE' },
+    ...(filters.createdAt ? { createdAt: filters.createdAt } : {}),
+    ...(filters.locationId ? { locationId: filters.locationId } : {}),
+  };
+  const orders = await prisma.dispenseOrder.findMany({
+    where: whereOrders,
+    select: {
+      id: true, dspNumber: true, createdAt: true,
+      subtotal: true, withholdingType: true, withholdingRate: true, withholdingAmount: true, total: true,
+      customer: { select: { name: true } },
+      location: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  const rows = orders.map((o) => ({
+    id: o.id,
+    dspNumber: o.dspNumber,
+    createdAt: o.createdAt,
+    customer: o.customer?.name || 'Walk-in',
+    location: o.location.name,
+    subtotal: Number(o.subtotal),
+    withholdingType: o.withholdingType,
+    withholdingRate: Number(o.withholdingRate),
+    withholdingAmount: Number(o.withholdingAmount),
+    total: Number(o.total),
+  }));
+  const totals = rows.reduce(
+    (t, r) => ({
+      count: t.count + 1,
+      subtotal: t.subtotal + r.subtotal,
+      withholdingAmount: t.withholdingAmount + r.withholdingAmount,
+      total: t.total + r.total,
+    }),
+    { count: 0, subtotal: 0, withholdingAmount: 0, total: 0 },
+  );
+  return { rows, totals };
+}
+
+async function withholdingJson(req, res, next) {
+  try {
+    const filters = parseFilters(req.query);
+    const location = await locationName(filters.locationId);
+    const data = await computeWithholding(filters);
+    res.json({ ...data, location });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function withholdingPdf(req, res, next) {
+  try {
+    const filters = parseFilters(req.query);
+    const [location, { rows, totals }, branding] = await Promise.all([
+      locationName(filters.locationId),
+      computeWithholding(filters),
+      getSettings(),
+    ]);
+
+    const doc = pdf.startReport(res, {
+      filename: `withholding-report-${new Date().toISOString().slice(0, 10)}.pdf`,
+      title: 'Withholding Tax Report',
+      subtitle: 'Sales with customer-withheld tax — by dispense order',
+      filters: { from: filters.from, to: filters.to, location },
+      branding,
+    });
+
+    pdf.table(
+      doc,
+      [
+        { label: 'DSP No.', width: 75 },
+        { label: 'Date', width: 65 },
+        { label: 'Customer', width: 110 },
+        { label: 'Subtotal', width: 70, align: 'right' },
+        { label: 'Rate', width: 45, align: 'right' },
+        { label: 'Withheld', width: 65, align: 'right' },
+        { label: 'Net Total', width: 65, align: 'right' },
+      ],
+      rows.map((r) => [
+        r.dspNumber,
+        new Date(r.createdAt).toLocaleDateString(),
+        r.customer,
+        pdf.money(r.subtotal),
+        `${r.withholdingRate}%`,
+        pdf.money(r.withholdingAmount),
+        pdf.money(r.total),
+      ]),
+    );
+
+    pdf.summaryRows(doc, [
+      { label: `Total (${totals.count} sale(s))`, value: pdf.money(totals.subtotal), bold: true },
+      { label: 'Total withheld', value: pdf.money(totals.withholdingAmount) },
+      { label: 'Net total', value: pdf.money(totals.total), bold: true },
+    ]);
+
+    pdf.signatureBlock(doc);
+    doc.end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { financeJson, financePdf, salesJson, salesPdf, withholdingJson, withholdingPdf };
