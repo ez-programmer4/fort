@@ -5,6 +5,22 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-20 — Command palette: mobile support
+
+**Phase:** follow-up — the palette's header trigger was `hidden sm:block`, so there was no way to open it on a phone at all (no physical keyboard for Ctrl/Cmd+K either).
+
+**Done:**
+- `layout.tsx`: `SearchTrigger` is now always visible in the header, not hidden below the `sm` breakpoint. The button itself already degraded gracefully to an icon-only tap target on narrow widths (text label and the "Ctrl K" hint were already `hidden sm:inline`), just needed its wrapper to stop hiding it.
+- `command-palette.tsx` mobile-specific fixes:
+  - Modal now anchors near the top on small screens (`pt-4` vs `sm:pt-24`) and caps its own height at `max-h-[85dvh]` with an internal flex layout (header fixed, results `flex-1 overflow-y-auto`) — leaves room for the on-screen keyboard instead of the results list getting pushed off-screen.
+  - Input font bumped to `text-base` on mobile (`sm:text-sm` on desktop) — below 16px, iOS Safari auto-zooms the page on focus, a well-known mobile web input pitfall.
+  - Added `autoComplete="off"`, `autoCapitalize="off"`, `autoCorrect="off"`, `spellCheck={false}` to the search input — without them mobile keyboards auto-capitalize every search term and autocorrect can mangle product codes/DSP numbers.
+  - The "Esc" keyboard hint (meaningless without a physical keyboard) is hidden on mobile and replaced with a visible × close button, in addition to the existing tap-the-backdrop-to-close behavior.
+
+**Verified:** `tsc --noEmit` clean, full 19-page HTTP-200 sweep, no rendered errors.
+
+---
+
 ## 2026-07-20 — Global command palette (Ctrl/Cmd+K): search, navigate, quick actions
 
 **Phase:** user asked for "quick functionality" — search-to-redirect, commands, and other quick access. Confirmed via AskUserQuestion: a global command palette (Ctrl/Cmd+K, like Linear/Notion/GitHub), searching across Products, Customers, Suppliers, and Sales (by DSP number), plus page navigation and quick-create actions.

@@ -52,7 +52,8 @@ export function SearchTrigger() {
   return (
     <button
       onClick={open}
-      className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-500 hover:border-slate-300 hover:text-slate-900"
+      aria-label="Search"
+      className="flex items-center gap-2 rounded-md border border-slate-200 p-2 text-sm text-slate-500 hover:border-slate-300 hover:text-slate-900 sm:px-3 sm:py-1.5"
     >
       <Icon name="search" className="h-4 w-4" />
       <span className="hidden sm:inline">Search…</span>
@@ -213,10 +214,10 @@ export function CommandPaletteProvider({ nav, children }: { nav: NavItem[]; chil
     <CommandPaletteContext.Provider value={{ open: openPalette }}>
       {children}
       {isOpen && (
-        <div className="fixed inset-0 z-80 flex items-start justify-center p-4 pt-24 print:hidden" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-80 flex items-start justify-center p-3 pt-4 sm:p-4 sm:pt-24 print:hidden" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-slate-900/40" onClick={close} />
-          <div className="relative w-full max-w-lg overflow-hidden rounded-lg bg-white shadow-2xl">
-            <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3">
+          <div className="relative flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-4 py-3">
               <Icon name="search" className="h-4 w-4 shrink-0 text-slate-400" />
               <input
                 ref={inputRef}
@@ -224,11 +225,24 @@ export function CommandPaletteProvider({ nav, children }: { nav: NavItem[]; chil
                 onChange={(e) => setTerm(e.target.value)}
                 onKeyDown={onKeyDown}
                 placeholder="Search pages, products, customers, suppliers, sales…"
-                className="w-full text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                className="w-full text-base text-slate-900 outline-none placeholder:text-slate-400 sm:text-sm"
               />
-              <kbd className="shrink-0 rounded border border-slate-200 px-1.5 py-0.5 text-[10px] text-slate-400">Esc</kbd>
+              <kbd className="hidden shrink-0 rounded border border-slate-200 px-1.5 py-0.5 text-[10px] text-slate-400 sm:inline-block">
+                Esc
+              </kbd>
+              <button
+                onClick={close}
+                aria-label="Close search"
+                className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-900 sm:hidden"
+              >
+                <Icon name="x" className="h-4 w-4" />
+              </button>
             </div>
-            <div className="max-h-96 overflow-y-auto py-2">
+            <div className="min-h-0 flex-1 overflow-y-auto py-2">
               {searching && <p className="px-4 py-2 text-xs text-slate-400">Searching…</p>}
               {allResults.length === 0 && !searching && (
                 <p className="px-4 py-8 text-center text-sm text-slate-400">

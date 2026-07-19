@@ -218,9 +218,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <span className="truncate text-sm font-medium text-slate-900">{current?.label ?? ''}</span>
 
           <div className="ml-auto flex items-center gap-3">
-            <div className="hidden sm:block">
-              <SearchTrigger />
-            </div>
+            <SearchTrigger />
 
             <div ref={userMenuRef} className="relative">
               <button
