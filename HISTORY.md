@@ -5,6 +5,21 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-20 — Customer: TIN and business license (number + document upload)
+
+**Phase:** user asked to add TIN and a license — captured as a license number plus an uploadable license document, mirroring Supplier's existing `tin` field and the file-upload pattern already used for Sales attachments.
+
+**Backend:**
+- `Customer` gains `tin String?`, `licenseNumber String?`, and `licenseDocument Json?` (`{storedName, originalName, mimeType, size, uploadedAt}`, null until a file is uploaded) — migration `20260719213904_customer_tin_license`. `licenseDocument` is a single JSON blob rather than a full attachments table, since this is one "current license on file" per customer, not a list — same reasoning as `bankAccounts Json` already on this model.
+- `customers.controller.js`: `validate()` extended for `tin`/`licenseNumber`. New `uploadLicense` (multer single-file upload to `uploads/customer-licenses/`, replaces — and deletes — any previous file rather than accumulating) and `downloadLicense`. `remove()` now also cleans up the license file from disk when a customer is deleted, closing a gap that would otherwise have left orphaned files behind.
+- `customers.routes.js`: multer wiring (mirrors `sales.routes.js`'s pattern exactly), `POST/GET /api/customers/:id/license`, gated by `customers.manage`.
+
+**Frontend (`customers/page.tsx`):** TIN input added next to Phone/Email. A new "Business license" section in the drawer: license number input, plus (for an existing customer only — a brand-new one has no ID to upload against yet) an upload/replace button and a download link when a document is on file. Upload/download handlers mirror the Sales page's attachment pattern (`FormData` POST; raw `fetch` + blob + programmatic `<a download>` for the authenticated download).
+
+**Verified:** live API round-trip — create with `tin`/`licenseNumber` persists correctly; file upload → download returns the exact bytes; re-upload replaces the file and deletes the old one from disk (confirmed via directory listing before/after); delete cleans up. `node --check` on both backend files, `tsc --noEmit` clean, full 19-page HTTP-200 sweep.
+
+---
+
 ## 2026-07-20 — Command palette: mobile support
 
 **Phase:** follow-up — the palette's header trigger was `hidden sm:block`, so there was no way to open it on a phone at all (no physical keyboard for Ctrl/Cmd+K either).

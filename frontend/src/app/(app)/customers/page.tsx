@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { api, getTokens } from '@/lib/api';
 import { Drawer } from '@/components/ui/drawer';
 import { Pagination } from '@/components/ui/pagination';
 import { SearchInput } from '@/components/ui/search-input';
@@ -35,13 +35,24 @@ interface BankAccount {
   accountNumber: string;
 }
 
+interface LicenseDocument {
+  storedName: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+}
+
 interface CustomerRow {
   id: number;
   name: string;
   phone: string | null;
   email: string | null;
+  tin: string | null;
   bankAccounts: BankAccount[];
   creditRating: Rating;
+  licenseNumber: string | null;
+  licenseDocument: LicenseDocument | null;
   isActive: boolean;
   createdAt: string;
   _count?: { dispenseOrders: number };
@@ -52,8 +63,10 @@ interface FormState {
   name: string;
   phone: string;
   email: string;
+  tin: string;
   bankAccounts: BankAccount[];
   creditRating: Rating;
+  licenseNumber: string;
 }
 
 interface CreditSummary {
@@ -68,7 +81,16 @@ interface CreditSummary {
   lastOrderAt: string | null;
 }
 
-const emptyForm: FormState = { id: null, name: '', phone: '', email: '', bankAccounts: [], creditRating: 'UNRATED' };
+const emptyForm: FormState = {
+  id: null,
+  name: '',
+  phone: '',
+  email: '',
+  tin: '',
+  bankAccounts: [],
+  creditRating: 'UNRATED',
+  licenseNumber: '',
+};
 
 export default function CustomersPage() {
   const toast = useToast();
@@ -84,7 +106,10 @@ export default function CustomersPage() {
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [summary, setSummary] = useState<CreditSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [uploadingLicense, setUploadingLicense] = useState(false);
+  const licenseFileRef = useRef<HTMLInputElement>(null);
   const { sortBy, sortDir, toggle } = useSort('name');
+  const currentRow = form?.id != null ? rows.find((r) => r.id === form.id) || null : null;
 
   const load = useCallback(async (search: string, pageNum: number, size: number, sBy: string, sDir: string) => {
     setLoading(true);
@@ -135,8 +160,10 @@ export default function CustomersPage() {
         name: form.name,
         phone: form.phone || null,
         email: form.email || null,
+        tin: form.tin || null,
         bankAccounts: form.bankAccounts,
         creditRating: form.creditRating,
+        licenseNumber: form.licenseNumber || null,
       });
       if (form.id === null) {
         await api('/api/customers', { method: 'POST', body });
@@ -151,6 +178,43 @@ export default function CustomersPage() {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onUploadLicense(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || form?.id == null) return;
+    setUploadingLicense(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      await api(`/api/customers/${form.id}/license`, { method: 'POST', body: fd });
+      toast.success(`"${file.name}" uploaded.`);
+      await load(q, page, pageSize, sortBy, sortDir);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      if (licenseFileRef.current) licenseFileRef.current.value = '';
+      setUploadingLicense(false);
+    }
+  }
+
+  async function downloadLicense() {
+    if (form?.id == null) return;
+    try {
+      const res = await fetch(`/api/customers/${form.id}/license`, {
+        headers: { Authorization: `Bearer ${getTokens()?.accessToken}` },
+      });
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = currentRow?.licenseDocument?.originalName || 'license';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Download failed');
     }
   }
 
@@ -284,8 +348,10 @@ export default function CustomersPage() {
                           name: row.name,
                           phone: row.phone || '',
                           email: row.email || '',
+                          tin: row.tin || '',
                           bankAccounts: row.bankAccounts || [],
                           creditRating: row.creditRating,
+                          licenseNumber: row.licenseNumber || '',
                         })
                       }
                       className="text-xs font-medium text-slate-900 underline underline-offset-2"
@@ -348,6 +414,11 @@ export default function CustomersPage() {
               <input type="email" value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })} className={input} />
             </div>
+            <div>
+              <label className={label}>TIN</label>
+              <input value={form.tin}
+                onChange={(e) => setForm({ ...form, tin: e.target.value })} className={input} />
+            </div>
 
             <div className="border-t border-slate-200 pt-4">
               <div className="flex items-center justify-between">
@@ -393,6 +464,42 @@ export default function CustomersPage() {
                   </button>
                 </div>
               ))}
+            </div>
+
+            <div className="border-t border-slate-200 pt-4">
+              <label className={label}>Business license</label>
+              <input
+                placeholder="License number"
+                value={form.licenseNumber}
+                onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })}
+                className={input}
+              />
+              {form.id === null ? (
+                <p className="mt-2 text-[11px] text-slate-400">Save the customer first to upload a license document.</p>
+              ) : (
+                <div className="mt-2 flex items-center gap-3">
+                  {currentRow?.licenseDocument ? (
+                    <button
+                      type="button"
+                      onClick={downloadLicense}
+                      className="flex min-w-0 items-center gap-1.5 text-sm text-slate-700 underline underline-offset-2 hover:text-slate-900"
+                    >
+                      <span className="truncate">{currentRow.licenseDocument.originalName}</span>
+                    </button>
+                  ) : (
+                    <p className="text-sm text-slate-400">No document on file.</p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={uploadingLicense}
+                    onClick={() => licenseFileRef.current?.click()}
+                    className="ml-auto shrink-0 text-xs font-medium text-slate-900 underline underline-offset-2 disabled:opacity-50"
+                  >
+                    {uploadingLicense ? 'Uploading…' : currentRow?.licenseDocument ? 'Replace' : '+ Upload'}
+                  </button>
+                  <input ref={licenseFileRef} type="file" onChange={onUploadLicense} className="hidden" />
+                </div>
+              )}
             </div>
 
             {form.id !== null && (

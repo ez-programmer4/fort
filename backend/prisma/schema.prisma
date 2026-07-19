@@ -242,14 +242,17 @@ model ExpensePurchase {
 // ── Phase 6: Sales & Dispensing ──────────────────────────────
 
 model Customer {
-  id           Int      @id @default(autoincrement())
-  name         String
-  phone        String?
-  email        String?
-  bankAccounts Json     @default("[]") // [{ bankName, accountNumber }]
-  creditRating String   @default("UNRATED") // UNRATED | GOOD | FAIR | POOR — set manually by staff
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  name            String
+  phone           String?
+  email           String?
+  tin             String? // Tax Identification Number
+  bankAccounts    Json     @default("[]") // [{ bankName, accountNumber }]
+  creditRating    String   @default("UNRATED") // UNRATED | GOOD | FAIR | POOR — set manually by staff
+  licenseNumber   String? // business license registration number
+  licenseDocument Json? // { storedName, originalName, mimeType, size, uploadedAt } — null until a license file is uploaded
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
 
   dispenseOrders DispenseOrder[]
 

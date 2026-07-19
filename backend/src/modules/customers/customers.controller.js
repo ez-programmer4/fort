@@ -1,6 +1,10 @@
+const path = require('path');
+const fs = require('fs');
 const prisma = require('../../utils/prisma');
 const { ApiError } = require('../../middleware/error');
 const { parseSort } = require('../../utils/sort');
+
+const UPLOAD_DIR = path.join(__dirname, '..', '..', '..', 'uploads', 'customer-licenses');
 
 const SORT_FIELDS = { name: 'name', phone: 'phone', createdAt: 'createdAt' };
 const RATINGS = ['UNRATED', 'GOOD', 'FAIR', 'POOR'];
@@ -46,7 +50,7 @@ async function list(req, res, next) {
 }
 
 function validate(body, partial = false) {
-  const { name, phone, email, bankAccounts, creditRating } = body || {};
+  const { name, phone, email, tin, bankAccounts, creditRating, licenseNumber } = body || {};
   if (!partial && (!name || !String(name).trim())) throw new ApiError(400, 'Customer name is required');
   const data = {};
   if (name !== undefined) {
@@ -55,6 +59,8 @@ function validate(body, partial = false) {
   }
   if (phone !== undefined) data.phone = phone ? String(phone).trim() : null;
   if (email !== undefined) data.email = email ? String(email).trim() : null;
+  if (tin !== undefined) data.tin = tin ? String(tin).trim() : null;
+  if (licenseNumber !== undefined) data.licenseNumber = licenseNumber ? String(licenseNumber).trim() : null;
   if (creditRating !== undefined) {
     if (!RATINGS.includes(creditRating)) throw new ApiError(400, `creditRating must be one of: ${RATINGS.join(', ')}`);
     data.creditRating = creditRating;
@@ -92,6 +98,54 @@ async function update(req, res, next) {
 
     const customer = await prisma.customer.update({ where: { id }, data });
     res.json({ customer });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// One license document per customer — a re-upload replaces (and deletes) the
+// previous file rather than accumulating a list, since this is a single
+// "current license on file", not a general attachments feed.
+async function uploadLicense(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const existing = await prisma.customer.findUnique({ where: { id } });
+    if (!existing) throw new ApiError(404, 'Customer not found');
+    if (!req.file) throw new ApiError(400, 'Upload a file in the "file" field');
+
+    const licenseDocument = {
+      storedName: req.file.filename,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+      uploadedAt: new Date().toISOString(),
+    };
+
+    const previous = existing.licenseDocument;
+    const customer = await prisma.customer.update({ where: { id }, data: { licenseDocument } });
+
+    if (previous?.storedName) {
+      const oldPath = path.join(UPLOAD_DIR, previous.storedName);
+      fs.unlink(oldPath, () => {}); // best-effort cleanup; a stray old file isn't worth failing the request over
+    }
+
+    res.status(201).json({ customer });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function downloadLicense(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const customer = await prisma.customer.findUnique({ where: { id } });
+    if (!customer?.licenseDocument) throw new ApiError(404, 'No license document on file');
+    const doc = customer.licenseDocument;
+    const filePath = path.join(UPLOAD_DIR, doc.storedName);
+    if (!fs.existsSync(filePath)) throw new ApiError(404, 'File is missing on the server');
+    res.setHeader('Content-Type', doc.mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.originalName.replace(/"/g, '')}"`);
+    fs.createReadStream(filePath).pipe(res);
   } catch (err) {
     next(err);
   }
@@ -157,10 +211,13 @@ async function remove(req, res, next) {
       }
       throw e;
     }
+    if (existing.licenseDocument?.storedName) {
+      fs.unlink(path.join(UPLOAD_DIR, existing.licenseDocument.storedName), () => {});
+    }
     res.json({ ok: true });
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { list, create, update, remove, creditSummary };
+module.exports = { list, create, update, remove, creditSummary, uploadLicense, downloadLicense, UPLOAD_DIR };

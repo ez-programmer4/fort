@@ -385,6 +385,12 @@ sidebar entry. See section 19.
 | 18.18 ✅ | Credit advisory in Sales               | New Dispense → pick a customer with history → set Payment to Credit | Amber "Credit check" panel appears: rating badge, outstanding balance, N/M past credit sales settled, "Advisory only" label |
 | 18.19 ✅ | Advisory doesn't block                 | With a Poor-rated / high-outstanding customer, complete a Credit sale anyway | Sale completes normally — the panel is informational only, never blocks                             |
 | 18.20 ✅ | Advisory disappears for Cash           | Switch Payment back to Cash (or clear the customer)                | The credit-check panel disappears                                                                   |
+| 18.21 ✅ | Add TIN and license number             | Edit a customer, fill TIN and business license number, save        | Both persist and reappear on reopening Edit                                                          |
+| 18.22 ✅ | Upload a license document              | Edit an existing customer → Business license → + Upload, pick a file | File uploads; the drawer now shows the file name (clickable to download) and the button becomes "Replace" |
+| 18.23 ✅ | Download the license document          | Click the uploaded file's name                                     | Downloads with the original filename and correct content                                             |
+| 18.24 ✅ | Replace a license document             | Upload a second file over an existing one                          | New file downloads correctly; the old stored file is deleted from disk (not left orphaned)            |
+| 18.25 ✅ | License upload on a new customer       | Open + Add Customer (not yet saved)                                | Upload control is disabled with a note to save the customer first — no ID to upload against yet      |
+| 18.26 ✅ | Delete a customer with a license file  | Delete a customer that has an uploaded license document             | Customer deletes normally; the stored license file is also removed from disk                         |
 
 ## 19. Expenses
 

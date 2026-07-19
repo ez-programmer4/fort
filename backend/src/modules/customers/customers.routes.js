@@ -1,6 +1,20 @@
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const multer = require('multer');
 const router = require('express').Router();
 const { requireAuth, requirePermission } = require('../../middleware/auth');
 const ctrl = require('./customers.controller');
+
+fs.mkdirSync(ctrl.UPLOAD_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: ctrl.UPLOAD_DIR,
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${path.extname(file.originalname)}`);
+  },
+});
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.use(requireAuth);
 
@@ -14,5 +28,7 @@ router.delete('/:id', requirePermission('customers.manage'), ctrl.remove);
 // Payment-history summary, used both by customer management (to inform the manual
 // rating) and by the Sales dispense flow (advisory, when a Credit sale is picked).
 router.get('/:id/credit-summary', requirePermission('customers.manage', 'sales.dispense', 'sales.view'), ctrl.creditSummary);
+router.post('/:id/license', requirePermission('customers.manage'), upload.single('file'), ctrl.uploadLicense);
+router.get('/:id/license', requirePermission('customers.manage'), ctrl.downloadLicense);
 
 module.exports = router;
