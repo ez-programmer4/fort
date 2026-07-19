@@ -23,6 +23,8 @@ interface ComboboxProps {
   emptyText?: string;
   className?: string;
   disabled?: boolean;
+  /** Focus (and open) the input as soon as it mounts — for a combo revealed by a button click. */
+  autoFocus?: boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export function Combobox({
   emptyText = 'No matches',
   className,
   disabled = false,
+  autoFocus = false,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState('');
@@ -46,6 +49,11 @@ export function Combobox({
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const selected = options.find((o) => o.value === value) || null;
   const [selectedLabel, setSelectedLabel] = useState('');

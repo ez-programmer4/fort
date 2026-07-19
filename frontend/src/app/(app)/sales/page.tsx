@@ -336,6 +336,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
   const [stockOptions, setStockOptions] = useState<StockRow[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
   const [pickedBatchId, setPickedBatchId] = useState('');
+  const [addingProduct, setAddingProduct] = useState(false);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customerId, setCustomerId] = useState('');
   const [customerOptions, setCustomerOptions] = useState<ComboOption[]>([]);
@@ -537,6 +538,7 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
                   onChange={(v) => {
                     setLocationId(v);
                     setCart([]);
+                    setAddingProduct(false);
                   }}
                   placeholder="Select…"
                   options={locations.filter((l) => l.isActive).map((l) => ({ value: String(l.id), label: l.name }))}
@@ -545,16 +547,37 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
               </div>
               {locationId && (
                 <div>
-                  <label className={label}>Add product</label>
-                  <Combobox
-                    options={stockComboOptions}
-                    value={pickedBatchId}
-                    onChange={pickProduct}
-                    onSearch={setStockQuery}
-                    placeholder="Search by name, code or batch…"
-                    emptyText={stockLoading ? 'Searching…' : 'No matching stock at this location'}
-                    className="mt-1"
-                  />
+                  <label className={label}>Products</label>
+                  {!addingProduct ? (
+                    <button
+                      type="button"
+                      onClick={() => setAddingProduct(true)}
+                      className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 sm:w-auto"
+                    >
+                      + Add product
+                    </button>
+                  ) : (
+                    <div className="mt-1 flex items-center gap-2">
+                      <Combobox
+                        options={stockComboOptions}
+                        value={pickedBatchId}
+                        onChange={pickProduct}
+                        onSearch={setStockQuery}
+                        placeholder="Search by name, code or batch…"
+                        emptyText={stockLoading ? 'Searching…' : 'No matching stock at this location'}
+                        className="flex-1"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setAddingProduct(false)}
+                        aria-label="Done adding products"
+                        className="shrink-0 rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      >
+                        <Icon name="x" className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
