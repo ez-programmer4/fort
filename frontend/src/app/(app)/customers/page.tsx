@@ -26,6 +26,29 @@ const RATING_META: Record<Rating, { label: string; badge: string }> = {
 };
 const RATING_OPTIONS = (Object.keys(RATING_META) as Rating[]).map((r) => ({ value: r, label: RATING_META[r].label }));
 
+type Classification = 'PHARMACY' | 'HOSPITAL' | 'CLINIC' | 'WHOLESALE' | 'NGO' | 'PRIMARY_HEALTHCARE' | 'GOVERNMENT';
+
+const CLASSIFICATION_META: Record<Classification, string> = {
+  PHARMACY: 'Pharmacy',
+  HOSPITAL: 'Hospital',
+  CLINIC: 'Clinic',
+  WHOLESALE: 'Wholesale',
+  NGO: 'NGO',
+  PRIMARY_HEALTHCARE: 'Primary Healthcare Centre',
+  GOVERNMENT: 'Government Institution',
+};
+const CLASSIFICATION_OPTIONS = (Object.keys(CLASSIFICATION_META) as Classification[]).map((c) => ({
+  value: c,
+  label: CLASSIFICATION_META[c],
+}));
+
+// Manually assignable buyer tags. "High Volume" / "Cash Buyer" are NOT in
+// this list — they're auto-detected from order history (see CreditSummary
+// .autoTags) and shown read-only, never manually toggled.
+const SUGGESTED_TAGS = [
+  'Hospital', 'Pharmacy', 'Distributor', 'Government Buyer', 'Wholesale Buyer', 'Retail Buyer', 'VIP Buyer',
+];
+
 function money(v: number) {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -46,9 +69,18 @@ interface LicenseDocument {
 interface CustomerRow {
   id: number;
   name: string;
+  contactPerson: string | null;
   phone: string | null;
+  altPhone: string | null;
   email: string | null;
+  classification: Classification | null;
   tin: string | null;
+  city: string | null;
+  region: string | null;
+  addressDetails: string | null;
+  creditLimit: number;
+  notes: string | null;
+  tags: string[];
   bankAccounts: BankAccount[];
   creditRating: Rating;
   licenseNumber: string | null;
@@ -61,9 +93,18 @@ interface CustomerRow {
 interface FormState {
   id: number | null;
   name: string;
+  contactPerson: string;
   phone: string;
+  altPhone: string;
   email: string;
+  classification: Classification | '';
   tin: string;
+  city: string;
+  region: string;
+  addressDetails: string;
+  creditLimit: string;
+  notes: string;
+  tags: string[];
   bankAccounts: BankAccount[];
   creditRating: Rating;
   licenseNumber: string;
@@ -71,6 +112,7 @@ interface FormState {
 
 interface CreditSummary {
   creditRating: Rating;
+  creditLimit: number;
   totalOrders: number;
   creditOrderCount: number;
   settledCount: number;
@@ -79,14 +121,24 @@ interface CreditSummary {
   totalPaid: number;
   outstanding: number;
   lastOrderAt: string | null;
+  autoTags: string[];
 }
 
 const emptyForm: FormState = {
   id: null,
   name: '',
+  contactPerson: '',
   phone: '',
+  altPhone: '',
   email: '',
+  classification: '',
   tin: '',
+  city: '',
+  region: '',
+  addressDetails: '',
+  creditLimit: '',
+  notes: '',
+  tags: [],
   bankAccounts: [],
   creditRating: 'UNRATED',
   licenseNumber: '',
@@ -99,6 +151,7 @@ export default function CustomersPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [q, setQ] = useState('');
+  const [classificationFilter, setClassificationFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -107,15 +160,17 @@ export default function CustomersPage() {
   const [summary, setSummary] = useState<CreditSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [uploadingLicense, setUploadingLicense] = useState(false);
+  const [customTag, setCustomTag] = useState('');
   const licenseFileRef = useRef<HTMLInputElement>(null);
   const { sortBy, sortDir, toggle } = useSort('name');
   const currentRow = form?.id != null ? rows.find((r) => r.id === form.id) || null : null;
 
-  const load = useCallback(async (search: string, pageNum: number, size: number, sBy: string, sDir: string) => {
+  const load = useCallback(async (search: string, classif: string, pageNum: number, size: number, sBy: string, sDir: string) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(pageNum), pageSize: String(size), sortBy: sBy, sortDir: sDir });
       if (search) params.set('q', search);
+      if (classif) params.set('classification', classif);
       const d = await api<{ customers: CustomerRow[]; total: number }>(`/api/customers?${params}`);
       setRows(d.customers);
       setTotal(d.total);
@@ -125,8 +180,8 @@ export default function CustomersPage() {
   }, []);
 
   useEffect(() => {
-    load(q, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
-  }, [q, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
+    load(q, classificationFilter, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
+  }, [q, classificationFilter, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Deep links from the command palette: ?q=<term> pre-fills the search,
   // ?new=1 opens the Add Customer drawer.
@@ -158,9 +213,18 @@ export default function CustomersPage() {
     try {
       const body = JSON.stringify({
         name: form.name,
+        contactPerson: form.contactPerson || null,
         phone: form.phone || null,
+        altPhone: form.altPhone || null,
         email: form.email || null,
+        classification: form.classification || null,
         tin: form.tin || null,
+        city: form.city || null,
+        region: form.region || null,
+        addressDetails: form.addressDetails || null,
+        creditLimit: form.creditLimit === '' ? 0 : Number(form.creditLimit),
+        notes: form.notes || null,
+        tags: form.tags,
         bankAccounts: form.bankAccounts,
         creditRating: form.creditRating,
         licenseNumber: form.licenseNumber || null,
@@ -173,7 +237,7 @@ export default function CustomersPage() {
         toast.success(`Customer "${form.name}" updated.`);
       }
       setForm(null);
-      await load(q, page, pageSize, sortBy, sortDir);
+      await load(q, classificationFilter, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -190,7 +254,7 @@ export default function CustomersPage() {
       fd.append('file', file);
       await api(`/api/customers/${form.id}/license`, { method: 'POST', body: fd });
       toast.success(`"${file.name}" uploaded.`);
-      await load(q, page, pageSize, sortBy, sortDir);
+      await load(q, classificationFilter, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -225,7 +289,7 @@ export default function CustomersPage() {
         body: JSON.stringify({ isActive: !row.isActive }),
       });
       toast.success(`"${row.name}" ${row.isActive ? 'deactivated' : 'activated'}.`);
-      await load(q, page, pageSize, sortBy, sortDir);
+      await load(q, classificationFilter, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Update failed');
     }
@@ -237,6 +301,25 @@ export default function CustomersPage() {
     setForm({ ...form, bankAccounts: next });
   }
 
+  function toggleTag(tag: string) {
+    if (!form) return;
+    setForm({
+      ...form,
+      tags: form.tags.includes(tag) ? form.tags.filter((t) => t !== tag) : [...form.tags, tag],
+    });
+  }
+
+  function addCustomTag() {
+    if (!form) return;
+    const t = customTag.trim();
+    if (!t || form.tags.includes(t)) {
+      setCustomTag('');
+      return;
+    }
+    setForm({ ...form, tags: [...form.tags, t] });
+    setCustomTag('');
+  }
+
   async function remove() {
     if (!confirmRow) return;
     setConfirmBusy(true);
@@ -244,7 +327,7 @@ export default function CustomersPage() {
       await api(`/api/customers/${confirmRow.id}`, { method: 'DELETE' });
       toast.success(`Customer "${confirmRow.name}" deleted.`);
       setConfirmRow(null);
-      await load(q, page, pageSize, sortBy, sortDir);
+      await load(q, classificationFilter, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Delete failed');
       setConfirmRow(null);
@@ -262,15 +345,25 @@ export default function CustomersPage() {
             People and organizations you dispense to — created here or quick-added during a sale.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <SearchInput
             onSearch={(term) => {
               setQ(term);
               setPage(1);
             }}
-            placeholder="Search name, phone, email…"
+            placeholder="Search name, contact, phone, email…"
             className="w-64"
             initialValue={q}
+          />
+          <Select
+            value={classificationFilter}
+            onChange={(v) => {
+              setClassificationFilter(v);
+              setPage(1);
+            }}
+            placeholder="All classifications"
+            options={[{ value: '', label: 'All classifications' }, ...CLASSIFICATION_OPTIONS]}
+            className="w-48"
           />
           <button
             onClick={() => setForm(emptyForm)}
@@ -285,10 +378,11 @@ export default function CustomersPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <SortableHeader label="Name" sortKey="name" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <SortableHeader label="Company" sortKey="name" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
+              <th className="px-4 py-3">Classification</th>
               <SortableHeader label="Phone" sortKey="phone" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Bank Accounts</th>
+              <th className="px-4 py-3">Contact</th>
+              <th className="px-4 py-3">Location</th>
               <th className="px-4 py-3">Rating</th>
               <th className="px-4 py-3 text-right">Orders</th>
               <SortableHeader label="Added" sortKey="createdAt" sortBy={sortBy} sortDir={sortDir} onSort={toggle} />
@@ -297,18 +391,18 @@ export default function CustomersPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && <SkeletonRows rows={5} cols={9} />}
+            {loading && <SkeletonRows rows={5} cols={10} />}
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={10}>
                   <EmptyState
-                    title={q ? 'No customers match your search' : 'No customers yet'}
+                    title={q || classificationFilter ? 'No customers match your search' : 'No customers yet'}
                     description={
-                      q
-                        ? 'Try a different name, phone or email.'
+                      q || classificationFilter
+                        ? 'Try a different name, phone, email, or classification.'
                         : 'Customers are usually added inline while dispensing — or add one here.'
                     }
-                    action={q ? undefined : { label: '+ Add Customer', onClick: () => setForm(emptyForm) }}
+                    action={q || classificationFilter ? undefined : { label: '+ Add Customer', onClick: () => setForm(emptyForm) }}
                   />
                 </td>
               </tr>
@@ -316,13 +410,17 @@ export default function CustomersPage() {
             {!loading &&
               rows.map((row) => (
                 <tr key={row.id} className="border-b border-slate-100 last:border-0">
-                  <td className="px-4 py-3 font-medium text-slate-900">{row.name}</td>
-                  <td className="px-4 py-3 text-slate-600">{row.phone || '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">{row.email || '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className="font-medium text-slate-900">{row.name}</span>
+                    {row.email && <p className="text-xs text-slate-400">{row.email}</p>}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {row.bankAccounts?.length
-                      ? row.bankAccounts.map((b) => `${b.bankName} ${b.accountNumber}`).join(', ')
-                      : '—'}
+                    {row.classification ? CLASSIFICATION_META[row.classification] : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{row.phone || '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">{row.contactPerson || '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {row.city || row.region ? [row.city, row.region].filter(Boolean).join(', ') : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${RATING_META[row.creditRating].badge}`}>
@@ -346,9 +444,18 @@ export default function CustomersPage() {
                         setForm({
                           id: row.id,
                           name: row.name,
+                          contactPerson: row.contactPerson || '',
                           phone: row.phone || '',
+                          altPhone: row.altPhone || '',
                           email: row.email || '',
+                          classification: row.classification || '',
                           tin: row.tin || '',
+                          city: row.city || '',
+                          region: row.region || '',
+                          addressDetails: row.addressDetails || '',
+                          creditLimit: row.creditLimit ? String(row.creditLimit) : '',
+                          notes: row.notes || '',
+                          tags: row.tags || [],
                           bankAccounts: row.bankAccounts || [],
                           creditRating: row.creditRating,
                           licenseNumber: row.licenseNumber || '',
@@ -394,30 +501,161 @@ export default function CustomersPage() {
         open={form !== null}
         onClose={() => setForm(null)}
         title={form?.id == null ? 'Add Customer' : 'Edit Customer'}
-        subtitle="Contact details for dispensing and sales history"
-        width="md"
+        subtitle="Company, contact, and classification details for dispensing and sales history"
+        width="lg"
       >
         {form && (
           <form onSubmit={save} className="space-y-4" noValidate>
             <div>
-              <label className={label}>Name *</label>
+              <label className={label}>Company Name *</label>
               <input required value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })} className={input} />
             </div>
-            <div>
-              <label className={label}>Phone</label>
-              <input value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })} className={input} />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className={label}>Contact Person *</label>
+                <input required value={form.contactPerson}
+                  onChange={(e) => setForm({ ...form, contactPerson: e.target.value })} className={input} />
+              </div>
+              <div>
+                <label className={label}>Classification</label>
+                <Select
+                  value={form.classification}
+                  onChange={(v) => setForm({ ...form, classification: v as Classification })}
+                  placeholder="Select…"
+                  options={CLASSIFICATION_OPTIONS}
+                  className="mt-1"
+                />
+              </div>
             </div>
-            <div>
-              <label className={label}>Email</label>
-              <input type="email" value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })} className={input} />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className={label}>Phone *</label>
+                <input required value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })} className={input} />
+              </div>
+              <div>
+                <label className={label}>Alternate Phone</label>
+                <input value={form.altPhone}
+                  onChange={(e) => setForm({ ...form, altPhone: e.target.value })} className={input} />
+              </div>
             </div>
-            <div>
-              <label className={label}>TIN</label>
-              <input value={form.tin}
-                onChange={(e) => setForm({ ...form, tin: e.target.value })} className={input} />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className={label}>Email</label>
+                <input type="email" value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })} className={input} />
+              </div>
+              <div>
+                <label className={label}>TIN</label>
+                <input value={form.tin}
+                  onChange={(e) => setForm({ ...form, tin: e.target.value })} className={input} />
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 pt-4">
+              <label className={label}>Location</label>
+              <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs text-slate-500">City *</label>
+                  <input required value={form.city}
+                    onChange={(e) => setForm({ ...form, city: e.target.value })} className={input} />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500">Region *</label>
+                  <input required value={form.region}
+                    onChange={(e) => setForm({ ...form, region: e.target.value })} className={input} />
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="block text-xs text-slate-500">Additional address details</label>
+                <textarea rows={2} value={form.addressDetails}
+                  placeholder="Sub-city, woreda, landmark, building…"
+                  onChange={(e) => setForm({ ...form, addressDetails: e.target.value })}
+                  className={`${input} resize-none`} />
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 pt-4">
+              <label className={label}>Credit limit</label>
+              <input type="number" min="0" step="0.01" value={form.creditLimit}
+                placeholder="0.00"
+                onChange={(e) => setForm({ ...form, creditLimit: e.target.value })}
+                className={`${input} max-w-48`} />
+              <p className="mt-1 text-[11px] text-slate-400">
+                Advisory only — shown alongside outstanding balance in Sales when this customer buys on credit.
+              </p>
+            </div>
+
+            <div className="border-t border-slate-200 pt-4">
+              <div className="flex items-center justify-between">
+                <label className={label}>Buyer tags</label>
+                {form.id !== null && summary && summary.autoTags.length > 0 && (
+                  <div className="flex gap-1">
+                    {summary.autoTags.map((t) => (
+                      <span key={t} className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">
+                Classify what this customer is. Behavioral tags like "High Volume" or "Cash Buyer" (shown above, if any) are detected automatically.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {SUGGESTED_TAGS.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => toggleTag(t)}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                      form.tags.includes(t)
+                        ? 'bg-slate-900 text-white'
+                        : 'border border-slate-300 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+                {form.tags
+                  .filter((t) => !SUGGESTED_TAGS.includes(t))
+                  .map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => toggleTag(t)}
+                      className="flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-1 text-xs font-medium text-white"
+                    >
+                      {t}
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  ))}
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  value={customTag}
+                  onChange={(e) => setCustomTag(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addCustomTag();
+                    }
+                  }}
+                  placeholder="Add a custom tag…"
+                  className="flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-900 focus:outline-none"
+                />
+                <button type="button" onClick={addCustomTag} className="text-xs font-medium text-slate-900 underline underline-offset-2">
+                  Add
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 pt-4">
+              <label className={label}>Additional notes</label>
+              <textarea rows={3} value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                className={`${input} resize-none`} />
             </div>
 
             <div className="border-t border-slate-200 pt-4">
@@ -519,6 +757,14 @@ export default function CustomersPage() {
                       <span className={`tabular-nums font-semibold ${summary.outstanding > 0 ? 'text-red-600' : 'text-slate-900'}`}>
                         {money(summary.outstanding)}
                       </span>
+                      {Number(form.creditLimit) > 0 && (
+                        <span className="ml-1 text-xs text-slate-400">
+                          of {money(Number(form.creditLimit))} limit
+                          {summary.outstanding > Number(form.creditLimit) && (
+                            <span className="ml-1 font-medium text-red-600">— over limit</span>
+                          )}
+                        </span>
+                      )}
                     </p>
                     {summary.lastOrderAt && (
                       <p className="col-span-2 text-xs text-slate-400">

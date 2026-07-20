@@ -392,6 +392,18 @@ sidebar entry. See section 19.
 | 18.24 ✅ | Replace a license document             | Upload a second file over an existing one                          | New file downloads correctly; the old stored file is deleted from disk (not left orphaned)            |
 | 18.25 ✅ | License upload on a new customer       | Open + Add Customer (not yet saved)                                | Upload control is disabled with a note to save the customer first — no ID to upload against yet      |
 | 18.26 ✅ | Delete a customer with a license file  | Delete a customer that has an uploaded license document             | Customer deletes normally; the stored license file is also removed from disk                         |
+| 18.27 ✅ | Full B2B fields                        | Add Customer → fill Contact Person, Alt Phone, Classification, City, Region, address details, Credit Limit, Notes | All persist and reappear correctly on reopening Edit                                                  |
+| 18.28 ❌ | Required fields on the form            | Try to submit the Add Customer form with Contact Person, Phone, City, or Region blank | Browser-native required-field validation blocks submission (enforced on the form, not the API — quick-create from Sales still only needs a name) |
+| 18.29 ✅ | Classification filter                  | Pick a classification from the new dropdown next to search          | List filters to only that classification; badge shown in the Classification column                    |
+| 18.30 ❌ | Invalid classification (API-level)     | PATCH `classification` to a value outside the fixed list             | `classification must be one of: PHARMACY, HOSPITAL, CLINIC, WHOLESALE, NGO, PRIMARY_HEALTHCARE, GOVERNMENT` |
+| 18.31 ❌ | Negative credit limit (API-level)      | PATCH `creditLimit` to a negative number                             | `Credit limit must be a non-negative number`                                                          |
+| 18.32 ✅ | Buyer tags — suggested                 | Edit a customer, click a few suggested tag pills (Hospital, VIP Buyer, etc.), save | Selected tags highlight, persist, and reappear on reopening Edit                                       |
+| 18.33 ✅ | Buyer tags — custom                    | Type a custom tag and click Add (or press Enter)                    | Custom tag appears as a removable pill alongside the suggested ones; persists on save                  |
+| 18.34 ✅ | Auto-tags — High Volume                | A customer with 10+ lifetime dispense orders                        | "High Volume" badge appears read-only next to Buyer Tags (not manually togglable)                     |
+| 18.35 ✅ | Auto-tags — Cash Buyer                 | A customer with 1+ orders, none of them Credit                      | "Cash Buyer" badge appears; a customer with even one credit order never shows it                       |
+| 18.36 ✅ | Credit limit shown in Payment History  | Edit a customer with both a credit limit and outstanding balance    | "Outstanding: X of Y limit" shown; "— over limit" flag appears only when outstanding exceeds the limit |
+| 18.37 ✅ | Credit limit + auto-tags in Sales advisory | New Dispense → pick a customer with a credit limit and/or auto-tags → set Payment to Credit | Advisory panel shows "X of Y limit" (with over-limit flag if applicable) and any auto-tag badges, still purely advisory |
+| 18.38 ✅ | Quick-create still works               | Sales → New Dispense → create a new customer inline (name only)     | Still succeeds even though Contact Person/Phone/City/Region are required on the full form — the API itself doesn't enforce them |
 
 ## 19. Expenses
 

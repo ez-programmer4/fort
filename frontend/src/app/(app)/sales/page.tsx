@@ -72,10 +72,12 @@ type CreditRating = 'UNRATED' | 'GOOD' | 'FAIR' | 'POOR';
 
 interface CustomerCreditSummary {
   creditRating: CreditRating;
+  creditLimit: number;
   creditOrderCount: number;
   settledCount: number;
   outstandingCount: number;
   outstanding: number;
+  autoTags: string[];
 }
 
 const CREDIT_RATING_META: Record<CreditRating, { label: string; badge: string }> = {
@@ -850,10 +852,23 @@ function NewDispense({ locations, onDispensed }: { locations: Option[]; onDispen
                   </span>
                   <span className="text-amber-800">
                     Outstanding: <span className="font-semibold tabular-nums">{money(creditSummary.outstanding)}</span>
+                    {creditSummary.creditLimit > 0 && (
+                      <>
+                        {' '}of <span className="tabular-nums">{money(creditSummary.creditLimit)}</span> limit
+                        {creditSummary.outstanding > creditSummary.creditLimit && (
+                          <span className="ml-1 font-semibold text-red-600">— over limit</span>
+                        )}
+                      </>
+                    )}
                   </span>
                   <span className="text-amber-800">
                     {creditSummary.settledCount}/{creditSummary.creditOrderCount} past credit sales settled
                   </span>
+                  {creditSummary.autoTags.map((t) => (
+                    <span key={t} className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">
+                      {t}
+                    </span>
+                  ))}
                   <span className="text-xs text-amber-600">Advisory only — use your judgment.</span>
                 </div>
               )}

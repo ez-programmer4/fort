@@ -5,6 +5,27 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-20 — Customer: full B2B CRM field set (classification, location, credit limit, buyer tags)
+
+**Phase:** user gave a detailed spec turning Customer into a proper B2B/institutional-buyer record: company name, contact person, phone, alternate phone, email, classification (Pharmacy/Hospital/Clinic/Wholesale/NGO/Primary Healthcare Centre/Government Institution), TIN, City/Region + free-text address details, credit limit, notes, and a buyer-tags system (manual suggested tags + custom tags + auto-detected behavioral tags like "High Volume"/"Cash Buyer").
+
+**Key decision — required fields vs. quick-create:** several fields (Contact Person, Phone, City, Region) were specified as required, but Sales has an inline "quick-create customer" flow (adding a customer mid-sale) that only ever sends a name. Enforcing these at the API level would have broken that flow. Resolved by enforcing "required" only on the frontend Customer management form (native `required` attributes) while keeping the API itself lenient — only `name` (Company Name) is hard-required server-side, same as before. This mirrors the existing "advisory, not blocking" philosophy already used for credit rating in this codebase.
+
+**Backend:**
+- `Customer` gains `contactPerson`, `altPhone`, `classification`, `city`, `region`, `addressDetails`, `creditLimit` (`Decimal @default(0)`), `notes`, `tags` (`Json`, string array — manual tags only) — migration `20260720091114_customer_crm_fields`.
+- `customers.controller.js`: `validate()` extended for all new fields; `classification` checked against a fixed allow-list (`PHARMACY | HOSPITAL | CLINIC | WHOLESALE | NGO | PRIMARY_HEALTHCARE | GOVERNMENT`); `creditLimit` validated as non-negative. `list()` now also searches `contactPerson` and supports a `?classification=` filter. `creditSummary()` now also returns `creditLimit` and a new `autoTags` array — computed live from order history, never stored: **"High Volume"** = 10+ lifetime orders, **"Cash Buyer"** = has ordered at least once and never used credit. Thresholds are simple absolute numbers (not percentiles) so they stay predictable as the customer base grows, and are documented in code for easy adjustment later.
+
+**Frontend (`customers/page.tsx`):**
+- Drawer widened to `lg` to fit the larger form; reorganized into: Company Name / Contact Person + Classification / Phone + Alt Phone / Email + TIN, then bordered sections for Location (City*, Region*, free-text address details), Credit Limit (with a note that it's advisory, shown alongside outstanding balance in Sales), Buyer Tags (suggested-tag toggle pills + custom tag input + read-only auto-tag badges pulled from the credit summary), Additional Notes — ahead of the existing Bank Accounts / Business License / Payment History sections.
+- List table reorganized: added a Classification column and a Contact column, replaced the low-value condensed Bank Accounts column, added email as a secondary line under the company name. New classification filter dropdown next to search.
+- Payment History panel now shows "X of Y limit" next to outstanding, with an "— over limit" flag when outstanding exceeds the credit limit (advisory only, same non-blocking pattern as credit rating).
+
+**Frontend (`sales/page.tsx`):** the Credit-sale advisory panel (shown when Payment = Credit and a customer is picked) now also shows the credit limit ("Outstanding: X of Y limit" with an over-limit flag) and any auto-detected behavioral tags — still purely advisory, never blocks the sale.
+
+**Verified:** live end-to-end — quick-create (name only, mirrors the Sales inline flow) still succeeds; full create with every new field persists correctly; invalid classification and negative credit limit correctly rejected (400s); classification filter returns the right subset; `credit-summary` returns `creditLimit` and correctly empty `autoTags` for a low-order-count customer. `tsc --noEmit` clean, full 19-page HTTP-200 sweep.
+
+---
+
 ## 2026-07-20 — Dashboard: third enhancement pass (calendar-scoped KPIs, Sales Overview granularity, profit-ranked Top Products, richer Fast/Slow Movers)
 
 **Phase:** user gave a detailed spec for the dashboard's next iteration — Monthly Sales and Total Buyers should be scoped to the *current calendar month* (not a rolling 30-day window), Sales Overview needs a Weekly/Monthly/Yearly view toggle, "Top Products" should rank by total gross profit brought in (regardless of margin % or velocity) and show qty sold + revenue + gross profit per row, Fast Movers should show the same three figures but ranked by quantity sold, and Slow Movers should strictly mean zero sales in the last 30 days (or never), showing qty sold (lifetime), qty in stock, and days inactive.

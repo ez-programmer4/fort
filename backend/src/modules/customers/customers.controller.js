@@ -8,21 +8,31 @@ const UPLOAD_DIR = path.join(__dirname, '..', '..', '..', 'uploads', 'customer-l
 
 const SORT_FIELDS = { name: 'name', phone: 'phone', createdAt: 'createdAt' };
 const RATINGS = ['UNRATED', 'GOOD', 'FAIR', 'POOR'];
+const CLASSIFICATIONS = ['PHARMACY', 'HOSPITAL', 'CLINIC', 'WHOLESALE', 'NGO', 'PRIMARY_HEALTHCARE', 'GOVERNMENT'];
+
+// Auto-detected behavioral tags — computed at read time from order history,
+// never stored, so they can't drift out of sync with actual behavior. Kept
+// as simple, easy-to-explain absolute thresholds rather than percentiles,
+// since percentile-based rules silently shift meaning as the customer base
+// grows.
+const HIGH_VOLUME_ORDER_THRESHOLD = 10;
 
 async function list(req, res, next) {
   try {
     const q = String(req.query.q || '').trim();
-    const { active } = req.query;
+    const { active, classification } = req.query;
     const where = {};
     if (q) {
       where.OR = [
         { name: { contains: q, mode: 'insensitive' } },
+        { contactPerson: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q, mode: 'insensitive' } },
         { email: { contains: q, mode: 'insensitive' } },
       ];
     }
     if (active === 'true') where.isActive = true;
     if (active === 'false') where.isActive = false;
+    if (classification) where.classification = String(classification);
     const orderBy = parseSort(req.query, SORT_FIELDS, 'name');
 
     // Without ?page, return a short list for search/quick-create consumers.
@@ -49,17 +59,47 @@ async function list(req, res, next) {
   }
 }
 
+// Company name is the only field truly required at the API level — Sales'
+// quick-create-during-a-sale flow only ever sends a name, and shouldn't be
+// forced through full B2B onboarding mid-checkout. The rest (contact person,
+// phone, city, region) are marked required on the full Customer management
+// form instead — enforced there, not here — so quick-create keeps working.
 function validate(body, partial = false) {
-  const { name, phone, email, tin, bankAccounts, creditRating, licenseNumber } = body || {};
-  if (!partial && (!name || !String(name).trim())) throw new ApiError(400, 'Customer name is required');
+  const {
+    name, contactPerson, phone, altPhone, email, classification, tin,
+    city, region, addressDetails, creditLimit, notes, tags,
+    bankAccounts, creditRating, licenseNumber,
+  } = body || {};
+  if (!partial && (!name || !String(name).trim())) throw new ApiError(400, 'Company name is required');
   const data = {};
   if (name !== undefined) {
-    if (!String(name).trim()) throw new ApiError(400, 'Customer name cannot be empty');
+    if (!String(name).trim()) throw new ApiError(400, 'Company name cannot be empty');
     data.name = String(name).trim();
   }
+  if (contactPerson !== undefined) data.contactPerson = contactPerson ? String(contactPerson).trim() : null;
   if (phone !== undefined) data.phone = phone ? String(phone).trim() : null;
+  if (altPhone !== undefined) data.altPhone = altPhone ? String(altPhone).trim() : null;
   if (email !== undefined) data.email = email ? String(email).trim() : null;
+  if (classification !== undefined) {
+    if (classification && !CLASSIFICATIONS.includes(classification)) {
+      throw new ApiError(400, `classification must be one of: ${CLASSIFICATIONS.join(', ')}`);
+    }
+    data.classification = classification || null;
+  }
   if (tin !== undefined) data.tin = tin ? String(tin).trim() : null;
+  if (city !== undefined) data.city = city ? String(city).trim() : null;
+  if (region !== undefined) data.region = region ? String(region).trim() : null;
+  if (addressDetails !== undefined) data.addressDetails = addressDetails ? String(addressDetails).trim() : null;
+  if (creditLimit !== undefined) {
+    const n = Number(creditLimit);
+    if (!Number.isFinite(n) || n < 0) throw new ApiError(400, 'Credit limit must be a non-negative number');
+    data.creditLimit = n;
+  }
+  if (notes !== undefined) data.notes = notes ? String(notes).trim() : null;
+  if (tags !== undefined) {
+    if (!Array.isArray(tags)) throw new ApiError(400, 'tags must be an array');
+    data.tags = tags.map((t) => String(t).trim()).filter(Boolean);
+  }
   if (licenseNumber !== undefined) data.licenseNumber = licenseNumber ? String(licenseNumber).trim() : null;
   if (creditRating !== undefined) {
     if (!RATINGS.includes(creditRating)) throw new ApiError(400, `creditRating must be one of: ${RATINGS.join(', ')}`);
@@ -182,8 +222,13 @@ async function creditSummary(req, res, next) {
     }
     const outstanding = Math.round((totalCreditAmount - totalPaid) * 100) / 100;
 
+    const autoTags = [];
+    if (orders.length >= HIGH_VOLUME_ORDER_THRESHOLD) autoTags.push('High Volume');
+    if (orders.length > 0 && creditOrders.length === 0) autoTags.push('Cash Buyer');
+
     res.json({
       creditRating: customer.creditRating,
+      creditLimit: Number(customer.creditLimit),
       totalOrders: orders.length,
       creditOrderCount: creditOrders.length,
       settledCount,
@@ -192,6 +237,7 @@ async function creditSummary(req, res, next) {
       totalPaid: Math.round(totalPaid * 100) / 100,
       outstanding,
       lastOrderAt: orders[0]?.createdAt || null,
+      autoTags,
     });
   } catch (err) {
     next(err);
