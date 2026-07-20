@@ -404,6 +404,32 @@ sidebar entry. See section 19.
 | 18.36 ✅ | Credit limit shown in Payment History  | Edit a customer with both a credit limit and outstanding balance    | "Outstanding: X of Y limit" shown; "— over limit" flag appears only when outstanding exceeds the limit |
 | 18.37 ✅ | Credit limit + auto-tags in Sales advisory | New Dispense → pick a customer with a credit limit and/or auto-tags → set Payment to Credit | Advisory panel shows "X of Y limit" (with over-limit flag if applicable) and any auto-tag badges, still purely advisory |
 | 18.38 ✅ | Quick-create still works               | Sales → New Dispense → create a new customer inline (name only)     | Still succeeds even though Contact Person/Phone/City/Region are required on the full form — the API itself doesn't enforce them |
+| 18.39 ✅ | Country / Payment Terms / Withholding  | Edit a customer, fill Country, pick Payment Terms, check Withholding tax applicable, save | All three persist and reappear on reopening Edit                                                     |
+| 18.40 ✅ | Company name links to detail page      | Click a company name in the list                                    | Navigates to `/customers/:id`                                                                         |
+| 18.41 ✅ | "New" badge on recent customers        | A customer created within the last 30 days                          | Green "New" badge next to the company name in the list; disappears once 30 days have passed            |
+| 18.42 ✅ | Activate/Deactivate requires a reason  | Click Deactivate (or Activate) on a row                             | A dialog opens asking for a reason; the button is disabled until a reason is typed; submitting without one shows an error |
+| 18.43 ❌ | Status change without a reason (API-level) | PATCH `/api/customers/:id/status` with no `reason`               | `A reason is required to change status`                                                               |
+| 18.44 ❌ | Status change to the same state (API-level) | PATCH `/api/customers/:id/status` with `isActive` already at that value | `Customer is already active` / `...inactive`                                                    |
+| 18.45 ✅ | Edit deep link from detail page        | Detail page → Edit button                                           | Navigates to `/customers?edit=:id` and opens the Edit drawer pre-filled with that customer's data, even if they're not on the currently-loaded list page |
+
+## 19a. Customer Detail Page (`/customers/:id`)
+
+| #      | Scenario                          | Steps                                                                | Expected                                                                                              |
+| ------ | ---------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 19a.1 ✅ | Company Profile section          | Open a customer's detail page                                       | Contact Person, TIN, Phone, Alt Phone, Email, Buyer Since, Payment Terms, Street Address all shown; Customer Classification shows the classification badge + any buyer tags, or "No classification tags" if none |
+| 19a.2 ✅ | System Insights section          | A customer with any auto-tags (New Buyer / High Volume / Cash Buyer) | Shown as badges, in New Buyer → High Volume → Cash Buyer order; section hidden entirely if there are none |
+| 19a.3 ✅ | Credit Management section        | Check Outstanding, Credit Limit, Available Credit, Unpaid Invoices, Last Payment, Net Balance | All prefixed "Br"; Available Credit = Credit Limit − Outstanding (shown in red if negative)          |
+| 19a.4 ✅ | Account Info section             | Check Buyer ID, Status, Buyer Since, Last Updated                    | Buyer ID shows as "#N"; Last Updated shows "—" if the record has never been edited since creation      |
+| 19a.5 ✅ | Purchase History — with orders   | A customer with real dispense orders                                | Table shows Invoice/Date/Status/Total/Balance Due; Status is Paid (cash or fully-paid credit), Partial, or Unpaid |
+| 19a.6 ✅ | Purchase History — empty         | A customer with no orders                                           | "No purchase history found."                                                                          |
+| 19a.7 ✅ | Payment History — with payments  | A customer with recorded payments                                   | Table shows Date/Invoice/Method/Reference/Amount, most recent first                                    |
+| 19a.8 ✅ | Payment History — empty          | A customer with no payments                                         | "No payments recorded."                                                                                |
+| 19a.9 ✅ | Status Audit Log                 | A customer that's been activated/deactivated at least once           | Table shows Date & Time/Change/Changed By/Reason for each; a customer never toggled shows "No status changes recorded." |
+| 19a.10 ✅ | Account History — Create entry  | A freshly created customer                                           | One numbered entry, "Account Created", with who created it and when; "Show snapshot (N fields changed)" expands to show every field set at creation (just the value, no "from") |
+| 19a.11 ✅ | Account History — Update entry  | Edit a customer, change 2 fields, save                               | New numbered entry, "Details Updated"; snapshot shows only those 2 fields, each as "old → new"          |
+| 19a.12 ✅ | Account History — no-op update  | Edit a customer, change nothing, save                                 | No new Account History entry is created (verified via API: two identical PATCHes produce one existing entry, not a duplicate) |
+| 19a.13 ✅ | Account History — expand/collapse | Click "Show snapshot" / "Hide snapshot"                             | Toggles the diff detail for that entry independently of other entries                                  |
+| 19a.14 ✅ | Detail page — not found          | Visit `/customers/999999` (nonexistent ID)                          | "Customer not found." message, no crash                                                                |
 
 ## 19. Expenses
 

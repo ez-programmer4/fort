@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { api, getTokens } from '@/lib/api';
 import { Drawer } from '@/components/ui/drawer';
 import { Pagination } from '@/components/ui/pagination';
@@ -11,83 +12,19 @@ import { SkeletonRows } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/toast';
 import { SortableHeader, useSort } from '@/components/ui/sortable-header';
 import { Select } from '@/components/ui/select';
+import {
+  type Rating, type Classification, type CustomerRow, type BankAccount, type CreditSummary,
+  RATING_META, RATING_OPTIONS, CLASSIFICATION_META, CLASSIFICATION_OPTIONS,
+  PAYMENT_TERMS_OPTIONS, SUGGESTED_TAGS, money,
+} from './shared';
 
 const input =
   'mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none';
 const label = 'block text-xs font-medium text-slate-600';
 
-type Rating = 'UNRATED' | 'GOOD' | 'FAIR' | 'POOR';
-
-const RATING_META: Record<Rating, { label: string; badge: string }> = {
-  UNRATED: { label: 'Unrated', badge: 'bg-slate-100 text-slate-600' },
-  GOOD: { label: 'Good', badge: 'bg-emerald-50 text-emerald-700' },
-  FAIR: { label: 'Fair', badge: 'bg-amber-50 text-amber-700' },
-  POOR: { label: 'Poor', badge: 'bg-red-50 text-red-700' },
-};
-const RATING_OPTIONS = (Object.keys(RATING_META) as Rating[]).map((r) => ({ value: r, label: RATING_META[r].label }));
-
-type Classification = 'PHARMACY' | 'HOSPITAL' | 'CLINIC' | 'WHOLESALE' | 'NGO' | 'PRIMARY_HEALTHCARE' | 'GOVERNMENT';
-
-const CLASSIFICATION_META: Record<Classification, string> = {
-  PHARMACY: 'Pharmacy',
-  HOSPITAL: 'Hospital',
-  CLINIC: 'Clinic',
-  WHOLESALE: 'Wholesale',
-  NGO: 'NGO',
-  PRIMARY_HEALTHCARE: 'Primary Healthcare Centre',
-  GOVERNMENT: 'Government Institution',
-};
-const CLASSIFICATION_OPTIONS = (Object.keys(CLASSIFICATION_META) as Classification[]).map((c) => ({
-  value: c,
-  label: CLASSIFICATION_META[c],
-}));
-
-// Manually assignable buyer tags. "High Volume" / "Cash Buyer" are NOT in
-// this list — they're auto-detected from order history (see CreditSummary
-// .autoTags) and shown read-only, never manually toggled.
-const SUGGESTED_TAGS = [
-  'Hospital', 'Pharmacy', 'Distributor', 'Government Buyer', 'Wholesale Buyer', 'Retail Buyer', 'VIP Buyer',
-];
-
-function money(v: number) {
-  return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-interface BankAccount {
-  bankName: string;
-  accountNumber: string;
-}
-
-interface LicenseDocument {
-  storedName: string;
-  originalName: string;
-  mimeType: string;
-  size: number;
-  uploadedAt: string;
-}
-
-interface CustomerRow {
-  id: number;
-  name: string;
-  contactPerson: string | null;
-  phone: string | null;
-  altPhone: string | null;
-  email: string | null;
-  classification: Classification | null;
-  tin: string | null;
-  city: string | null;
-  region: string | null;
-  addressDetails: string | null;
-  creditLimit: number;
-  notes: string | null;
-  tags: string[];
-  bankAccounts: BankAccount[];
-  creditRating: Rating;
-  licenseNumber: string | null;
-  licenseDocument: LicenseDocument | null;
-  isActive: boolean;
-  createdAt: string;
-  _count?: { dispenseOrders: number };
+const NEW_BUYER_DAYS = 30;
+function isNewBuyer(createdAt: string) {
+  return (Date.now() - new Date(createdAt).getTime()) / 86400000 <= NEW_BUYER_DAYS;
 }
 
 interface FormState {
@@ -101,27 +38,16 @@ interface FormState {
   tin: string;
   city: string;
   region: string;
+  country: string;
   addressDetails: string;
+  paymentTerms: string;
+  withholdingTaxApplicable: boolean;
   creditLimit: string;
   notes: string;
   tags: string[];
   bankAccounts: BankAccount[];
   creditRating: Rating;
   licenseNumber: string;
-}
-
-interface CreditSummary {
-  creditRating: Rating;
-  creditLimit: number;
-  totalOrders: number;
-  creditOrderCount: number;
-  settledCount: number;
-  outstandingCount: number;
-  totalCreditAmount: number;
-  totalPaid: number;
-  outstanding: number;
-  lastOrderAt: string | null;
-  autoTags: string[];
 }
 
 const emptyForm: FormState = {
@@ -135,7 +61,10 @@ const emptyForm: FormState = {
   tin: '',
   city: '',
   region: '',
+  country: '',
   addressDetails: '',
+  paymentTerms: '',
+  withholdingTaxApplicable: false,
   creditLimit: '',
   notes: '',
   tags: [],
@@ -161,6 +90,9 @@ export default function CustomersPage() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [uploadingLicense, setUploadingLicense] = useState(false);
   const [customTag, setCustomTag] = useState('');
+  const [statusTarget, setStatusTarget] = useState<CustomerRow | null>(null);
+  const [statusReason, setStatusReason] = useState('');
+  const [statusBusy, setStatusBusy] = useState(false);
   const licenseFileRef = useRef<HTMLInputElement>(null);
   const { sortBy, sortDir, toggle } = useSort('name');
   const currentRow = form?.id != null ? rows.find((r) => r.id === form.id) || null : null;
@@ -183,14 +115,47 @@ export default function CustomersPage() {
     load(q, classificationFilter, page, pageSize, sortBy, sortDir).catch((e) => toast.error(e.message));
   }, [q, classificationFilter, page, pageSize, sortBy, sortDir, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Deep links from the command palette: ?q=<term> pre-fills the search,
-  // ?new=1 opens the Add Customer drawer.
+  function openEdit(row: CustomerRow) {
+    setForm({
+      id: row.id,
+      name: row.name,
+      contactPerson: row.contactPerson || '',
+      phone: row.phone || '',
+      altPhone: row.altPhone || '',
+      email: row.email || '',
+      classification: row.classification || '',
+      tin: row.tin || '',
+      city: row.city || '',
+      region: row.region || '',
+      country: row.country || '',
+      addressDetails: row.addressDetails || '',
+      paymentTerms: row.paymentTerms || '',
+      withholdingTaxApplicable: row.withholdingTaxApplicable,
+      creditLimit: row.creditLimit ? String(row.creditLimit) : '',
+      notes: row.notes || '',
+      tags: row.tags || [],
+      bankAccounts: row.bankAccounts || [],
+      creditRating: row.creditRating,
+      licenseNumber: row.licenseNumber || '',
+    });
+  }
+
+  // Deep links: ?q=<term> pre-fills the search (command palette), ?new=1
+  // opens the Add Customer drawer (command palette), ?edit=<id> opens the
+  // Edit drawer for a specific customer (the detail page's Edit button) —
+  // fetched directly since that customer may not be on the current list page.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const qParam = params.get('q');
     if (qParam) setQ(qParam);
     if (params.get('new') === '1') setForm(emptyForm);
-  }, []);
+    const editId = params.get('edit');
+    if (editId) {
+      api<{ customer: CustomerRow }>(`/api/customers/${editId}`)
+        .then((d) => openEdit(d.customer))
+        .catch((e) => toast.error(e.message));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Payment-history summary — the data staff use to decide what to set the
   // rating to. Only exists for an existing customer, not while creating one.
@@ -221,7 +186,10 @@ export default function CustomersPage() {
         tin: form.tin || null,
         city: form.city || null,
         region: form.region || null,
+        country: form.country || null,
         addressDetails: form.addressDetails || null,
+        paymentTerms: form.paymentTerms || null,
+        withholdingTaxApplicable: form.withholdingTaxApplicable,
         creditLimit: form.creditLimit === '' ? 0 : Number(form.creditLimit),
         notes: form.notes || null,
         tags: form.tags,
@@ -282,16 +250,28 @@ export default function CustomersPage() {
     }
   }
 
-  async function toggleActive(row: CustomerRow) {
+  // Activate/deactivate requires a reason — logged to the customer's Status
+  // Audit Log — so it opens a small dialog instead of firing immediately.
+  async function submitStatusChange() {
+    if (!statusTarget) return;
+    const reason = statusReason.trim();
+    if (!reason) {
+      toast.error('A reason is required.');
+      return;
+    }
+    setStatusBusy(true);
     try {
-      await api(`/api/customers/${row.id}`, {
+      await api(`/api/customers/${statusTarget.id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ isActive: !row.isActive }),
+        body: JSON.stringify({ isActive: !statusTarget.isActive, reason }),
       });
-      toast.success(`"${row.name}" ${row.isActive ? 'deactivated' : 'activated'}.`);
+      toast.success(`"${statusTarget.name}" ${statusTarget.isActive ? 'deactivated' : 'activated'}.`);
+      setStatusTarget(null);
       await load(q, classificationFilter, page, pageSize, sortBy, sortDir);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Update failed');
+    } finally {
+      setStatusBusy(false);
     }
   }
 
@@ -411,7 +391,14 @@ export default function CustomersPage() {
               rows.map((row) => (
                 <tr key={row.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-4 py-3">
-                    <span className="font-medium text-slate-900">{row.name}</span>
+                    <Link href={`/customers/${row.id}`} className="font-medium text-slate-900 hover:underline">
+                      {row.name}
+                    </Link>
+                    {isNewBuyer(row.createdAt) && (
+                      <span className="ml-1.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                        New
+                      </span>
+                    )}
                     {row.email && <p className="text-xs text-slate-400">{row.email}</p>}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
@@ -440,33 +427,16 @@ export default function CustomersPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button
-                      onClick={() =>
-                        setForm({
-                          id: row.id,
-                          name: row.name,
-                          contactPerson: row.contactPerson || '',
-                          phone: row.phone || '',
-                          altPhone: row.altPhone || '',
-                          email: row.email || '',
-                          classification: row.classification || '',
-                          tin: row.tin || '',
-                          city: row.city || '',
-                          region: row.region || '',
-                          addressDetails: row.addressDetails || '',
-                          creditLimit: row.creditLimit ? String(row.creditLimit) : '',
-                          notes: row.notes || '',
-                          tags: row.tags || [],
-                          bankAccounts: row.bankAccounts || [],
-                          creditRating: row.creditRating,
-                          licenseNumber: row.licenseNumber || '',
-                        })
-                      }
+                      onClick={() => openEdit(row)}
                       className="text-xs font-medium text-slate-900 underline underline-offset-2"
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => toggleActive(row)}
+                      onClick={() => {
+                        setStatusTarget(row);
+                        setStatusReason('');
+                      }}
                       className="ml-3 text-xs font-medium text-slate-500 hover:underline"
                     >
                       {row.isActive ? 'Deactivate' : 'Activate'}
@@ -568,6 +538,11 @@ export default function CustomersPage() {
                 </div>
               </div>
               <div className="mt-3">
+                <label className="block text-xs text-slate-500">Country</label>
+                <input value={form.country}
+                  onChange={(e) => setForm({ ...form, country: e.target.value })} className={`${input} max-w-64`} />
+              </div>
+              <div className="mt-3">
                 <label className="block text-xs text-slate-500">Additional address details</label>
                 <textarea rows={2} value={form.addressDetails}
                   placeholder="Sub-city, woreda, landmark, building…"
@@ -577,14 +552,37 @@ export default function CustomersPage() {
             </div>
 
             <div className="border-t border-slate-200 pt-4">
-              <label className={label}>Credit limit</label>
-              <input type="number" min="0" step="0.01" value={form.creditLimit}
-                placeholder="0.00"
-                onChange={(e) => setForm({ ...form, creditLimit: e.target.value })}
-                className={`${input} max-w-48`} />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={label}>Credit limit</label>
+                  <input type="number" min="0" step="0.01" value={form.creditLimit}
+                    placeholder="0.00"
+                    onChange={(e) => setForm({ ...form, creditLimit: e.target.value })}
+                    className={input} />
+                </div>
+                <div>
+                  <label className={label}>Payment terms</label>
+                  <Select
+                    value={form.paymentTerms}
+                    onChange={(v) => setForm({ ...form, paymentTerms: v })}
+                    placeholder="Select…"
+                    options={PAYMENT_TERMS_OPTIONS}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
               <p className="mt-1 text-[11px] text-slate-400">
                 Advisory only — shown alongside outstanding balance in Sales when this customer buys on credit.
               </p>
+              <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.withholdingTaxApplicable}
+                  onChange={(e) => setForm({ ...form, withholdingTaxApplicable: e.target.checked })}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                Withholding tax applicable
+              </label>
             </div>
 
             <div className="border-t border-slate-200 pt-4">
@@ -821,6 +819,48 @@ export default function CustomersPage() {
         onConfirm={remove}
         onCancel={() => setConfirmRow(null)}
       />
+
+      {statusTarget && (
+        <div className="fixed inset-0 z-55 flex items-center justify-center p-4 print:hidden" role="alertdialog" aria-modal="true">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setStatusTarget(null)} />
+          <div className="relative w-full max-w-sm rounded-lg bg-white p-5 shadow-2xl">
+            <h3 className="text-sm font-semibold text-slate-900">
+              {statusTarget.isActive ? 'Deactivate' : 'Activate'} customer?
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              <span className="font-medium text-slate-900">{statusTarget.name}</span> will be marked{' '}
+              {statusTarget.isActive ? 'inactive' : 'active'}. This is recorded in the Status Audit Log.
+            </p>
+            <div className="mt-3">
+              <label className={label}>Reason *</label>
+              <textarea
+                required
+                rows={2}
+                value={statusReason}
+                onChange={(e) => setStatusReason(e.target.value)}
+                placeholder="Why is this customer being changed?"
+                className={`${input} resize-none`}
+              />
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setStatusTarget(null)}
+                disabled={statusBusy}
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitStatusChange}
+                disabled={statusBusy || !statusReason.trim()}
+                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+              >
+                {statusBusy ? 'Working…' : statusTarget.isActive ? 'Deactivate' : 'Activate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

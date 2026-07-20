@@ -20,13 +20,14 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  movements        StockMovement[]
-  purchaseOrders   PurchaseOrder[]
-  goodsReceipts    GoodsReceipt[]
-  expensePurchases ExpensePurchase[]
-  dispenseOrders   DispenseOrder[]
-  payments         Payment[]
-  stockTransfers   StockTransfer[]
+  movements         StockMovement[]
+  purchaseOrders    PurchaseOrder[]
+  goodsReceipts     GoodsReceipt[]
+  expensePurchases  ExpensePurchase[]
+  dispenseOrders    DispenseOrder[]
+  payments          Payment[]
+  stockTransfers    StockTransfer[]
+  customerAuditLogs CustomerAuditLog[]
 }
 
 model Role {
@@ -242,30 +243,53 @@ model ExpensePurchase {
 // ── Phase 6: Sales & Dispensing ──────────────────────────────
 
 model Customer {
-  id              Int      @id @default(autoincrement())
-  name            String // "Company Name" in the UI
-  contactPerson   String?
-  phone           String?
-  altPhone        String?
-  email           String?
-  classification  String? // PHARMACY | HOSPITAL | CLINIC | WHOLESALE | NGO | PRIMARY_HEALTHCARE | GOVERNMENT
-  tin             String? // Tax Identification Number
-  city            String?
-  region          String?
-  addressDetails  String? // free-text, additional address details beyond city/region
-  creditLimit     Decimal  @default(0) @db.Decimal(14, 2)
-  notes           String?
-  tags            Json     @default("[]") // manual buyer tags (string[]) — separate from the auto-detected behavioral tags computed at read time (High Volume, Cash Buyer)
-  bankAccounts    Json     @default("[]") // [{ bankName, accountNumber }]
-  creditRating    String   @default("UNRATED") // UNRATED | GOOD | FAIR | POOR — set manually by staff
-  licenseNumber   String? // business license registration number
-  licenseDocument Json? // { storedName, originalName, mimeType, size, uploadedAt } — null until a license file is uploaded
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  id                       Int      @id @default(autoincrement())
+  name                     String // "Company Name" in the UI
+  contactPerson            String?
+  phone                    String?
+  altPhone                 String?
+  email                    String?
+  classification           String? // PHARMACY | HOSPITAL | CLINIC | WHOLESALE | NGO | PRIMARY_HEALTHCARE | GOVERNMENT
+  tin                      String? // Tax Identification Number
+  city                     String?
+  region                   String?
+  country                  String?
+  addressDetails           String? // free-text, additional address details beyond city/region
+  paymentTerms             String? // CASH | NET_15 | NET_30 | NET_60 | DUE_ON_RECEIPT — agreed default, distinct from creditRating (reliability) and per-sale paymentType
+  withholdingTaxApplicable Boolean  @default(false)
+  creditLimit              Decimal  @default(0) @db.Decimal(14, 2)
+  notes                    String?
+  tags                     Json     @default("[]") // manual buyer tags (string[]) — separate from the auto-detected behavioral tags computed at read time (New Buyer, High Volume, Cash Buyer)
+  bankAccounts             Json     @default("[]") // [{ bankName, accountNumber }]
+  creditRating             String   @default("UNRATED") // UNRATED | GOOD | FAIR | POOR — set manually by staff
+  licenseNumber            String? // business license registration number
+  licenseDocument          Json? // { storedName, originalName, mimeType, size, uploadedAt } — null until a license file is uploaded
+  isActive                 Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   dispenseOrders DispenseOrder[]
+  auditLogs      CustomerAuditLog[]
 
   @@index([name])
+}
+
+// Full change history for a customer record — a numbered timeline of every
+// create/update/activate/deactivate, who did it, and (for status changes) why.
+// Diffs are computed once at write time and stored as a snapshot, not
+// recomputed later, so the log stays accurate even if a field is renamed.
+model CustomerAuditLog {
+  id          Int      @id @default(autoincrement())
+  customerId  Int
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  action      String // CREATE | UPDATE | ACTIVATE | DEACTIVATE
+  changes     Json // { field: { from, to } } — empty object for CREATE/ACTIVATE/DEACTIVATE with no field changes
+  reason      String? // required (enforced in the controller) for ACTIVATE/DEACTIVATE only
+  changedById Int?
+  changedBy   User?    @relation(fields: [changedById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([customerId, createdAt])
 }
 
 model DispenseOrder {

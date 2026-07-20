@@ -23,11 +23,16 @@ router.use(requireAuth);
 // activate/deactivate) requires customers.manage.
 router.get('/', requirePermission('customers.manage', 'sales.dispense', 'sales.view', 'dashboard.view'), ctrl.list);
 router.post('/', requirePermission('customers.manage', 'sales.dispense'), ctrl.create);
+router.get('/:id', requirePermission('customers.manage', 'sales.dispense', 'sales.view', 'dashboard.view'), ctrl.getOne);
 router.patch('/:id', requirePermission('customers.manage'), ctrl.update);
+router.patch('/:id/status', requirePermission('customers.manage'), ctrl.setStatus);
 router.delete('/:id', requirePermission('customers.manage'), ctrl.remove);
 // Payment-history summary, used both by customer management (to inform the manual
 // rating) and by the Sales dispense flow (advisory, when a Credit sale is picked).
 router.get('/:id/credit-summary', requirePermission('customers.manage', 'sales.dispense', 'sales.view'), ctrl.creditSummary);
+router.get('/:id/purchase-history', requirePermission('customers.manage', 'sales.dispense', 'sales.view'), ctrl.purchaseHistory);
+router.get('/:id/payment-history', requirePermission('customers.manage', 'sales.dispense', 'sales.view'), ctrl.paymentHistory);
+router.get('/:id/audit-log', requirePermission('customers.manage'), ctrl.auditLog);
 router.post('/:id/license', requirePermission('customers.manage'), upload.single('file'), ctrl.uploadLicense);
 router.get('/:id/license', requirePermission('customers.manage'), ctrl.downloadLicense);
 

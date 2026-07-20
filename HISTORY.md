@@ -5,6 +5,31 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-20 — Customer: detail page, change-history audit log, list improvements
+
+**Phase:** user asked to improve the customer list and provided a detailed mockup of a full Customer Detail page — Company Profile, System Insights (auto-tags), Credit Management, Account Info, Purchase History, Payment History, a Status Audit Log (activation/deactivation with reason), and a full "Account History" change-log timeline with per-field diffs.
+
+**Investigated first:** the existing `/audit` page is purpose-built for `StockMovement` (inventory movements) only — no generic entity-change-log model exists anywhere in the schema. Built a dedicated `CustomerAuditLog` model rather than trying to force-fit the inventory audit trail.
+
+**Schema:**
+- `Customer` gains `country`, `paymentTerms` (`CASH | NET_15 | NET_30 | NET_60 | DUE_ON_RECEIPT`), `withholdingTaxApplicable` (`Boolean`), `updatedAt` (`@updatedAt`).
+- New `CustomerAuditLog` model: `action` (`CREATE | UPDATE | ACTIVATE | DEACTIVATE`), `changes` (`Json`, `{field: {from, to}}`), `reason` (required only for ACTIVATE/DEACTIVATE, enforced in the controller not the schema), `changedById` → `User`, `createdAt`. Cascade-deletes with the customer. Migration `20260720104907_customer_audit_log_and_fields` — needed a manual fix after `prisma migrate dev` refused to add a required `updatedAt` to a non-empty table; added `DEFAULT CURRENT_TIMESTAMP` to the generated SQL for the backfill (Prisma sets it explicitly on every future update regardless of the DB default).
+
+**Backend (`customers.controller.js`):**
+- `create()`/`update()` now compute a diff (`diffForLog()`, Decimal-aware so a same-value credit limit update isn't logged as a spurious change) and write a `CustomerAuditLog` row — `UPDATE` entries are skipped entirely when nothing actually changed (verified: two identical PATCHes in a row produce exactly one log entry, not two).
+- Status changes split into a **new dedicated endpoint**, `PATCH /:id/status` — requires a non-empty `reason`, logs a distinct `ACTIVATE`/`DEACTIVATE` action, and rejects a status change to the value it's already at. The generic `update()` no longer accepts `isActive` at all, forcing all status changes through this path.
+- `creditSummary()` gains a third auto-tag, **"New Buyer"** (created within the last 30 days — same absolute-threshold philosophy as High Volume/Cash Buyer), plus `lastPaymentAt`.
+- New `getOne`, `purchaseHistory` (every dispense order with computed Paid/Partial/Unpaid status and balance due), `paymentHistory` (every payment across the customer's orders), and `auditLog` (the full timeline, with `changedBy` joined for name + role) endpoints.
+
+**Frontend:**
+- New shared module `customers/shared.ts` — types, label maps (Rating, Classification, PaymentTerms), `money()`, and `sortAutoTags()` — imported by both the list and detail pages instead of duplicating them.
+- New `customers/[id]/page.tsx` — the full detail page per the mockup: Company Profile, System Insights (auto-tags), Purchase History / Payment History / Status Audit Log tables, a numbered "Account History" timeline with an expandable field-diff snapshot per entry (shows just the new value for `CREATE`, `old → new` for everything else), Credit Management (Outstanding/Limit/Available/Unpaid Invoices/Last Payment/Net Balance, "Br" prefix per the mockup), and Account Info (Buyer ID, Status, Buyer Since, Last Updated).
+- List page: company name now links to the detail page; a green "New" badge appears next to companies created in the last 30 days (computed client-side from `createdAt`, no extra request); Activate/Deactivate now opens a small reason-required dialog (the old direct-PATCH toggle would have broken against the new reason-required endpoint anyway) instead of firing immediately; added a `?edit=<id>` deep link (fetches that customer directly, since it may not be on the current list page) so the detail page's Edit button can reopen the existing drawer rather than duplicating the form.
+
+**Verified:** live end-to-end — create logs a full-field `CREATE` diff; a single-field update logs only that field; a no-op update (identical values) logs nothing; status change without a reason correctly rejected (400), with a reason correctly logged with the right action; purchase-history/payment-history checked against a real customer with known order/payment data (matches figures already verified earlier in the session); New Buyer tag correctly appears for a fresh customer. `tsc --noEmit` clean, full 19-page sweep plus the new detail page and `?edit=` deep link, all 200 with no rendered errors.
+
+---
+
 ## 2026-07-20 — Customer: full B2B CRM field set (classification, location, credit limit, buyer tags)
 
 **Phase:** user gave a detailed spec turning Customer into a proper B2B/institutional-buyer record: company name, contact person, phone, alternate phone, email, classification (Pharmacy/Hospital/Clinic/Wholesale/NGO/Primary Healthcare Centre/Government Institution), TIN, City/Region + free-text address details, credit limit, notes, and a buyer-tags system (manual suggested tags + custom tags + auto-detected behavioral tags like "High Volume"/"Cash Buyer").
