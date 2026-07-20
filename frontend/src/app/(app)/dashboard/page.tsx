@@ -36,6 +36,20 @@ interface AlertInsight {
   detail: string;
 }
 
+interface FastMover {
+  product: MoverProduct;
+  quantity: number;
+  revenue: number;
+  margin: number;
+}
+
+interface SlowMover {
+  product: MoverProduct & { id: number };
+  qtyInStock: number;
+  qtySold: number;
+  daysInactive: number | null; // null = never sold
+}
+
 interface Overview {
   stock: { products: number; unitsInStock: number; stockValue: number; batchLocations: number };
   sales: {
@@ -43,16 +57,16 @@ interface Overview {
     todayCount: number;
     last7dTotal: number;
     last7dCount: number;
-    last30dTotal: number;
-    last30dCount: number;
-    last30dTrend: number;
+    monthTotal: number;
+    monthCount: number;
+    monthTrend: number;
   };
   unpaidInvoices: { count: number; totalOutstanding: number };
   totalBuyers: number;
   alertCounts: Record<string, number>;
   alertInsights: { lowStock: AlertInsight[]; expiring: AlertInsight[]; overStock: AlertInsight[] };
-  topMovers: { product: MoverProduct | undefined; quantity: number }[];
-  slowMovers: { product: MoverProduct & { id: number }; quantity: number; value: number; soldQty30d: number }[];
+  fastMovers: FastMover[];
+  slowMovers: SlowMover[];
   recentSales: { id: number; dspNumber: string; total: number; paymentType: string; location: string; createdAt: string }[];
 }
 
@@ -111,18 +125,31 @@ interface Analytics {
   }[];
   paymentMix: { cashTotal: number; cashCount: number; creditTotal: number; creditCount: number };
   locationPerformance: { location: { id: number; name: string }; revenue: number; orders: number }[];
+  // Ranked by gross profit (total money brought in), not margin % or velocity.
+  topProducts: ProductStat[];
   charts: {
-    salesOverview: { label: string; revenue: number; orders: number }[];
     salesVsPurchases: { label: string; sales: number; purchases: number }[];
     profitTrend: { label: string; gross: number; net: number }[];
-    topProductsByMargin: ProductStat[];
-    topProductsByVolume: ProductStat[];
-    topProductsByRevenue: ProductStat[];
     monthlyOverview: { label: string; sales: number; purchases: number }[];
   };
 }
 
+type SalesGranularity = 'week' | 'month' | 'year';
+
+const SALES_GRANULARITIES: { key: SalesGranularity; label: string }[] = [
+  { key: 'week', label: 'Weekly' },
+  { key: 'month', label: 'Monthly' },
+  { key: 'year', label: 'Yearly' },
+];
+
+interface SalesOverviewData {
+  granularity: SalesGranularity;
+  series: { label: string; revenue: number; orders: number }[];
+}
+
 function formatAxisLabel(label: string) {
+  if (label.length === 4) return label; // year
+
   if (label.length === 7) {
     return new Date(`${label}-01T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
   }
@@ -160,6 +187,9 @@ export default function DashboardPage() {
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [locationId, setLocationId] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [salesGranularity, setSalesGranularity] = useState<SalesGranularity>('month');
+  const [salesOverview, setSalesOverview] = useState<SalesOverviewData | null>(null);
+  const [salesOverviewLoading, setSalesOverviewLoading] = useState(true);
 
   useEffect(() => {
     api<{ locations: LocationOption[] }>('/api/locations')
@@ -190,6 +220,19 @@ export default function DashboardPage() {
       .finally(() => setAnalyticsLoading(false));
   }, [period, locationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const loadSalesOverview = useCallback(() => {
+    setSalesOverviewLoading(true);
+    const q = new URLSearchParams({ granularity: salesGranularity });
+    if (locationId) q.set('locationId', locationId);
+    return api<SalesOverviewData>(`/api/dashboard/sales-overview?${q}`)
+      .then((d) => {
+        setSalesOverview(d);
+        setLastUpdated(new Date());
+      })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setSalesOverviewLoading(false));
+  }, [salesGranularity, locationId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     loadOverview();
   }, [loadOverview]);
@@ -198,9 +241,14 @@ export default function DashboardPage() {
     loadAnalytics();
   }, [loadAnalytics]);
 
+  useEffect(() => {
+    loadSalesOverview();
+  }, [loadSalesOverview]);
+
   function refresh() {
     loadOverview();
     loadAnalytics();
+    loadSalesOverview();
   }
 
   const quickLinks = [
@@ -269,11 +317,11 @@ export default function DashboardPage() {
             <div className="rounded-lg border border-slate-200 bg-white p-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Monthly Sales</p>
-                <TrendBadge pct={data.sales.last30dTrend} />
+                <TrendBadge pct={data.sales.monthTrend} />
               </div>
-              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{money(data.sales.last30dTotal)}</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{money(data.sales.monthTotal)}</p>
               <p className="text-[11px] text-slate-400">
-                {data.sales.last30dCount} sale(s) · {money(data.sales.todayTotal)} today
+                {data.sales.monthCount} sale(s) this month · {money(data.sales.todayTotal)} today
               </p>
             </div>
             <Link
@@ -415,6 +463,63 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <div className="mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-slate-900">Sales Overview</h3>
+            <p className="text-xs text-slate-500">Revenue and order volume — weekly, monthly, or yearly.</p>
+          </div>
+          <div className="flex rounded-md border border-slate-300 bg-white p-0.5">
+            {SALES_GRANULARITIES.map((g) => (
+              <button
+                key={g.key}
+                onClick={() => setSalesGranularity(g.key)}
+                className={`rounded px-3 py-1.5 text-xs font-medium transition ${
+                  salesGranularity === g.key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {salesOverviewLoading && !salesOverview && (
+          <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="h-56 animate-pulse rounded-lg border border-slate-200 bg-slate-50" />
+            ))}
+          </div>
+        )}
+
+        {salesOverview && (
+          <div className={`mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2 ${salesOverviewLoading ? 'opacity-60 transition-opacity' : 'transition-opacity'}`}>
+            <div className="rounded-lg border border-slate-200 bg-white p-5">
+              <h4 className="text-sm font-semibold text-slate-900">Revenue</h4>
+              <div className="mt-3">
+                <TrendChart
+                  data={salesOverview.series}
+                  series={[{ key: 'revenue', label: 'Revenue', color: CHART_BLUE }]}
+                  formatValue={money}
+                  formatAxisLabel={formatAxisLabel}
+                />
+              </div>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-5">
+              <h4 className="text-sm font-semibold text-slate-900">Order Volume</h4>
+              <div className="mt-3">
+                <TrendChart
+                  data={salesOverview.series}
+                  series={[{ key: 'orders', label: 'Orders', color: CHART_SLATE }]}
+                  formatValue={(v) => v.toLocaleString()}
+                  formatAxisLabel={formatAxisLabel}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {analyticsLoading && !analytics && (
         <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -453,35 +558,6 @@ export default function DashboardPage() {
                 {money(analytics.profit.current.net)}
               </p>
               <p className="text-[11px] text-slate-400">vs {money(analytics.profit.previous.net)} previous period</p>
-            </div>
-          </div>
-
-          <div className="mt-6">
-            <h3 className="text-base font-semibold text-slate-900">Sales Overview</h3>
-            <p className="text-xs text-slate-500">Revenue and order volume for the selected period.</p>
-            <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-lg border border-slate-200 bg-white p-5">
-                <h4 className="text-sm font-semibold text-slate-900">Revenue</h4>
-                <div className="mt-3">
-                  <TrendChart
-                    data={analytics.charts.salesOverview}
-                    series={[{ key: 'revenue', label: 'Revenue', color: CHART_BLUE }]}
-                    formatValue={money}
-                    formatAxisLabel={formatAxisLabel}
-                  />
-                </div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-5">
-                <h4 className="text-sm font-semibold text-slate-900">Order Volume</h4>
-                <div className="mt-3">
-                  <TrendChart
-                    data={analytics.charts.salesOverview}
-                    series={[{ key: 'orders', label: 'Orders', color: CHART_SLATE }]}
-                    formatValue={(v) => v.toLocaleString()}
-                    formatAxisLabel={formatAxisLabel}
-                  />
-                </div>
-              </div>
             </div>
           </div>
 
@@ -573,93 +649,138 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="mt-6">
-            <h3 className="text-base font-semibold text-slate-900">Top Products</h3>
-            <p className="text-xs text-slate-500">Fast movers by revenue, margin, and volume for the selected period.</p>
-            <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <div className="rounded-lg border border-slate-200 bg-white p-5">
-                <h4 className="text-sm font-semibold text-slate-900">By Revenue</h4>
-                <div className="mt-3">
-                  <RankBars
-                    rows={analytics.charts.topProductsByRevenue.map((p) => ({
-                      label: p.product.genericName,
-                      sublabel: p.product.code,
-                      value: p.revenue,
-                    }))}
-                    color={CHART_BLUE}
-                    formatValue={money}
-                  />
-                </div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-5">
-                <h4 className="text-sm font-semibold text-slate-900">By Margin</h4>
-                <div className="mt-3">
-                  <RankBars
-                    rows={analytics.charts.topProductsByMargin.map((p) => ({
-                      label: p.product.genericName,
-                      sublabel: p.product.code,
-                      value: p.margin,
-                    }))}
-                    color={CHART_GREEN}
-                    formatValue={money}
-                  />
-                </div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-5">
-                <h4 className="text-sm font-semibold text-slate-900">By Volume</h4>
-                <div className="mt-3">
-                  <RankBars
-                    rows={analytics.charts.topProductsByVolume.map((p) => ({
-                      label: p.product.genericName,
-                      sublabel: `${p.quantity} ${p.product.dispenseUnit || 'unit(s)'}`,
-                      value: p.quantity,
-                    }))}
-                    color={CHART_SLATE}
-                    formatValue={(v) => v.toLocaleString()}
-                  />
-                </div>
-              </div>
+          <div className="mt-6 rounded-lg border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-5 py-3">
+              <h3 className="text-sm font-semibold text-slate-900">Top Products</h3>
+              <p className="text-xs text-slate-500">
+                Ranked by total gross profit brought in for the selected period — regardless of margin per unit or how fast they move.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-5 py-2.5">#</th>
+                    <th className="px-2 py-2.5">Product</th>
+                    <th className="px-2 py-2.5 text-right">Qty Sold</th>
+                    <th className="px-2 py-2.5 text-right">Revenue</th>
+                    <th className="px-5 py-2.5 text-right">Gross Profit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analytics.topProducts.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-5 py-6 text-center text-slate-400">
+                        No sales in this period.
+                      </td>
+                    </tr>
+                  )}
+                  {analytics.topProducts.map((p, i) => (
+                    <tr key={p.product.code} className="border-b border-slate-100 last:border-0">
+                      <td className="px-5 py-2.5 text-slate-400">{i + 1}</td>
+                      <td className="px-2 py-2.5">
+                        <span className="font-medium text-slate-900">{p.product.genericName}</span>
+                        <span className="ml-1 font-mono text-xs text-slate-400">{p.product.code}</span>
+                      </td>
+                      <td className="px-2 py-2.5 text-right tabular-nums text-slate-600">
+                        {p.quantity.toLocaleString()} <span className="text-xs text-slate-400">{p.product.dispenseUnit || ''}</span>
+                      </td>
+                      <td className="px-2 py-2.5 text-right tabular-nums text-slate-900">{money(p.revenue)}</td>
+                      <td className="px-5 py-2.5 text-right tabular-nums font-semibold text-slate-900">{money(p.margin)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
           {data && (
-            <div className="mt-6">
-              <h3 className="text-base font-semibold text-slate-900">Fast &amp; Slow Movers</h3>
-              <p className="text-xs text-slate-500">Fixed 30-day window, independent of the period filter above.</p>
-              <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className="rounded-lg border border-slate-200 bg-white p-5">
-                  <h4 className="text-sm font-semibold text-slate-900">Fast Movers</h4>
-                  <p className="text-xs text-slate-500">Top sellers in the last 30 days.</p>
-                  <div className="mt-3">
-                    <RankBars
-                      rows={data.topMovers
-                        .filter((m) => m.product)
-                        .map((m) => ({
-                          label: m.product!.genericName,
-                          sublabel: `${m.product!.code} · ${m.quantity} ${m.product!.dispenseUnit || 'unit(s)'} sold`,
-                          value: m.quantity,
-                        }))}
-                      color={CHART_GREEN}
-                      formatValue={(v) => v.toLocaleString()}
-                      emptyText="No dispensing activity in the last 30 days."
-                    />
-                  </div>
+            <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 bg-white">
+                <div className="border-b border-slate-200 px-5 py-3">
+                  <h3 className="text-sm font-semibold text-slate-900">Fast Movers</h3>
+                  <p className="text-xs text-slate-500">Top sellers by quantity in the last 30 days.</p>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-5">
-                  <h4 className="text-sm font-semibold text-slate-900">Slow Movers</h4>
-                  <p className="text-xs text-slate-500">Sitting in stock — push or discount.</p>
-                  <div className="mt-3">
-                    <RankBars
-                      rows={data.slowMovers.map((m) => ({
-                        label: m.product.genericName,
-                        sublabel: `${m.product.code} · ${m.soldQty30d} sold in 30d`,
-                        value: m.value,
-                      }))}
-                      color={CHART_AMBER}
-                      formatValue={money}
-                      emptyText="Nothing sitting idle — everything in stock has recent sales."
-                    />
-                  </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="px-4 py-2.5">Product</th>
+                        <th className="px-2 py-2.5 text-right">Qty Sold</th>
+                        <th className="px-2 py-2.5 text-right">Revenue</th>
+                        <th className="px-4 py-2.5 text-right">Gross Profit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.fastMovers.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                            No dispensing activity in the last 30 days.
+                          </td>
+                        </tr>
+                      )}
+                      {data.fastMovers.map((m) => (
+                        <tr key={m.product.code} className="border-b border-slate-100 last:border-0">
+                          <td className="px-4 py-2.5">
+                            <span className="font-medium text-slate-900">{m.product.genericName}</span>
+                            <span className="ml-1 font-mono text-xs text-slate-400">{m.product.code}</span>
+                          </td>
+                          <td className="px-2 py-2.5 text-right tabular-nums text-slate-600">
+                            {m.quantity.toLocaleString()} <span className="text-xs text-slate-400">{m.product.dispenseUnit || ''}</span>
+                          </td>
+                          <td className="px-2 py-2.5 text-right tabular-nums text-slate-900">{money(m.revenue)}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-slate-900">{money(m.margin)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white">
+                <div className="border-b border-slate-200 px-5 py-3">
+                  <h3 className="text-sm font-semibold text-slate-900">Slow Movers</h3>
+                  <p className="text-xs text-slate-500">In stock, no sales in the last 30 days (or never) — push or discount.</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="px-4 py-2.5">Product</th>
+                        <th className="px-2 py-2.5 text-right">Qty Sold</th>
+                        <th className="px-2 py-2.5 text-right">In Stock</th>
+                        <th className="px-4 py-2.5 text-right">Days Inactive</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.slowMovers.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                            Nothing sitting idle — everything in stock has recent sales.
+                          </td>
+                        </tr>
+                      )}
+                      {data.slowMovers.map((m) => (
+                        <tr key={m.product.code} className="border-b border-slate-100 last:border-0">
+                          <td className="px-4 py-2.5">
+                            <span className="font-medium text-slate-900">{m.product.genericName}</span>
+                            <span className="ml-1 font-mono text-xs text-slate-400">{m.product.code}</span>
+                          </td>
+                          <td className="px-2 py-2.5 text-right tabular-nums text-slate-600">{m.qtySold.toLocaleString()}</td>
+                          <td className="px-2 py-2.5 text-right tabular-nums text-slate-600">
+                            {m.qtyInStock.toLocaleString()} <span className="text-xs text-slate-400">{m.product.dispenseUnit || ''}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            {m.daysInactive === null ? (
+                              <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Never sold</span>
+                            ) : (
+                              <span className="tabular-nums font-semibold text-amber-700">{m.daysInactive}d</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

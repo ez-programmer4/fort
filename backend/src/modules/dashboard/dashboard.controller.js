@@ -3,10 +3,10 @@ const { buildAlerts } = require('../alerts/alerts.controller');
 
 const round2 = (v) => Math.round(v * 100) / 100;
 
-// "Slow mover" ranking: in-stock products with the least (or zero) dispensing
-// activity over the lookback window, ranked by how much money is tied up in
-// them — the ones most worth pushing or discounting first.
-const SLOW_MOVER_COUNT = 6;
+// Slow movers: in-stock products with zero sales in the lookback window —
+// ranked with never-sold-at-all first, then by longest since the last sale.
+const SLOW_MOVER_COUNT = 8;
+const MOVER_LOOKBACK_DAYS = 30;
 
 async function overview(req, res, next) {
   try {
@@ -14,8 +14,9 @@ async function overview(req, res, next) {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
-    const sixtyDaysAgo = new Date(now.getTime() - 60 * 86400000);
+    const thirtyDaysAgo = new Date(now.getTime() - MOVER_LOOKBACK_DAYS * 86400000);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
     const whereLoc = locationId ? { locationId } : {};
 
@@ -24,9 +25,9 @@ async function overview(req, res, next) {
       productCount,
       salesToday,
       sales7d,
-      sales30d,
-      sales30dPrev,
-      topMoverGroups,
+      salesMonth,
+      salesPrevMonth,
+      fastMoverStats,
       soldQty30dGroups,
       recentSales,
       alerts,
@@ -58,28 +59,23 @@ async function overview(req, res, next) {
         _count: true,
       }),
       prisma.dispenseOrder.aggregate({
-        where: { createdAt: { gte: thirtyDaysAgo }, ...whereLoc },
+        where: { createdAt: { gte: startOfMonth }, ...whereLoc },
         _sum: { total: true },
         _count: true,
       }),
       prisma.dispenseOrder.aggregate({
-        where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo }, ...whereLoc },
+        where: { createdAt: { gte: startOfPrevMonth, lt: startOfMonth }, ...whereLoc },
         _sum: { total: true },
       }),
+      // Fast movers: top sellers in the fixed 30-day lookback, with revenue
+      // and gross profit alongside quantity — reuses the same per-product
+      // aggregation the period-scoped Top Products table uses.
+      productStats(thirtyDaysAgo, now, locationId, 5),
+      // Every in-stock product's 30-day sold qty (not just the top 5) — used
+      // to find slow-mover candidates (qty === 0 in this window).
       prisma.dispenseItem.groupBy({
         by: ['productId'],
-        where: {
-          dispenseOrder: { createdAt: { gte: thirtyDaysAgo }, ...whereLoc },
-        },
-        _sum: { quantity: true },
-        orderBy: { _sum: { quantity: 'desc' } },
-        take: 5,
-      }),
-      prisma.dispenseItem.groupBy({
-        by: ['productId'],
-        where: {
-          dispenseOrder: { createdAt: { gte: thirtyDaysAgo }, ...whereLoc },
-        },
+        where: { dispenseOrder: { createdAt: { gte: thirtyDaysAgo }, ...whereLoc } },
         _sum: { quantity: true },
       }),
       prisma.dispenseOrder.findMany({
@@ -95,7 +91,7 @@ async function overview(req, res, next) {
       }),
       prisma.dispenseOrder.groupBy({
         by: ['customerId'],
-        where: { customerId: { not: null }, ...whereLoc },
+        where: { customerId: { not: null }, createdAt: { gte: startOfMonth }, ...whereLoc },
       }),
     ]);
 
@@ -105,15 +101,7 @@ async function overview(req, res, next) {
     }, 0);
     const unitsInStock = stocks.reduce((s, st) => s + st.quantity, 0);
 
-    const moverProducts = await prisma.product.findMany({
-      where: { id: { in: topMoverGroups.map((g) => g.productId) } },
-      select: { id: true, code: true, genericName: true, brandName: true, dispenseUnit: true },
-    });
-    const byId = new Map(moverProducts.map((p) => [p.id, p]));
-    const topMovers = topMoverGroups.map((g) => ({
-      product: byId.get(g.productId),
-      quantity: g._sum.quantity || 0,
-    }));
+    const fastMovers = fastMoverStats.byVolume;
 
     const alertCounts = {};
     for (const a of alerts) alertCounts[a.type] = (alertCounts[a.type] || 0) + 1;
@@ -128,22 +116,53 @@ async function overview(req, res, next) {
       overStock: alerts.filter((a) => a.type === 'OVER_STOCK').sort(bySeverityDesc).slice(0, 3),
     };
 
-    // Slow movers: products sitting in stock with the least (or zero) sales
-    // in the last 30 days, ranked by stock value — the most money tied up
-    // in the slowest-moving inventory, i.e. what to push or discount first.
+    // Slow movers: in-stock products with zero sales in the last 30 days
+    // (strictly zero — a product that sold even once recently isn't "slow").
     const soldMap = new Map(soldQty30dGroups.map((g) => [g.productId, g._sum.quantity || 0]));
     const stockByProduct = new Map();
     for (const st of stocks) {
       const p = st.batch.product;
-      const cost = st.batch.unitCost != null ? Number(st.batch.unitCost) : Number(p.unitPrice);
-      const cur = stockByProduct.get(p.id) || { product: p, quantity: 0, value: 0 };
+      const cur = stockByProduct.get(p.id) || { product: p, quantity: 0 };
       cur.quantity += st.quantity;
-      cur.value += st.quantity * cost;
       stockByProduct.set(p.id, cur);
     }
-    const slowMovers = [...stockByProduct.values()]
-      .map((x) => ({ ...x, value: round2(x.value), soldQty30d: soldMap.get(x.product.id) || 0 }))
-      .sort((a, b) => a.soldQty30d - b.soldQty30d || b.value - a.value)
+    const slowCandidates = [...stockByProduct.values()].filter((x) => !(soldMap.get(x.product.id) > 0));
+
+    let lifetimeByProduct = new Map();
+    if (slowCandidates.length > 0) {
+      const lifetimeItems = await prisma.dispenseItem.findMany({
+        where: {
+          productId: { in: slowCandidates.map((x) => x.product.id) },
+          ...(locationId ? { dispenseOrder: { locationId } } : {}),
+        },
+        select: { productId: true, quantity: true, dispenseOrder: { select: { createdAt: true } } },
+      });
+      for (const it of lifetimeItems) {
+        const cur = lifetimeByProduct.get(it.productId) || { qty: 0, lastSaleAt: null };
+        cur.qty += it.quantity;
+        const d = it.dispenseOrder.createdAt;
+        if (!cur.lastSaleAt || d > cur.lastSaleAt) cur.lastSaleAt = d;
+        lifetimeByProduct.set(it.productId, cur);
+      }
+    }
+    const slowMovers = slowCandidates
+      .map((x) => {
+        const life = lifetimeByProduct.get(x.product.id);
+        const lastSaleAt = life?.lastSaleAt || null;
+        const daysInactive = lastSaleAt ? Math.floor((now.getTime() - new Date(lastSaleAt).getTime()) / 86400000) : null;
+        return {
+          product: x.product,
+          qtyInStock: x.quantity,
+          qtySold: life?.qty || 0, // lifetime, not just the 30-day window
+          daysInactive, // null = never sold
+        };
+      })
+      .sort((a, b) => {
+        if (a.daysInactive === null && b.daysInactive === null) return b.qtyInStock - a.qtyInStock;
+        if (a.daysInactive === null) return -1; // never sold is the most urgent
+        if (b.daysInactive === null) return 1;
+        return b.daysInactive - a.daysInactive;
+      })
       .slice(0, SLOW_MOVER_COUNT);
 
     const unpaidInvoices = creditOrders.reduce(
@@ -171,15 +190,15 @@ async function overview(req, res, next) {
         todayCount: salesToday._count,
         last7dTotal: Number(sales7d._sum.total || 0),
         last7dCount: sales7d._count,
-        last30dTotal: Number(sales30d._sum.total || 0),
-        last30dCount: sales30d._count,
-        last30dTrend: pctChange(Number(sales30d._sum.total || 0), Number(sales30dPrev._sum.total || 0)),
+        monthTotal: Number(salesMonth._sum.total || 0),
+        monthCount: salesMonth._count,
+        monthTrend: pctChange(Number(salesMonth._sum.total || 0), Number(salesPrevMonth._sum.total || 0)),
       },
       unpaidInvoices,
       totalBuyers: buyerGroups.length,
       alertCounts,
       alertInsights,
-      topMovers,
+      fastMovers,
       slowMovers,
       recentSales: recentSales.map((o) => ({
         id: o.id,
@@ -221,15 +240,24 @@ function granularityFor(period) {
   return 'day';
 }
 
+// Local-calendar date formatting — deliberately NOT toISOString(), which
+// converts to UTC and silently shifts a local midnight (e.g. the 1st of a
+// month) into the previous day/month whenever the server runs ahead of UTC
+// (as East Africa Time, UTC+3, does). bucketKey and bucketLabels must format
+// dates identically or a data point's key won't match any label's bucket.
+const pad2 = (n) => String(n).padStart(2, '0');
+const dayKey = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const monthKey = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+
 function bucketKey(date, granularity) {
   const d = new Date(date);
-  if (granularity === 'day') return d.toISOString().slice(0, 10);
   if (granularity === 'week') {
     const dow = (d.getDay() + 6) % 7; // Monday = 0
-    const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow);
-    return monday.toISOString().slice(0, 10);
+    return dayKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow));
   }
-  return d.toISOString().slice(0, 7); // YYYY-MM
+  if (granularity === 'year') return String(d.getFullYear());
+  if (granularity === 'month') return monthKey(d);
+  return dayKey(d);
 }
 
 function bucketLabels(start, end, granularity) {
@@ -238,7 +266,7 @@ function bucketLabels(start, end, granularity) {
     const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
     const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
     while (cur <= last) {
-      labels.push(cur.toISOString().slice(0, 10));
+      labels.push(dayKey(cur));
       cur.setDate(cur.getDate() + 1);
     }
   } else if (granularity === 'week') {
@@ -246,18 +274,30 @@ function bucketLabels(start, end, granularity) {
     const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate() - dow);
     const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
     while (cur <= last) {
-      labels.push(cur.toISOString().slice(0, 10));
+      labels.push(dayKey(cur));
       cur.setDate(cur.getDate() + 7);
     }
+  } else if (granularity === 'year') {
+    for (let y = start.getFullYear(); y <= end.getFullYear(); y++) labels.push(String(y));
   } else {
     const cur = new Date(start.getFullYear(), start.getMonth(), 1);
     const last = new Date(end.getFullYear(), end.getMonth(), 1);
     while (cur <= last) {
-      labels.push(cur.toISOString().slice(0, 7));
+      labels.push(monthKey(cur));
       cur.setMonth(cur.getMonth() + 1);
     }
   }
   return labels;
+}
+
+// Default range per Sales Overview granularity toggle — independent of the
+// Performance Overview period selector, since the user drives this chart's
+// window directly (weekly/monthly/yearly), not via day-count presets.
+function salesOverviewRange(granularity) {
+  const now = new Date();
+  if (granularity === 'year') return { start: new Date(now.getFullYear() - 4, 0, 1), end: now };
+  if (granularity === 'week') return { start: new Date(now.getTime() - 12 * 7 * 86400000), end: now };
+  return { start: new Date(now.getFullYear(), now.getMonth() - 11, 1), end: now }; // month
 }
 
 function pctChange(cur, prev) {
@@ -497,7 +537,6 @@ async function analytics(req, res, next) {
       currentProfit,
       previousProfit,
       customers,
-      salesOverview,
       salesVsPurchases,
       profitTrend,
       products,
@@ -508,10 +547,9 @@ async function analytics(req, res, next) {
       computeProfitTotals(start, end, locationId),
       computeProfitTotals(prevStart, prevEnd, locationId),
       topCustomers(start, end, locationId),
-      salesOverviewSeries(start, end, granularity, locationId),
       salesVsPurchasesSeries(start, end, granularity, locationId),
       profitSeries(start, end, granularity, locationId),
-      productStats(start, end, locationId),
+      productStats(start, end, locationId, 10),
       salesVsPurchasesSeries(twelveMoStart, now, 'month', locationId),
       paymentMix(start, end, locationId),
       locationPerformance(start, end),
@@ -531,13 +569,12 @@ async function analytics(req, res, next) {
       topCustomers: customers,
       paymentMix: mix,
       locationPerformance: locationRows,
+      // Ranked by gross profit (total money brought in) — not by margin % or
+      // sales velocity, per the requested "top products" definition.
+      topProducts: products.byMargin,
       charts: {
-        salesOverview,
         salesVsPurchases,
         profitTrend,
-        topProductsByMargin: products.byMargin,
-        topProductsByVolume: products.byVolume,
-        topProductsByRevenue: products.byRevenue,
         monthlyOverview,
       },
     });
@@ -546,4 +583,18 @@ async function analytics(req, res, next) {
   }
 }
 
-module.exports = { overview, analytics };
+// Sales Overview chart — independent of the Performance Overview period
+// selector, driven by its own Weekly/Monthly/Yearly toggle.
+async function salesOverview(req, res, next) {
+  try {
+    const granularity = ['week', 'month', 'year'].includes(req.query.granularity) ? req.query.granularity : 'month';
+    const locationId = req.query.locationId ? Number(req.query.locationId) : undefined;
+    const { start, end } = salesOverviewRange(granularity);
+    const series = await salesOverviewSeries(start, end, granularity, locationId);
+    res.json({ granularity, series });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { overview, analytics, salesOverview };

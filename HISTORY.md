@@ -5,6 +5,30 @@ Each entry: date, phase/module, what was done, and any decisions made.
 
 ---
 
+## 2026-07-20 — Dashboard: third enhancement pass (calendar-scoped KPIs, Sales Overview granularity, profit-ranked Top Products, richer Fast/Slow Movers)
+
+**Phase:** user gave a detailed spec for the dashboard's next iteration — Monthly Sales and Total Buyers should be scoped to the *current calendar month* (not a rolling 30-day window), Sales Overview needs a Weekly/Monthly/Yearly view toggle, "Top Products" should rank by total gross profit brought in (regardless of margin % or velocity) and show qty sold + revenue + gross profit per row, Fast Movers should show the same three figures but ranked by quantity sold, and Slow Movers should strictly mean zero sales in the last 30 days (or never), showing qty sold (lifetime), qty in stock, and days inactive.
+
+**Backend (`dashboard.controller.js`):**
+- `overview()`: `sales.last30dTotal/Count/Trend` → `sales.monthTotal/monthCount/monthTrend`, now computed from the start of the current calendar month vs. the full previous calendar month (was a rolling 30-day/60-day-prior window). `totalBuyers` now scoped to `createdAt >= startOfMonth` (was all-time).
+- `fastMovers` (was `topMovers`): now built by calling the existing `productStats()` helper over the fixed 30-day window and taking `.byVolume` — gives quantity, revenue, and gross profit per product in one call, reusing the same per-item aggregation the period-scoped Top Products table already used, instead of a separate quantity-only `groupBy`.
+- `slowMovers`: redefined to a strict filter — in-stock products with **zero** sales in the last 30 days (previously it just sorted ascending by 30-day quantity and could include products that had sold a little). For candidates, a follow-up query fetches all-time `DispenseItem`s to compute lifetime quantity sold and the most recent sale date; `daysInactive` is `null` for a product that has never sold (ranked first, as the most urgent) and otherwise the days since its last sale (ranked longest-inactive-first). Dropped the old stock-value(money) ranking in favor of this recency/lifetime-demand framing per the new spec.
+- `analytics()`: dropped `topProductsByMargin/byVolume/byRevenue` (3 separate rankings) in favor of one `topProducts` field — `productStats().byMargin` (already = total gross profit per product, not per-unit margin), limit raised to 10 rows. Removed `salesOverview` from this endpoint entirely — it's now its own dedicated, independently-toggled endpoint (see below).
+- New `GET /api/dashboard/sales-overview?granularity=week|month|year`: revenue + order count per bucket, decoupled from the Performance Overview period selector so this one chart can be viewed weekly (last 12 weeks), monthly (last 12 months), or yearly (last 5 years) on its own. Reuses the existing `salesOverviewSeries()` helper, just with a new `salesOverviewRange()` picking the default window per granularity. `bucketKey`/`bucketLabels` extended to support `'year'`.
+- **Bug found and fixed while testing the new granularity**: `bucketKey`/`bucketLabels` built calendar buckets via `Date.prototype.toISOString()`, which converts to UTC — on a server running ahead of UTC (this one: East Africa Time, UTC+3), a locally-constructed "1st of the month at midnight" lands at 21:00 the *previous* day in UTC, so `.toISOString().slice(0,7)` silently returned the wrong month for every month/day/week bucket. This was a **pre-existing bug**, not something introduced by this change — it was already silently mislabeling the "Monthly Performance Overview (last 12 months)" chart and any day/week bucketed chart. Fixed by replacing all `toISOString()`-based formatting in these two functions with explicit local-calendar-component formatting (`getFullYear()/getMonth()/getDate()`, zero-padded), so bucket keys and bucket labels are always constructed the same way and always reflect local calendar time. Verified: the current month's real sales data (13,766.74) now lands in the "2026-07" bucket instead of "2026-06".
+
+**Frontend (`dashboard/page.tsx`):**
+- Monthly Sales KPI card now reads `monthTotal/monthCount/monthTrend`.
+- Sales Overview is now its own independently-fetched section (own loading state, own `useEffect`) with a Weekly/Monthly/Yearly toggle button group — no longer tied to the Performance Overview 7d/30d/90d/12m period selector. `formatAxisLabel` extended to pass 4-character year labels through unformatted.
+- Top Products: the old 3-panel (By Revenue / By Margin / By Volume) `RankBars` row replaced with one table — # / Product / Qty Sold / Revenue / Gross Profit — sorted by gross profit.
+- Fast Movers: `RankBars` (quantity only) replaced with a table — Product / Qty Sold / Revenue / Gross Profit — ranked by quantity sold.
+- Slow Movers: `RankBars` (stock value) replaced with a table — Product / Qty Sold (lifetime) / In Stock / Days Inactive, with a red "Never sold" badge in place of a day count for products with no sales history at all.
+- The refresh button now also re-fires the Sales Overview fetch.
+
+**Verified:** `node --check` on the controller. Live checks: `sales.monthTotal/monthCount/monthTrend` and `totalBuyers` scoped correctly to the current month; `fastMovers` returns quantity+revenue+margin per product ranked by quantity; `slowMovers` correctly flags never-sold products (`daysInactive: null`); `analytics().topProducts` ranked by gross profit descending; `/sales-overview` checked across week/month/year — after the timezone fix, month buckets correctly span 2025-08→2026-07 with real revenue landing in the current month, year buckets 2022–2026, week buckets weekly-aligned. All four analytics periods and all three granularities re-checked end-to-end (200 OK). `tsc --noEmit` clean, full 19-page HTTP-200 sweep, no rendered errors.
+
+---
+
 ## 2026-07-20 — Customer: TIN and business license (number + document upload)
 
 **Phase:** user asked to add TIN and a license — captured as a license number plus an uploadable license document, mirroring Supplier's existing `tin` field and the file-upload pattern already used for Sales attachments.
